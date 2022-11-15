@@ -3,17 +3,9 @@
 
 load_drivers()
 {
-	echo "Loading arm-ffa-user..."
-	if ! grep -qs 'arm-ffa-user' /proc/modules; then
-		insmod /root/arm-ffa-user.ko
-	fi
-}
-
-mount_debugfs()
-{
-	echo "Mounting debugfs..."
-	if ! grep -qs 'debugfs' /proc/mounts; then
-		mount -t debugfs debugfs /sys/kernel/debug/
+	echo "Loading arm-ffa-tee..."
+	if ! grep -qs 'arm-ffa-tee' /proc/modules; then
+		insmod /root/arm-ffa-tee.ko
 	fi
 }
 
@@ -26,7 +18,6 @@ start_tee_supplicant()
 case "$1" in
 	start)
 		load_drivers
-		mount_debugfs
 		start_tee_supplicant
 		;;
 	stop)
