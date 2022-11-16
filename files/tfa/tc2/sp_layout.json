@@ -9,6 +9,11 @@
 		"pm": "crypto.dts"
 	},
 
+	"firmware-update" : {
+		"image": "firmware-update.bin",
+		"pm": "firmware-update.dts"
+	},
+
 	"op-tee" : {
 		"image": "tee-pager_v2.bin",
 		"pm": "optee_sp_manifest.dts"
