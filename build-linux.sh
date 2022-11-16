@@ -39,7 +39,7 @@ do_build() {
     for config in ${!lconfig}; do
         CONFIG=$CONFIG"$CFG_DIR/$config "
     done
-    CONFIG=$CONFIG"$LINUX_SRC/arch/arm64/configs/gki_defconfig"
+    CONFIG="$LINUX_SRC/arch/arm64/configs/gki_defconfig "$CONFIG
     pushd $LINUX_SRC
     scripts/kconfig/merge_config.sh -O $LINUX_OUTDIR -m $CONFIG
     make O=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- olddefconfig
