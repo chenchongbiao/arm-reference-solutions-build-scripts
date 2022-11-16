@@ -44,7 +44,7 @@ do_build() {
 
     popd
 
-    if [[ $TFA_GPT_SUPPORT -eq 1 ]]; then
+    if [[ $TC_FWU_SUPPORT -eq 1 ]]; then
         do_generate_gpt
     fi
 
@@ -165,7 +165,7 @@ do_deploy() {
     ln -s $TFA_OUTDIR/build/$TFA_PLATFORM/$BUILD_TYPE/bl1.bin $DEPLOY_DIR/$PLATFORM/bl1-tc.bin 2>/dev/null || :
     ln -s $TFA_OUTDIR/build/$TFA_PLATFORM/$BUILD_TYPE/bl1/bl1.elf $DEPLOY_DIR/$PLATFORM/bl1-tc.elf 2>/dev/null || :
     ln -s $TFA_OUTDIR/build/$TFA_PLATFORM/$BUILD_TYPE/fip.bin $DEPLOY_DIR/$PLATFORM/fip-tc.bin 2>/dev/null || :
-    if [[ $TFA_GPT_SUPPORT -eq 1 ]]; then
+    if [[ $TC_FWU_SUPPORT -eq 1 ]]; then
         ln -s $TFA_OUTDIR/build/$TFA_PLATFORM/$BUILD_TYPE/fip_gpt.bin $DEPLOY_DIR/$PLATFORM/fip_gpt-tc.bin 2>/dev/null || :
     fi
 }
