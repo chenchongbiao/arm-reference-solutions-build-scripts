@@ -1,7 +1,7 @@
-From efcf0179303d43f128678badf6d4760d78ffdb89 Mon Sep 17 00:00:00 2001
+From b929dbaf391a4f82da5a2e06a6d914d62afda6ea Mon Sep 17 00:00:00 2001
 From: Davidson K <davidson.kumaresan@arm.com>
 Date: Fri, 25 Jun 2021 19:46:32 +0530
-Subject: [PATCH 2/6] Create a platform for total compute
+Subject: [PATCH 01/14] Create a platform for total compute
 
 It is currently using mock driver for the TRNG.
 
@@ -42,5 +42,5 @@ index 0000000..4793c0c
 +	target_sources(${TGT} PRIVATE "${TS_ROOT}/platform/drivers/mock/mock_trng.c")
 +endif()
 -- 
-2.17.1
+2.34.1
 

@@ -1,0 +1,431 @@
+From 3652695c39ea72938edb9e0b9ea51446481850e3 Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Mon, 23 May 2022 19:29:14 +0530
+Subject: [PATCH 04/14] fwu: make the files added from TF-A-TESTS to be
+ compatible with TS
+
+This includes:
+  * including appropriate header files
+  * removing unwanted code
+  * adapt nvm read and write functions for compatibility
+  * rename fwu_nvm.h to fwu_nvm_accessors.h
+  * adding component.cmake file
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+Change-Id: Ia7567d92fe480db87b0a08a04b901c2edf2c78f6
+---
+ .../firmware_update/backend/arm_io_storage.c  |  11 +-
+ .../firmware_update/backend/arm_io_storage.h  |  24 ++++
+ .../firmware_update/backend/component.cmake   |  20 +++
+ .../service/firmware_update/backend/fwu_nvm.h |  36 -----
+ .../backend/fwu_nvm_accessors.c               | 126 ++----------------
+ .../backend/fwu_nvm_accessors.h               |  24 ++++
+ platform/drivers/arm/io/io_storage.c          |   4 +-
+ .../vexpress_nor/io_vexpress_nor_internal.h   |   6 +-
+ .../arm/total_compute/platform.cmake          |   9 +-
+ 9 files changed, 98 insertions(+), 162 deletions(-)
+ create mode 100644 components/service/firmware_update/backend/arm_io_storage.h
+ create mode 100644 components/service/firmware_update/backend/component.cmake
+ delete mode 100644 components/service/firmware_update/backend/fwu_nvm.h
+ create mode 100644 components/service/firmware_update/backend/fwu_nvm_accessors.h
+
+diff --git a/components/service/firmware_update/backend/arm_io_storage.c b/components/service/firmware_update/backend/arm_io_storage.c
+index 3fdaf8c..26619d0 100644
+--- a/components/service/firmware_update/backend/arm_io_storage.c
++++ b/components/service/firmware_update/backend/arm_io_storage.c
+@@ -1,16 +1,15 @@
+ /*
+- * Copyright (c) 2018, Arm Limited. All rights reserved.
++ * Copyright (c) 2018-2022, Arm Limited. All rights reserved.
+  *
+  * SPDX-License-Identifier: BSD-3-Clause
+  */
+ 
++#include <arm_io_storage.h>
+ #include <assert.h>
+-#include <drivers/io/io_driver.h>
+-#include <drivers/io/io_nor_flash.h>
++#include <io_driver.h>
++#include <io_nor_flash.h>
+ #include <io_storage.h>
+-#include <platform.h>
+-#include <tftf.h>
+-#include "platform_def.h"
++#include <platform_def.h>
+ 
+ #pragma weak plat_get_nvm_handle
+ 
+diff --git a/components/service/firmware_update/backend/arm_io_storage.h b/components/service/firmware_update/backend/arm_io_storage.h
+new file mode 100644
+index 0000000..2673605
+--- /dev/null
++++ b/components/service/firmware_update/backend/arm_io_storage.h
+@@ -0,0 +1,24 @@
++/*
++ * Copyright (c) 2022, ARM Limited and Contributors. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef ARM_IO_STORAGE_H
++#define ARM_IO_STORAGE_H
++
++#include <stdint.h>
++
++/*
++ * Initialises the IO
++ * Returns: IO_SUCCESS
++ *          IO_FAIL
++ *          IO_NOT_SUPPORTED
++ *          IO_RESOURCES_EXHAUSTED
++ */
++int arm_io_setup(void);
++
++/* Gets a handle for the initialised IO entity */
++void plat_get_nvm_handle(uintptr_t *handle);
++
++#endif /* ARM_IO_STORAGE_H */
+diff --git a/components/service/firmware_update/backend/component.cmake b/components/service/firmware_update/backend/component.cmake
+new file mode 100644
+index 0000000..7742a41
+--- /dev/null
++++ b/components/service/firmware_update/backend/component.cmake
+@@ -0,0 +1,20 @@
++#-------------------------------------------------------------------------------
++# Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++#
++# SPDX-License-Identifier: BSD-3-Clause
++#
++#-------------------------------------------------------------------------------
++if (NOT DEFINED TGT)
++	message(FATAL_ERROR "mandatory parameter TGT is not defined.")
++endif()
++
++target_sources(${TGT} PRIVATE
++	"${CMAKE_CURRENT_LIST_DIR}/fwu_nvm_accessors.c"
++	"${CMAKE_CURRENT_LIST_DIR}/arm_io_storage.c"
++	)
++
++target_include_directories(${TGT} PRIVATE "${CMAKE_CURRENT_LIST_DIR}")
++
++set_property(TARGET ${TGT} APPEND PROPERTY TS_PLATFORM_DRIVER_DEPENDENCIES
++	"nor_flash"
++	)
+diff --git a/components/service/firmware_update/backend/fwu_nvm.h b/components/service/firmware_update/backend/fwu_nvm.h
+deleted file mode 100644
+index d6557ae..0000000
+--- a/components/service/firmware_update/backend/fwu_nvm.h
++++ /dev/null
+@@ -1,36 +0,0 @@
+-/*
+- * Copyright (c) 2018-2020, Arm Limited. All rights reserved.
+- *
+- * SPDX-License-Identifier: BSD-3-Clause
+- */
+-
+-#ifndef __FWU_NVM_H__
+-#define __FWU_NVM_H__
+-
+-#include <nvm.h>
+-#include <platform_def.h>
+-
+-#define FIP_IMAGE_UPDATE_DONE_FLAG		(0xDEADBEEF)
+-
+-#define FWU_TFTF_TESTCASE_BUFFER_OFFSET		\
+-		(TFTF_NVM_OFFSET + TFTF_STATE_OFFSET(testcase_buffer))
+-
+-/* Writes the buffer to the flash at offset with length equal to
+- * size
+- * Returns: STATUS_FAIL, STATUS_SUCCESS, STATUS_OUT_OF_RESOURCES
+- */
+-STATUS fwu_nvm_write(unsigned long long offset, const void *buffer, size_t size);
+-
+-/* Reads the flash into buffer at offset with length equal to
+- * size
+- * Returns: STATUS_FAIL, STATUS_SUCCESS, STATUS_OUT_OF_RESOURCES
+- */
+-STATUS fwu_nvm_read(unsigned long long offset, void *buffer, size_t size);
+-
+-/*
+- * This function is used to replace the original fip.bin
+- * by the backup fip.bin passed through fip_addr argument.
+- */
+-STATUS fwu_update_fip(unsigned long fip_addr);
+-
+-#endif /* __FWU_NVM_H__ */
+diff --git a/components/service/firmware_update/backend/fwu_nvm_accessors.c b/components/service/firmware_update/backend/fwu_nvm_accessors.c
+index ec8bb71..87f1223 100644
+--- a/components/service/firmware_update/backend/fwu_nvm_accessors.c
++++ b/components/service/firmware_update/backend/fwu_nvm_accessors.c
+@@ -1,30 +1,21 @@
+ /*
+- * Copyright (c) 2018, Arm Limited. All rights reserved.
++ * Copyright (c) 2018-2022, Arm Limited. All rights reserved.
+  *
+  * SPDX-License-Identifier: BSD-3-Clause
+  */
+ 
+-#include <assert.h>
+-#include <debug.h>
+-#include <drivers/io/io_fip.h>
+-#include <firmware_image_package.h>
+-#include <fwu_nvm.h>
++#include <arm_io_storage.h>
+ #include <io_storage.h>
+-#include <platform.h>
+ #include <platform_def.h>
+-#include <status.h>
+-#include <string.h>
+-#include <uuid_utils.h>
+ 
+-
+-STATUS fwu_nvm_write(unsigned long long offset, const void *buffer, size_t size)
++int fwu_nvm_write(unsigned long long offset, const void *buffer, size_t size)
+ {
+ 	uintptr_t nvm_handle;
+ 	int ret;
+ 	size_t length_write;
+ 
+ 	if (offset + size > FLASH_SIZE)
+-		return STATUS_OUT_OF_RESOURCES;
++		return IO_FAIL;
+ 
+ 	/* Obtain a handle to the NVM by querying the platfom layer */
+ 	plat_get_nvm_handle(&nvm_handle);
+@@ -32,25 +23,25 @@ STATUS fwu_nvm_write(unsigned long long offset, const void *buffer, size_t size)
+ 	/* Seek to the given offset. */
+ 	ret = io_seek(nvm_handle, IO_SEEK_SET, offset);
+ 	if (ret != IO_SUCCESS)
+-		return STATUS_FAIL;
++		return ret;
+ 
+ 	/* Write to the given offset. */
+ 	ret = io_write(nvm_handle, (const uintptr_t)buffer,
+ 		size, &length_write);
+ 	if ((ret != IO_SUCCESS) || (size != length_write))
+-		return STATUS_FAIL;
++		return IO_FAIL;
+ 
+-	return STATUS_SUCCESS;
++	return IO_SUCCESS;
+ }
+ 
+-STATUS fwu_nvm_read(unsigned long long offset, void *buffer, size_t size)
++int fwu_nvm_read(unsigned long long offset, void *buffer, size_t size)
+ {
+ 	uintptr_t nvm_handle;
+ 	int ret;
+ 	size_t length_read;
+ 
+ 	if (offset + size > FLASH_SIZE)
+-		return STATUS_OUT_OF_RESOURCES;
++		return IO_FAIL;
+ 
+ 	/* Obtain a handle to the NVM by querying the platform layer */
+ 	plat_get_nvm_handle(&nvm_handle);
+@@ -58,107 +49,14 @@ STATUS fwu_nvm_read(unsigned long long offset, void *buffer, size_t size)
+ 	/* Seek to the given offset. */
+ 	ret = io_seek(nvm_handle, IO_SEEK_SET, offset);
+ 	if (ret != IO_SUCCESS)
+-		return STATUS_FAIL;
++		return IO_FAIL;
+ 
+ 	/* Read from the given offset. */
+ 	ret = io_read(nvm_handle, (const uintptr_t)buffer,
+ 		size, &length_read);
+ 	if ((ret != IO_SUCCESS) || (size != length_read))
+-		return STATUS_FAIL;
+-
+-	return STATUS_SUCCESS;
+-}
+-
+-
+-STATUS fwu_update_fip(unsigned long fip_addr)
+-{
+-	uintptr_t nvm_handle;
+-	int ret;
+-	size_t bytes;
+-	int fip_size;
+-	unsigned int fip_read;
+-	fip_toc_header_t *toc_header;
+-	fip_toc_entry_t *toc_entry;
+-
+-	/* Obtain a handle to the NVM by querying the platform layer */
+-	plat_get_nvm_handle(&nvm_handle);
+-
+-#if FWU_BL_TEST
+-	/* Read the address of backup fip.bin for Firmware Update. */
+-	ret = io_seek(nvm_handle, IO_SEEK_SET,
+-			FWU_TFTF_TESTCASE_BUFFER_OFFSET);
+-	if (ret != IO_SUCCESS)
+-		return STATUS_FAIL;
+-
+-	ret = io_read(nvm_handle, (const uintptr_t)&fip_addr,
+-			sizeof(bytes), &bytes);
+-	if (ret != IO_SUCCESS)
+-		return STATUS_FAIL;
+-#endif /* FWU_BL_TEST */
+-
+-	/* If the new FIP address is 0 it means no update. */
+-	if (fip_addr == 0)
+-		return STATUS_SUCCESS;
+-
+-	/* Set the ToC Header at the base of the buffer */
+-	toc_header = (fip_toc_header_t *)fip_addr;
+-
+-	/* Check if this FIP is Valid */
+-	if ((toc_header->name != TOC_HEADER_NAME) ||
+-		(toc_header->serial_number == 0))
+-		return STATUS_LOAD_ERROR;
+-
+-	/* Get to the last NULL TOC entry */
+-	toc_entry = (fip_toc_entry_t *)(toc_header + 1);
+-	while (!is_uuid_null(&toc_entry->uuid))
+-		toc_entry++;
+-
+-	/* get the total size of this FIP */
+-	fip_size = (int)toc_entry->offset_address;
+-
+-	/* Copy the new FIP in DDR. */
+-	memcpy((void *)FIP_IMAGE_TMP_DDR_ADDRESS, (void *)fip_addr, fip_size);
+-
+-	/* Update the FIP */
+-	ret = io_seek(nvm_handle, IO_SEEK_SET, 0);
+-	if (ret != IO_SUCCESS)
+-		return STATUS_FAIL;
+-
+-	ret = io_write(nvm_handle, (const uintptr_t)FIP_IMAGE_TMP_DDR_ADDRESS,
+-			fip_size, &bytes);
+-	if ((ret != IO_SUCCESS) || fip_size != bytes)
+-		return STATUS_LOAD_ERROR;
+-
+-	/* Read the TOC header after update. */
+-	ret = io_seek(nvm_handle, IO_SEEK_SET, 0);
+-	if (ret != IO_SUCCESS)
+-		return STATUS_LOAD_ERROR;
+-
+-	ret = io_read(nvm_handle, (const uintptr_t)&fip_read,
+-		sizeof(bytes), &bytes);
+-	if (ret != IO_SUCCESS)
+-		return STATUS_FAIL;
+-
+-	/* Check if this FIP is Valid */
+-	if (fip_read != TOC_HEADER_NAME)
+-		return STATUS_LOAD_ERROR;
+-
+-#if FWU_BL_TEST
+-	unsigned int done_flag = FIP_IMAGE_UPDATE_DONE_FLAG;
+-	/* Update the TFTF test case buffer with DONE flag */
+-	ret = io_seek(nvm_handle, IO_SEEK_SET,
+-			FWU_TFTF_TESTCASE_BUFFER_OFFSET);
+-	if (ret != IO_SUCCESS)
+-		return STATUS_FAIL;
+-
+-	ret = io_write(nvm_handle, (const uintptr_t)&done_flag,
+-			4, &bytes);
+-	if (ret != IO_SUCCESS)
+-		return STATUS_FAIL;
+-#endif /* FWU_BL_TEST */
+-
+-	INFO("FWU Image update success\n");
++		return IO_FAIL;
+ 
+-	return STATUS_SUCCESS;
++	return IO_SUCCESS;
+ }
+ 
+diff --git a/components/service/firmware_update/backend/fwu_nvm_accessors.h b/components/service/firmware_update/backend/fwu_nvm_accessors.h
+new file mode 100644
+index 0000000..22b7951
+--- /dev/null
++++ b/components/service/firmware_update/backend/fwu_nvm_accessors.h
+@@ -0,0 +1,24 @@
++/*
++ * Copyright (c) 2018-2022, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef __FWU_NVM_ACCESSORS_H__
++#define __FWU_NVM_ACCESSORS_H__
++
++#include <stddef.h>
++
++/* Writes the buffer to the flash at offset with length equal to
++ * size
++ * Returns: STATUS_FAIL, STATUS_SUCCESS, STATUS_OUT_OF_RESOURCES
++ */
++int fwu_nvm_write(unsigned long long offset, const void *buffer, size_t size);
++
++/* Reads the flash into buffer at offset with length equal to
++ * size
++ * Returns: STATUS_FAIL, STATUS_SUCCESS, STATUS_OUT_OF_RESOURCES
++ */
++int fwu_nvm_read(unsigned long long offset, void *buffer, size_t size);
++
++#endif /* __FWU_NVM_ACCESSORS_H__ */
+diff --git a/platform/drivers/arm/io/io_storage.c b/platform/drivers/arm/io/io_storage.c
+index 9a45da2..46373ff 100644
+--- a/platform/drivers/arm/io/io_storage.c
++++ b/platform/drivers/arm/io/io_storage.c
+@@ -1,11 +1,11 @@
+ /*
+- * Copyright (c) 2018, Arm Limited. All rights reserved.
++ * Copyright (c) 2018-2022, Arm Limited. All rights reserved.
+  *
+  * SPDX-License-Identifier: BSD-3-Clause
+  */
+ 
+ #include <assert.h>
+-#include <drivers/io/io_driver.h>
++#include <io_driver.h>
+ #include <io_storage.h>
+ #include <platform_def.h>
+ #include <stddef.h>
+diff --git a/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_internal.h b/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_internal.h
+index 328be06..98fc49a 100644
+--- a/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_internal.h
++++ b/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_internal.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2018, Arm Limited. All rights reserved.
++ * Copyright (c) 2018-2022, Arm Limited. All rights reserved.
+  *
+  * SPDX-License-Identifier: BSD-3-Clause
+  */
+@@ -7,8 +7,8 @@
+ #ifndef __IO_VEXPRESS_NOR_INTERNAL_H__
+ #define __IO_VEXPRESS_NOR_INTERNAL_H__
+ 
+-#include <drivers/io/io_driver.h>
+-#include <drivers/io/io_nor_flash.h>
++#include <io_driver.h>
++#include <io_nor_flash.h>
+ #include <io_storage.h>
+ 
+ #define IS_FLASH_ADDRESS_BLOCK_ALIGNED(fp, addr) \
+diff --git a/platform/providers/arm/total_compute/platform.cmake b/platform/providers/arm/total_compute/platform.cmake
+index 4793c0c..59fd985 100644
+--- a/platform/providers/arm/total_compute/platform.cmake
++++ b/platform/providers/arm/total_compute/platform.cmake
+@@ -1,5 +1,5 @@
+ #-------------------------------------------------------------------------------
+-# Copyright (c) 2021, Arm Limited and Contributors. All rights reserved.
++# Copyright (c) 2021-2022, Arm Limited and Contributors. All rights reserved.
+ #
+ # SPDX-License-Identifier: BSD-3-Clause
+ #
+@@ -21,3 +21,10 @@ get_property(_platform_driver_dependencies TARGET ${TGT}
+ if ("trng" IN_LIST _platform_driver_dependencies)
+ 	target_sources(${TGT} PRIVATE "${TS_ROOT}/platform/drivers/mock/mock_trng.c")
+ endif()
++
++if ("nor_flash" IN_LIST _platform_driver_dependencies)
++	target_include_directories(${TGT} PRIVATE "${TS_ROOT}/platform/interface/io")
++	target_sources(${TGT} PRIVATE "${TS_ROOT}/platform/drivers/arm/io/io_storage.c")
++	target_sources(${TGT} PRIVATE "${TS_ROOT}/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_hw.c")
++	target_sources(${TGT} PRIVATE "${TS_ROOT}/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_ops.c")
++endif()
+-- 
+2.34.1
+

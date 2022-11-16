@@ -1,0 +1,1739 @@
+From 1344f17be40cec4b60bd6168b7443c90c8fed923 Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Mon, 23 May 2022 17:25:26 +0530
+Subject: [PATCH 02/14] fwu: add io drivers from tf-a-tests tagged v2.7-rc0
+
+                    TRUSTED-SERVICES                              |                TF-A-TESTS
+components/service/firmware_update/backend/arm_io_storage.c       |   plat/arm/common/arm_io_storage.c
+components/service/firmware_update/backend/fwu_nvm.h              |   include/common/fwu_nvm.h
+components/service/firmware_update/backend/fwu_nvm_accessors.c    |   plat/common/fwu_nvm_accessors.c
+platform/drivers/arm/io/io_storage.c                              |   drivers/io/io_storage.c
+platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_hw.c         |   drivers/io/vexpress_nor/io_vexpress_nor_hw.c
+platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_internal.h   |   drivers/io/vexpress_nor/io_vexpress_nor_internal.h
+platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_ops.c        |   drivers/io/vexpress_nor/io_vexpress_nor_ops.c
+platform/drivers/arm/io/vexpress_nor/norflash.h                   |   drivers/io/vexpress_nor/norflash.h
+platform/interface/io/io_driver.h                                 |   include/drivers/io/io_driver.h
+platform/interface/io/io_nor_flash.h                              |   include/drivers/io/io_nor_flash.h
+platform/interface/io/io_storage.h                                |   include/lib/io_storage.h
+
+The files are added as it is without any modification.
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+Change-Id: Ifae2ac572409b13f8ed2a506934c251bc4f1e4bc
+---
+ .../firmware_update/backend/arm_io_storage.c  |  65 +++
+ .../service/firmware_update/backend/fwu_nvm.h |  36 ++
+ .../backend/fwu_nvm_accessors.c               | 164 +++++++
+ platform/drivers/arm/io/io_storage.c          | 349 ++++++++++++++
+ .../arm/io/vexpress_nor/io_vexpress_nor_hw.c  | 454 ++++++++++++++++++
+ .../vexpress_nor/io_vexpress_nor_internal.h   |  39 ++
+ .../arm/io/vexpress_nor/io_vexpress_nor_ops.c | 278 +++++++++++
+ .../drivers/arm/io/vexpress_nor/norflash.h    |  41 ++
+ platform/interface/io/io_driver.h             |  59 +++
+ platform/interface/io/io_nor_flash.h          |  32 ++
+ platform/interface/io/io_storage.h            | 106 ++++
+ 11 files changed, 1623 insertions(+)
+ create mode 100644 components/service/firmware_update/backend/arm_io_storage.c
+ create mode 100644 components/service/firmware_update/backend/fwu_nvm.h
+ create mode 100644 components/service/firmware_update/backend/fwu_nvm_accessors.c
+ create mode 100644 platform/drivers/arm/io/io_storage.c
+ create mode 100644 platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_hw.c
+ create mode 100644 platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_internal.h
+ create mode 100644 platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_ops.c
+ create mode 100644 platform/drivers/arm/io/vexpress_nor/norflash.h
+ create mode 100644 platform/interface/io/io_driver.h
+ create mode 100644 platform/interface/io/io_nor_flash.h
+ create mode 100644 platform/interface/io/io_storage.h
+
+diff --git a/components/service/firmware_update/backend/arm_io_storage.c b/components/service/firmware_update/backend/arm_io_storage.c
+new file mode 100644
+index 0000000..3fdaf8c
+--- /dev/null
++++ b/components/service/firmware_update/backend/arm_io_storage.c
+@@ -0,0 +1,65 @@
++/*
++ * Copyright (c) 2018, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <assert.h>
++#include <drivers/io/io_driver.h>
++#include <drivers/io/io_nor_flash.h>
++#include <io_storage.h>
++#include <platform.h>
++#include <tftf.h>
++#include "platform_def.h"
++
++#pragma weak plat_get_nvm_handle
++
++/* IO devices */
++static const io_dev_connector_t *flash_dev_con;
++static uintptr_t flash_dev_spec;
++static uintptr_t flash_init_params;
++static uintptr_t flash_dev_handle;
++static uintptr_t flash_handle;
++static unsigned int flash_init;
++
++static const io_nor_flash_spec_t flash_main_block_spec = {
++	.device_address = FLASH_BASE,
++	.region_address = FLASH_BASE,
++	.block_size = NOR_FLASH_BLOCK_SIZE,
++	.block_count = FLASH_SIZE / NOR_FLASH_BLOCK_SIZE
++};
++
++int arm_io_setup(void)
++{
++	int io_result;
++
++	io_result = register_io_dev_nor_flash(&flash_dev_con);
++	if (io_result != IO_SUCCESS)
++		return io_result;
++
++	io_result = io_dev_open(flash_dev_con, flash_dev_spec,
++				&flash_dev_handle);
++	if (io_result != IO_SUCCESS)
++		return io_result;
++
++	io_result = io_dev_init(flash_dev_handle, flash_init_params);
++	if (io_result != IO_SUCCESS)
++		return io_result;
++
++	io_result = io_open(flash_dev_handle,
++				(uintptr_t)&flash_main_block_spec,
++				 &flash_handle);
++
++	if (io_result == IO_SUCCESS)
++		flash_init = 1;
++	return io_result;
++}
++
++void plat_get_nvm_handle(uintptr_t *handle)
++{
++	assert(handle);
++	assert(flash_init);
++
++	*handle = flash_handle;
++}
++
+diff --git a/components/service/firmware_update/backend/fwu_nvm.h b/components/service/firmware_update/backend/fwu_nvm.h
+new file mode 100644
+index 0000000..d6557ae
+--- /dev/null
++++ b/components/service/firmware_update/backend/fwu_nvm.h
+@@ -0,0 +1,36 @@
++/*
++ * Copyright (c) 2018-2020, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef __FWU_NVM_H__
++#define __FWU_NVM_H__
++
++#include <nvm.h>
++#include <platform_def.h>
++
++#define FIP_IMAGE_UPDATE_DONE_FLAG		(0xDEADBEEF)
++
++#define FWU_TFTF_TESTCASE_BUFFER_OFFSET		\
++		(TFTF_NVM_OFFSET + TFTF_STATE_OFFSET(testcase_buffer))
++
++/* Writes the buffer to the flash at offset with length equal to
++ * size
++ * Returns: STATUS_FAIL, STATUS_SUCCESS, STATUS_OUT_OF_RESOURCES
++ */
++STATUS fwu_nvm_write(unsigned long long offset, const void *buffer, size_t size);
++
++/* Reads the flash into buffer at offset with length equal to
++ * size
++ * Returns: STATUS_FAIL, STATUS_SUCCESS, STATUS_OUT_OF_RESOURCES
++ */
++STATUS fwu_nvm_read(unsigned long long offset, void *buffer, size_t size);
++
++/*
++ * This function is used to replace the original fip.bin
++ * by the backup fip.bin passed through fip_addr argument.
++ */
++STATUS fwu_update_fip(unsigned long fip_addr);
++
++#endif /* __FWU_NVM_H__ */
+diff --git a/components/service/firmware_update/backend/fwu_nvm_accessors.c b/components/service/firmware_update/backend/fwu_nvm_accessors.c
+new file mode 100644
+index 0000000..ec8bb71
+--- /dev/null
++++ b/components/service/firmware_update/backend/fwu_nvm_accessors.c
+@@ -0,0 +1,164 @@
++/*
++ * Copyright (c) 2018, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <assert.h>
++#include <debug.h>
++#include <drivers/io/io_fip.h>
++#include <firmware_image_package.h>
++#include <fwu_nvm.h>
++#include <io_storage.h>
++#include <platform.h>
++#include <platform_def.h>
++#include <status.h>
++#include <string.h>
++#include <uuid_utils.h>
++
++
++STATUS fwu_nvm_write(unsigned long long offset, const void *buffer, size_t size)
++{
++	uintptr_t nvm_handle;
++	int ret;
++	size_t length_write;
++
++	if (offset + size > FLASH_SIZE)
++		return STATUS_OUT_OF_RESOURCES;
++
++	/* Obtain a handle to the NVM by querying the platfom layer */
++	plat_get_nvm_handle(&nvm_handle);
++
++	/* Seek to the given offset. */
++	ret = io_seek(nvm_handle, IO_SEEK_SET, offset);
++	if (ret != IO_SUCCESS)
++		return STATUS_FAIL;
++
++	/* Write to the given offset. */
++	ret = io_write(nvm_handle, (const uintptr_t)buffer,
++		size, &length_write);
++	if ((ret != IO_SUCCESS) || (size != length_write))
++		return STATUS_FAIL;
++
++	return STATUS_SUCCESS;
++}
++
++STATUS fwu_nvm_read(unsigned long long offset, void *buffer, size_t size)
++{
++	uintptr_t nvm_handle;
++	int ret;
++	size_t length_read;
++
++	if (offset + size > FLASH_SIZE)
++		return STATUS_OUT_OF_RESOURCES;
++
++	/* Obtain a handle to the NVM by querying the platform layer */
++	plat_get_nvm_handle(&nvm_handle);
++
++	/* Seek to the given offset. */
++	ret = io_seek(nvm_handle, IO_SEEK_SET, offset);
++	if (ret != IO_SUCCESS)
++		return STATUS_FAIL;
++
++	/* Read from the given offset. */
++	ret = io_read(nvm_handle, (const uintptr_t)buffer,
++		size, &length_read);
++	if ((ret != IO_SUCCESS) || (size != length_read))
++		return STATUS_FAIL;
++
++	return STATUS_SUCCESS;
++}
++
++
++STATUS fwu_update_fip(unsigned long fip_addr)
++{
++	uintptr_t nvm_handle;
++	int ret;
++	size_t bytes;
++	int fip_size;
++	unsigned int fip_read;
++	fip_toc_header_t *toc_header;
++	fip_toc_entry_t *toc_entry;
++
++	/* Obtain a handle to the NVM by querying the platform layer */
++	plat_get_nvm_handle(&nvm_handle);
++
++#if FWU_BL_TEST
++	/* Read the address of backup fip.bin for Firmware Update. */
++	ret = io_seek(nvm_handle, IO_SEEK_SET,
++			FWU_TFTF_TESTCASE_BUFFER_OFFSET);
++	if (ret != IO_SUCCESS)
++		return STATUS_FAIL;
++
++	ret = io_read(nvm_handle, (const uintptr_t)&fip_addr,
++			sizeof(bytes), &bytes);
++	if (ret != IO_SUCCESS)
++		return STATUS_FAIL;
++#endif /* FWU_BL_TEST */
++
++	/* If the new FIP address is 0 it means no update. */
++	if (fip_addr == 0)
++		return STATUS_SUCCESS;
++
++	/* Set the ToC Header at the base of the buffer */
++	toc_header = (fip_toc_header_t *)fip_addr;
++
++	/* Check if this FIP is Valid */
++	if ((toc_header->name != TOC_HEADER_NAME) ||
++		(toc_header->serial_number == 0))
++		return STATUS_LOAD_ERROR;
++
++	/* Get to the last NULL TOC entry */
++	toc_entry = (fip_toc_entry_t *)(toc_header + 1);
++	while (!is_uuid_null(&toc_entry->uuid))
++		toc_entry++;
++
++	/* get the total size of this FIP */
++	fip_size = (int)toc_entry->offset_address;
++
++	/* Copy the new FIP in DDR. */
++	memcpy((void *)FIP_IMAGE_TMP_DDR_ADDRESS, (void *)fip_addr, fip_size);
++
++	/* Update the FIP */
++	ret = io_seek(nvm_handle, IO_SEEK_SET, 0);
++	if (ret != IO_SUCCESS)
++		return STATUS_FAIL;
++
++	ret = io_write(nvm_handle, (const uintptr_t)FIP_IMAGE_TMP_DDR_ADDRESS,
++			fip_size, &bytes);
++	if ((ret != IO_SUCCESS) || fip_size != bytes)
++		return STATUS_LOAD_ERROR;
++
++	/* Read the TOC header after update. */
++	ret = io_seek(nvm_handle, IO_SEEK_SET, 0);
++	if (ret != IO_SUCCESS)
++		return STATUS_LOAD_ERROR;
++
++	ret = io_read(nvm_handle, (const uintptr_t)&fip_read,
++		sizeof(bytes), &bytes);
++	if (ret != IO_SUCCESS)
++		return STATUS_FAIL;
++
++	/* Check if this FIP is Valid */
++	if (fip_read != TOC_HEADER_NAME)
++		return STATUS_LOAD_ERROR;
++
++#if FWU_BL_TEST
++	unsigned int done_flag = FIP_IMAGE_UPDATE_DONE_FLAG;
++	/* Update the TFTF test case buffer with DONE flag */
++	ret = io_seek(nvm_handle, IO_SEEK_SET,
++			FWU_TFTF_TESTCASE_BUFFER_OFFSET);
++	if (ret != IO_SUCCESS)
++		return STATUS_FAIL;
++
++	ret = io_write(nvm_handle, (const uintptr_t)&done_flag,
++			4, &bytes);
++	if (ret != IO_SUCCESS)
++		return STATUS_FAIL;
++#endif /* FWU_BL_TEST */
++
++	INFO("FWU Image update success\n");
++
++	return STATUS_SUCCESS;
++}
++
+diff --git a/platform/drivers/arm/io/io_storage.c b/platform/drivers/arm/io/io_storage.c
+new file mode 100644
+index 0000000..9a45da2
+--- /dev/null
++++ b/platform/drivers/arm/io/io_storage.c
+@@ -0,0 +1,349 @@
++/*
++ * Copyright (c) 2018, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <assert.h>
++#include <drivers/io/io_driver.h>
++#include <io_storage.h>
++#include <platform_def.h>
++#include <stddef.h>
++
++
++/* Storage for a fixed maximum number of IO entities, definable by platform */
++static io_entity_t entity_pool[MAX_IO_HANDLES];
++
++/* Simple way of tracking used storage - each entry is NULL or a pointer to an
++ * entity */
++static io_entity_t *entity_map[MAX_IO_HANDLES];
++
++/* Track number of allocated entities */
++static unsigned int entity_count;
++
++/* Array of fixed maximum of registered devices, definable by platform */
++static const io_dev_info_t *devices[MAX_IO_DEVICES];
++
++/* Number of currently registered devices */
++static unsigned int dev_count;
++
++
++#if DEBUG	/* Extra validation functions only used in debug builds */
++
++/* Return a boolean value indicating whether a device connector is valid */
++static int is_valid_dev_connector(const io_dev_connector_t *dev_con)
++{
++	int result = (dev_con != NULL) && (dev_con->dev_open != NULL);
++	return result;
++}
++
++
++/* Return a boolean value indicating whether a device handle is valid */
++static int is_valid_dev(const uintptr_t dev_handle)
++{
++	const io_dev_info_t *dev = (io_dev_info_t *)dev_handle;
++	int result = (dev != NULL) && (dev->funcs != NULL) &&
++			(dev->funcs->type != NULL) &&
++			(dev->funcs->type() < IO_TYPE_MAX);
++	return result;
++}
++
++
++/* Return a boolean value indicating whether an IO entity is valid */
++static int is_valid_entity(const uintptr_t handle)
++{
++	const io_entity_t *entity = (io_entity_t *)handle;
++	int result = (entity != NULL) &&
++			(is_valid_dev((uintptr_t)entity->dev_handle));
++	return result;
++}
++
++
++/* Return a boolean value indicating whether a seek mode is valid */
++static int is_valid_seek_mode(io_seek_mode_t mode)
++{
++	return ((mode != IO_SEEK_INVALID) && (mode < IO_SEEK_MAX));
++}
++
++#endif	/* End of debug-only validation functions */
++
++
++/* Open a connection to a specific device */
++static int dev_open(const io_dev_connector_t *dev_con, const uintptr_t dev_spec,
++		io_dev_info_t **dev_info)
++{
++	int result = IO_FAIL;
++	assert(dev_info != NULL);
++	assert(is_valid_dev_connector(dev_con));
++
++	result = dev_con->dev_open(dev_spec, dev_info);
++	return result;
++}
++
++
++/* Set a handle to track an entity */
++static void set_handle(uintptr_t *handle, io_entity_t *entity)
++{
++	assert(handle != NULL);
++	*handle = (uintptr_t)entity;
++}
++
++
++/* Locate an entity in the pool, specified by address */
++static int find_first_entity(const io_entity_t *entity, unsigned int *index_out)
++{
++	int result = IO_FAIL;
++	for (int index = 0; index < MAX_IO_HANDLES; ++index) {
++		if (entity_map[index] == entity) {
++			result = IO_SUCCESS;
++			*index_out = index;
++			break;
++		}
++	}
++	return result;
++}
++
++
++/* Allocate an entity from the pool and return a pointer to it */
++static int allocate_entity(io_entity_t **entity)
++{
++	int result = IO_FAIL;
++	assert(entity != NULL);
++
++	if (entity_count < MAX_IO_HANDLES) {
++		unsigned int index = 0;
++		result = find_first_entity(NULL, &index);
++		assert(result == IO_SUCCESS);
++		*entity = entity_map[index] = &entity_pool[index];
++		++entity_count;
++	} else
++		result = IO_RESOURCES_EXHAUSTED;
++
++	return result;
++}
++
++
++/* Release an entity back to the pool */
++static int free_entity(const io_entity_t *entity)
++{
++	int result = IO_FAIL;
++	unsigned int index = 0;
++	assert(entity != NULL);
++
++	result = find_first_entity(entity, &index);
++	if (result ==  IO_SUCCESS) {
++		entity_map[index] = NULL;
++		--entity_count;
++	}
++
++	return result;
++}
++
++
++/* Exported API */
++
++/* Register a device driver */
++int io_register_device(const io_dev_info_t *dev_info)
++{
++	int result = IO_FAIL;
++	assert(dev_info != NULL);
++
++	if (dev_count < MAX_IO_DEVICES) {
++		devices[dev_count] = dev_info;
++		dev_count++;
++		result = IO_SUCCESS;
++	} else {
++		result = IO_RESOURCES_EXHAUSTED;
++	}
++
++	return result;
++}
++
++
++/* Open a connection to an IO device */
++int io_dev_open(const io_dev_connector_t *dev_con, const uintptr_t dev_spec,
++		uintptr_t *handle)
++{
++	int result = IO_FAIL;
++	assert(handle != NULL);
++
++	result = dev_open(dev_con, dev_spec, (io_dev_info_t **)handle);
++	return result;
++}
++
++
++/* Initialise an IO device explicitly - to permit lazy initialisation or
++ * re-initialisation */
++int io_dev_init(uintptr_t dev_handle, const uintptr_t init_params)
++{
++	int result = IO_FAIL;
++	assert(dev_handle != (uintptr_t)NULL);
++	assert(is_valid_dev(dev_handle));
++
++	io_dev_info_t *dev = (io_dev_info_t *)dev_handle;
++
++	if (dev->funcs->dev_init != NULL) {
++		result = dev->funcs->dev_init(dev, init_params);
++	} else {
++		/* Absence of registered function implies NOP here */
++		result = IO_SUCCESS;
++	}
++	return result;
++}
++
++
++/* TODO: Consider whether an explicit "shutdown" API should be included */
++
++/* Close a connection to a device */
++int io_dev_close(uintptr_t dev_handle)
++{
++	int result = IO_FAIL;
++	assert(dev_handle != (uintptr_t)NULL);
++	assert(is_valid_dev(dev_handle));
++
++	io_dev_info_t *dev = (io_dev_info_t *)dev_handle;
++
++	if (dev->funcs->dev_close != NULL) {
++		result = dev->funcs->dev_close(dev);
++	} else {
++		/* Absence of registered function implies NOP here */
++		result = IO_SUCCESS;
++	}
++
++	return result;
++}
++
++
++/* Synchronous operations */
++
++
++/* Open an IO entity */
++int io_open(uintptr_t dev_handle, const uintptr_t spec, uintptr_t *handle)
++{
++	int result = IO_FAIL;
++	assert((spec != (uintptr_t)NULL) && (handle != NULL));
++	assert(is_valid_dev(dev_handle));
++
++	io_dev_info_t *dev = (io_dev_info_t *)dev_handle;
++	io_entity_t *entity;
++
++	result = allocate_entity(&entity);
++
++	if (result == IO_SUCCESS) {
++		assert(dev->funcs->open != NULL);
++		result = dev->funcs->open(dev, spec, entity);
++
++		if (result == IO_SUCCESS) {
++			entity->dev_handle = dev;
++			set_handle(handle, entity);
++		} else
++			free_entity(entity);
++	}
++	return result;
++}
++
++
++/* Seek to a specific position in an IO entity */
++int io_seek(uintptr_t handle, io_seek_mode_t mode, ssize_t offset)
++{
++	int result = IO_FAIL;
++	assert(is_valid_entity(handle) && is_valid_seek_mode(mode));
++
++	io_entity_t *entity = (io_entity_t *)handle;
++
++	io_dev_info_t *dev = entity->dev_handle;
++
++	if (dev->funcs->seek != NULL)
++		result = dev->funcs->seek(entity, mode, offset);
++	else
++		result = IO_NOT_SUPPORTED;
++
++	return result;
++}
++
++
++/* Determine the length of an IO entity */
++int io_size(uintptr_t handle, size_t *length)
++{
++	int result = IO_FAIL;
++	assert(is_valid_entity(handle) && (length != NULL));
++
++	io_entity_t *entity = (io_entity_t *)handle;
++
++	io_dev_info_t *dev = entity->dev_handle;
++
++	if (dev->funcs->size != NULL)
++		result = dev->funcs->size(entity, length);
++	else
++		result = IO_NOT_SUPPORTED;
++
++	return result;
++}
++
++
++/* Read data from an IO entity */
++int io_read(uintptr_t handle,
++		uintptr_t buffer,
++		size_t length,
++		size_t *length_read)
++{
++	int result = IO_FAIL;
++	assert(is_valid_entity(handle) && (buffer != (uintptr_t)NULL));
++
++	io_entity_t *entity = (io_entity_t *)handle;
++
++	io_dev_info_t *dev = entity->dev_handle;
++
++	if (dev->funcs->read != NULL)
++		result = dev->funcs->read(entity, buffer, length, length_read);
++	else
++		result = IO_NOT_SUPPORTED;
++
++	return result;
++}
++
++
++/* Write data to an IO entity */
++int io_write(uintptr_t handle,
++		const uintptr_t buffer,
++		size_t length,
++		size_t *length_written)
++{
++	int result = IO_FAIL;
++	assert(is_valid_entity(handle) && (buffer != (uintptr_t)NULL));
++
++	io_entity_t *entity = (io_entity_t *)handle;
++
++	io_dev_info_t *dev = entity->dev_handle;
++
++	if (dev->funcs->write != NULL) {
++		result = dev->funcs->write(entity, buffer, length,
++				length_written);
++	} else
++		result = IO_NOT_SUPPORTED;
++
++	return result;
++}
++
++
++/* Close an IO entity */
++int io_close(uintptr_t handle)
++{
++	int result = IO_FAIL;
++	assert(is_valid_entity(handle));
++
++	io_entity_t *entity = (io_entity_t *)handle;
++
++	io_dev_info_t *dev = entity->dev_handle;
++
++	if (dev->funcs->close != NULL)
++		result = dev->funcs->close(entity);
++	else {
++		/* Absence of registered function implies NOP here */
++		result = IO_SUCCESS;
++	}
++	/* Ignore improbable free_entity failure */
++	(void)free_entity(entity);
++
++	return result;
++}
+diff --git a/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_hw.c b/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_hw.c
+new file mode 100644
+index 0000000..ada813b
+--- /dev/null
++++ b/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_hw.c
+@@ -0,0 +1,454 @@
++/*
++ * Copyright (c) 2018-2019, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <assert.h>
++#include <debug.h>
++#include <mmio.h>
++#include <string.h>
++#include <cdefs.h>
++#include "io_vexpress_nor_internal.h"
++#include "norflash.h"
++
++/* Device Id information */
++#define NOR_DEVICE_ID_LOCK_CONFIGURATION          0x02
++#define NOR_DEVICE_ID_BLOCK_LOCKED                (1 << 0)
++#define NOR_DEVICE_ID_BLOCK_LOCKED_DOWN           (1 << 1)
++
++/* Status Register Bits */
++#define NOR_SR_BIT_WRITE                          ((1 << 23) | (1 << 7))
++#define NOR_SR_BIT_ERASE                          ((1 << 21) | (1 << 5))
++#define NOR_SR_BIT_PROGRAM                        ((1 << 20) | (1 << 4))
++#define NOR_SR_BIT_VPP                            ((1 << 19) | (1 << 3))
++#define NOR_SR_BIT_BLOCK_LOCKED                   ((1 << 17) | (1 << 1))
++
++/*
++ * On chip buffer size for buffered programming operations
++ * There are 2 chips, each chip can buffer up to 32 (16-bit)words.
++ * Therefore the total size of the buffer is 2 x 32 x 2 = 128 bytes.
++ */
++#define NOR_MAX_BUFFER_SIZE_IN_BYTES        128
++#define NOR_MAX_BUFFER_SIZE_IN_WORDS        (NOR_MAX_BUFFER_SIZE_IN_BYTES / 4)
++
++#define MAX_BUFFERED_PROG_ITERATIONS 1000
++#define LOW_16_BITS                  0x0000FFFF
++#define FOLD_32BIT_INTO_16BIT(value) ((value >> 16) | (value & LOW_16_BITS))
++#define BOUNDARY_OF_32_WORDS         0x7F
++
++#define CHECK_VPP_RANGE_ERROR(status_register, address)			\
++		do {							\
++			if ((status_register) & NOR_SR_BIT_VPP) {	\
++				ERROR("%s (address:0x%X): "		\
++				"VPP Range Error\n", __func__, address);\
++				err = IO_FAIL;				\
++			}						\
++		} while (0)
++
++#define CHECK_BLOCK_LOCK_ERROR(status_register, address)		\
++	do {								\
++		if ((status_register) & NOR_SR_BIT_BLOCK_LOCKED) {	\
++			ERROR("%s (address:0x%X): Device Protect "	\
++				"Error\n", __func__, address);		\
++			err = IO_FAIL;					\
++		}							\
++	} while (0)
++
++#define CHECK_BLOCK_ERASE_ERROR(status_register, block_offset)		\
++	do {								\
++		if ((status_register) & NOR_SR_BIT_ERASE) {		\
++			ERROR("%s (block_offset=0x%08x:	"		\
++				"Block Erase Error status_register"	\
++				":0x%x\n",  __func__, block_offset,	\
++				status_register);			\
++			err = IO_FAIL;					\
++		}							\
++	} while (0)
++
++#define CHECK_SR_BIT_PROGRAM_ERROR(status_register, address)		\
++	do {								\
++		if ((status_register) & NOR_SR_BIT_PROGRAM) {		\
++			ERROR("%s(address:0x%X): Program Error\n",	\
++				__func__, address);			\
++			err = IO_FAIL;					\
++		}							\
++	} while (0)
++
++/* Helper macros to access two flash banks in parallel */
++#define NOR_2X16(d)			((d << 16) | (d & 0xffff))
++
++static inline void nor_send_cmd(uintptr_t base_addr, unsigned long cmd)
++{
++	mmio_write_32(base_addr, NOR_2X16(cmd));
++}
++
++static uint32_t flash_read_status(const io_nor_flash_spec_t *device)
++{
++	/* Prepare to read the status register */
++	nor_send_cmd(device->device_address, NOR_CMD_READ_STATUS_REG);
++
++	return mmio_read_32(device->device_address);
++}
++
++static uint32_t flash_wait_until_complete(const io_nor_flash_spec_t *device)
++{
++	uint32_t lock_status;
++
++	/* Wait until the status register gives us the all clear */
++	do {
++		lock_status = flash_read_status(device);
++	} while ((lock_status & NOR_SR_BIT_WRITE) != NOR_SR_BIT_WRITE);
++
++	return lock_status;
++}
++
++static int flash_block_is_locked(uint32_t block_offset)
++{
++	uint32_t lock_status;
++
++	uintptr_t addr = block_offset + (NOR_DEVICE_ID_LOCK_CONFIGURATION << 2);
++
++	/* Send command for reading device id */
++	nor_send_cmd(addr, NOR_CMD_READ_ID_CODE);
++
++	/* Read block lock status */
++	lock_status = mmio_read_32(addr);
++
++	/* Decode block lock status */
++	lock_status = FOLD_32BIT_INTO_16BIT(lock_status);
++
++	if ((lock_status & NOR_DEVICE_ID_BLOCK_LOCKED_DOWN) != 0)
++		WARN("flash_block_is_locked: Block LOCKED DOWN\n");
++
++	return lock_status & NOR_DEVICE_ID_BLOCK_LOCKED;
++}
++
++
++static void flash_perform_lock_operation(const io_nor_flash_spec_t *device,
++						uint32_t block_offset,
++						uint32_t lock_operation)
++{
++	assert ((lock_operation == NOR_UNLOCK_BLOCK) ||
++		(lock_operation == NOR_LOCK_BLOCK));
++
++	/* Request a lock setup */
++	nor_send_cmd(block_offset, NOR_CMD_LOCK_UNLOCK);
++
++	/* Request lock or unlock */
++	nor_send_cmd(block_offset, lock_operation);
++
++	/* Wait until status register shows device is free */
++	flash_wait_until_complete(device);
++
++	/* Put device back into Read Array mode */
++	nor_send_cmd(block_offset, NOR_CMD_READ_ARRAY);
++}
++
++static void flash_unlock_block_if_necessary(const io_nor_flash_spec_t *device,
++						 uint32_t block_offset)
++{
++	if (flash_block_is_locked(block_offset) != 0)
++		flash_perform_lock_operation(device, block_offset,
++						NOR_UNLOCK_BLOCK);
++}
++
++
++static int flash_erase_block(const io_nor_flash_spec_t *device,
++					  uint32_t block_offset)
++{
++	int err = IO_SUCCESS;
++	uint32_t status_register;
++
++	/* Request a block erase and then confirm it */
++	nor_send_cmd(block_offset, NOR_CMD_BLOCK_ERASE);
++	nor_send_cmd(block_offset, NOR_CMD_BLOCK_ERASE_ACK);
++
++	/* Wait for the write to complete and then check for any errors;
++	 * i.e. check the Status Register */
++	status_register = flash_wait_until_complete(device);
++
++	CHECK_VPP_RANGE_ERROR(status_register, block_offset);
++
++	if ((status_register & (NOR_SR_BIT_ERASE | NOR_SR_BIT_PROGRAM)) ==
++				(NOR_SR_BIT_ERASE | NOR_SR_BIT_PROGRAM)) {
++		ERROR("%s(block_offset=0x%08x: "
++			  "Command Sequence Error\n", __func__, block_offset);
++		err = IO_FAIL;
++	}
++
++	CHECK_BLOCK_ERASE_ERROR(status_register, block_offset);
++
++	CHECK_BLOCK_LOCK_ERROR(status_register, block_offset);
++
++	if (err) {
++		/* Clear the Status Register */
++		nor_send_cmd(device->device_address, NOR_CMD_CLEAR_STATUS_REG);
++	}
++
++	/* Put device back into Read Array mode */
++	nor_send_cmd(device->device_address, NOR_CMD_READ_ARRAY);
++
++	return err;
++}
++
++/*
++ * Writes data to the NOR Flash using the Buffered Programming method.
++ *
++ * The maximum size of the on-chip buffer is 32-words, because of hardware
++ * restrictions. Therefore this function will only handle buffers up to 32
++ * words or 128 bytes. To deal with larger buffers, call this function again.
++ *
++ * This function presumes that both the offset and the offset+BufferSize
++ * fit entirely within the NOR Flash. Therefore these conditions will not
++ * be checked here.
++ *
++ * In buffered programming, if the target address is not at the beginning of a
++ * 32-bit word boundary, then programming time is doubled and power consumption
++ * is increased. Therefore, it is a requirement to align buffer writes to
++ * 32-bit word boundaries.
++ */
++static int flash_write_buffer(const io_nor_flash_spec_t *device,
++				uint32_t offset,
++				const uint32_t *buffer,
++				uint32_t buffer_size)
++{
++	int err = IO_SUCCESS;
++	uint32_t size_in_words;
++	uint32_t count;
++	volatile uint32_t *data;
++	uint32_t timeout;
++	int is_buffer_available = 0;
++	uint32_t status_register;
++
++	timeout = MAX_BUFFERED_PROG_ITERATIONS;
++	is_buffer_available = 0;
++
++	/* Check that the target offset does not cross a 32-word boundary. */
++	if ((offset & BOUNDARY_OF_32_WORDS) != 0)
++		return IO_FAIL;
++
++	/* This implementation requires the buffer to be 32bit aligned. */
++	if (((uintptr_t)buffer & (sizeof(uint32_t) - 1)) != 0)
++		return IO_FAIL;
++
++	/* Check there are some data to program */
++	assert(buffer_size > 0);
++
++	/* Check that the buffer size does not exceed the maximum hardware
++	 * buffer size on chip.
++	 */
++	assert(buffer_size <= NOR_MAX_BUFFER_SIZE_IN_BYTES);
++
++	/* Check that the buffer size is a multiple of 32-bit words */
++	assert((buffer_size % 4) == 0);
++
++	/* Pre-programming conditions checked, now start the algorithm. */
++
++	/* Prepare the data destination address */
++	data = (uint32_t *)(uintptr_t)offset;
++
++	/* Check the availability of the buffer */
++	do {
++		/* Issue the Buffered Program Setup command */
++		nor_send_cmd(offset, NOR_CMD_BUFFERED_PROGRAM);
++
++		/* Read back the status register bit#7 from the same offset */
++		if (((*data) & NOR_SR_BIT_WRITE) == NOR_SR_BIT_WRITE)
++			is_buffer_available = 1;
++
++		/* Update the loop counter */
++		timeout--;
++	} while ((timeout > 0) && (is_buffer_available == 0));
++
++	/* The buffer was not available for writing */
++	if (timeout == 0) {
++		err = IO_FAIL;
++		goto exit;
++	}
++
++	/* From now on we work in 32-bit words */
++	size_in_words = buffer_size / sizeof(uint32_t);
++
++	/* Write the word count, which is (buffer_size_in_words - 1),
++	 * because word count 0 means one word. */
++	nor_send_cmd(offset, size_in_words - 1);
++
++	/* Write the data to the NOR Flash, advancing each address by 4 bytes */
++	for (count = 0; count < size_in_words; count++, data++, buffer++)
++		*data = *buffer;
++
++	/* Issue the Buffered Program Confirm command, to start the programming
++	 * operation */
++	nor_send_cmd(device->device_address, NOR_CMD_BUFFERED_PROGRAM_ACK);
++
++	/* Wait for the write to complete and then check for any errors;
++	 * i.e. check the Status Register */
++	status_register = flash_wait_until_complete(device);
++
++	/* Perform a full status check:
++	 * Mask the relevant bits of Status Register.
++	 * Everything should be zero, if not, we have a problem */
++
++	CHECK_VPP_RANGE_ERROR(status_register, offset);
++
++	CHECK_SR_BIT_PROGRAM_ERROR(status_register, offset);
++
++	CHECK_BLOCK_LOCK_ERROR(status_register, offset);
++
++	if (err != IO_SUCCESS) {
++		/* Clear the Status Register */
++		nor_send_cmd(device->device_address,
++			     NOR_CMD_CLEAR_STATUS_REG);
++	}
++
++exit:
++	/* Put device back into Read Array mode */
++	nor_send_cmd(device->device_address, NOR_CMD_READ_ARRAY);
++
++	return err;
++}
++
++static int flash_write_single_word(const io_nor_flash_spec_t *device,
++				int32_t offset, uint32_t data)
++{
++	int err = IO_SUCCESS;
++	uint32_t status_register;
++
++	/* NOR Flash Programming: Request a write single word command */
++	nor_send_cmd(offset, NOR_CMD_WORD_PROGRAM);
++
++	/* Store the word into NOR Flash; */
++	mmio_write_32(offset, data);
++
++	/* Wait for the write to complete and then check for any errors;
++	 * i.e. check the Status Register */
++	status_register = flash_wait_until_complete(device);
++
++	/* Perform a full status check: */
++	/* Mask the relevant bits of Status Register.
++	 * Everything should be zero, if not, we have a problem */
++
++	CHECK_VPP_RANGE_ERROR(status_register, offset);
++
++	CHECK_SR_BIT_PROGRAM_ERROR(status_register, offset);
++
++	CHECK_BLOCK_LOCK_ERROR(status_register, offset);
++
++	if (err != IO_SUCCESS)
++		/* Clear the Status Register */
++		nor_send_cmd(device->device_address,
++					NOR_CMD_CLEAR_STATUS_REG);
++
++	/* Put device back into Read Array mode */
++	nor_send_cmd(device->device_address, NOR_CMD_READ_ARRAY);
++
++	return err;
++}
++
++int flash_block_write(file_state_t *fp, uint32_t offset,
++		const uintptr_t buffer, size_t *written)
++{
++	int ret;
++	uintptr_t buffer_ptr = buffer;
++	uint32_t buffer_size;
++	uint32_t remaining = fp->block_spec->block_size;
++	uint32_t flash_pos = fp->block_spec->region_address + offset;
++	uint32_t block_offset = flash_pos;
++
++	/* address passed should be block aligned */
++	assert(!(offset % fp->block_spec->block_size));
++
++	/* Unlock block */
++	flash_unlock_block_if_necessary(fp->block_spec, block_offset);
++
++	/* Erase one block */
++	ret = flash_erase_block(fp->block_spec, flash_pos);
++
++	if (ret != IO_SUCCESS)
++		/* Perform lock operation as we unlocked it */
++		goto lock_block;
++
++	/* Start by using NOR Flash buffer while the buffer size is a multiple
++	 * of 32-bit */
++	while ((remaining >= sizeof(uint32_t)) && (ret == IO_SUCCESS)) {
++		if (remaining >= NOR_MAX_BUFFER_SIZE_IN_BYTES)
++			buffer_size = NOR_MAX_BUFFER_SIZE_IN_BYTES;
++		else
++			/* Copy the remaining 32bit words of the buffer */
++			buffer_size = remaining & (sizeof(uint32_t) - 1);
++
++		ret = flash_write_buffer(fp->block_spec, flash_pos,
++				(const uint32_t *)buffer_ptr, buffer_size);
++		flash_pos += buffer_size;
++		remaining -= buffer_size;
++		buffer_ptr += buffer_size;
++
++	}
++
++	/* Write the remaining bytes */
++	while ((remaining > 0) && (ret == IO_SUCCESS)) {
++		ret = flash_write_single_word(fp->block_spec,
++						flash_pos++, buffer_ptr++);
++		remaining--;
++	}
++
++	if (ret == IO_SUCCESS)
++		*written = fp->block_spec->block_size;
++
++lock_block:
++	/* Lock the block once done */
++	flash_perform_lock_operation(fp->block_spec,
++					block_offset,
++					NOR_LOCK_BLOCK);
++
++	return ret;
++}
++
++/* In case of partial write we need to save the block into a temporary buffer */
++static char block_buffer[NOR_FLASH_BLOCK_SIZE] __aligned(sizeof(uint32_t));
++
++int flash_partial_write(file_state_t *fp, uint32_t offset,
++		const uintptr_t buffer, size_t length, size_t *written)
++{
++	uintptr_t block_start;
++	uint32_t block_size;
++	uint32_t block_offset;
++	int ret;
++
++	assert((fp != NULL) && (fp->block_spec != NULL));
++	assert(written != NULL);
++
++	block_size = fp->block_spec->block_size;
++	/* Start address of the block to write */
++	block_start = (offset / block_size) * block_size;
++
++	/* Ensure 'block_buffer' is big enough to contain a copy of the block.
++	 * 'block_buffer' is reserved at build time - so it might not match  */
++	assert(sizeof(block_buffer) >= block_size);
++
++	/*
++	 * Check the buffer fits inside a single block.
++	 * It must not span several blocks
++	 */
++	assert((offset / block_size) ==
++		  ((offset + length - 1) / block_size));
++
++	/* Make a copy of the block from flash to a temporary buffer */
++	memcpy(block_buffer, (void *)(fp->block_spec->region_address +
++						block_start), block_size);
++
++	/* Calculate the offset of the buffer into the block */
++	block_offset = offset % block_size;
++
++	/* update the content of the block buffer */
++	memcpy(block_buffer + block_offset, (void *)buffer, length);
++
++	/* Write the block buffer back */
++	ret = flash_block_write(fp, block_start,
++					(uintptr_t)block_buffer, written);
++	if (ret == IO_SUCCESS)
++		*written = length;
++
++	return ret;
++}
+diff --git a/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_internal.h b/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_internal.h
+new file mode 100644
+index 0000000..328be06
+--- /dev/null
++++ b/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_internal.h
+@@ -0,0 +1,39 @@
++/*
++ * Copyright (c) 2018, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef __IO_VEXPRESS_NOR_INTERNAL_H__
++#define __IO_VEXPRESS_NOR_INTERNAL_H__
++
++#include <drivers/io/io_driver.h>
++#include <drivers/io/io_nor_flash.h>
++#include <io_storage.h>
++
++#define IS_FLASH_ADDRESS_BLOCK_ALIGNED(fp, addr) \
++	(((addr) & ((fp)->block_spec->block_size - 1)) == 0)
++
++/* As we need to be able to keep state for seek, only one file can be open
++ * at a time. Make this a structure and point to the entity->info. When we
++ * can malloc memory we can change this to support more open files.
++ */
++typedef struct {
++	/* Use the 'in_use' flag as any value for base and file_pos could be
++	 * valid.
++	 */
++	int		in_use;
++	uintptr_t	base;
++	size_t		file_pos;
++
++	/* Definition of the flash block device */
++	const io_nor_flash_spec_t *block_spec;
++} file_state_t;
++
++int flash_block_write(file_state_t *fp, uint32_t address,
++		const uintptr_t buffer, size_t *written);
++
++int flash_partial_write(file_state_t *fp, uint32_t address,
++		const uintptr_t buffer, size_t length, size_t *written);
++
++#endif /* __IO_VEXPRESS_NOR_INTERNAL_H__ */
+diff --git a/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_ops.c b/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_ops.c
+new file mode 100644
+index 0000000..d31da57
+--- /dev/null
++++ b/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_ops.c
+@@ -0,0 +1,278 @@
++/*
++ * Copyright (c) 2018, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++#include <assert.h>
++#include <debug.h>
++#include <string.h>
++#include "io_vexpress_nor_internal.h"
++
++static file_state_t current_file = {0};
++
++/* Identify the device type as flash */
++io_type_t device_type_flash(void)
++{
++	return IO_TYPE_FLASH;
++}
++
++/* NOR Flash device functions */
++static int flash_dev_open(const uintptr_t dev_spec, io_dev_info_t **dev_info);
++static int flash_open(io_dev_info_t *dev_info, const uintptr_t spec,
++			     io_entity_t *entity);
++static int flash_seek(io_entity_t *entity, int mode,
++			     ssize_t offset);
++static int flash_read(io_entity_t *entity, uintptr_t buffer,
++			     size_t length, size_t *length_read);
++static int flash_write(io_entity_t *entity, const uintptr_t buffer,
++			      size_t length, size_t *length_written);
++static int flash_close(io_entity_t *entity);
++static int flash_dev_close(io_dev_info_t *dev_info);
++
++
++static const io_dev_connector_t flash_dev_connector = {
++	.dev_open = flash_dev_open
++};
++
++static const io_dev_funcs_t flash_dev_funcs = {
++	.type = device_type_flash,
++	.open = flash_open,
++	.seek = flash_seek,
++	.size = NULL,
++	.read = flash_read,
++	.write = flash_write,
++	.close = flash_close,
++	.dev_init = NULL,
++	.dev_close = flash_dev_close,
++};
++
++/* No state associated with this device so structure can be const */
++static const io_dev_info_t flash_dev_info = {
++	.funcs = &flash_dev_funcs,
++	.info = (uintptr_t)NULL
++};
++
++/* Open a connection to the flash device */
++static int flash_dev_open(const uintptr_t dev_spec __attribute__((unused)),
++			   io_dev_info_t **dev_info)
++{
++	assert(dev_info != NULL);
++	*dev_info = (io_dev_info_t *)&flash_dev_info; /* cast away const */
++
++	return IO_SUCCESS;
++}
++
++/* Close a connection to the flash device */
++static int flash_dev_close(io_dev_info_t *dev_info)
++{
++	/* NOP */
++	/* TODO: Consider tracking open files and cleaning them up here */
++	return IO_SUCCESS;
++}
++
++
++/* Open a file on the flash device */
++/* TODO: Can we do any sensible limit checks on requested memory */
++static int flash_open(io_dev_info_t *dev_info, const uintptr_t spec,
++			     io_entity_t *entity)
++{
++	int result;
++	const io_nor_flash_spec_t *block_spec = (io_nor_flash_spec_t *)spec;
++
++	/* Since we need to track open state for seek() we only allow one open
++	 * spec at a time. When we have dynamic memory we can malloc and set
++	 * entity->info.
++	 */
++	if (current_file.in_use == 0) {
++		assert(block_spec != NULL);
++		assert(entity != NULL);
++
++		current_file.in_use = 1;
++		current_file.base = block_spec->region_address;
++		/* File cursor offset for seek and incremental reads etc. */
++		current_file.file_pos = 0;
++		/* Attach the device specification to this file */
++		current_file.block_spec = block_spec;
++
++		entity->info = (uintptr_t)&current_file;
++		result = IO_SUCCESS;
++	} else {
++		WARN("A Flash device is already active. Close first.\n");
++		result = IO_RESOURCES_EXHAUSTED;
++	}
++
++	return result;
++}
++
++/* Seek to a particular file offset on the flash device */
++static int flash_seek(io_entity_t *entity, int mode, ssize_t offset)
++{
++	const io_nor_flash_spec_t *block_spec;
++	int result;
++	uintptr_t flash_base;
++	size_t flash_size;
++
++	assert(entity != NULL);
++
++	block_spec = ((file_state_t *)entity->info)->block_spec;
++	flash_size = block_spec->block_count * block_spec->block_size;
++
++	if (mode == IO_SEEK_SET) {
++		/* Ensure the offset is into the flash */
++		if ((offset >= 0) && (offset < flash_size)) {
++			((file_state_t *)entity->info)->file_pos = offset;
++			result = IO_SUCCESS;
++		} else {
++			result = IO_FAIL;
++		}
++	} else if (mode == IO_SEEK_END) {
++		flash_base = block_spec->region_address;
++		/* Ensure the offset is into the flash */
++		if ((offset <= 0) && (flash_size + offset >= 0))  {
++			((file_state_t *)entity->info)->file_pos =
++					flash_base + flash_size + offset;
++			result = IO_SUCCESS;
++		} else {
++			result = IO_FAIL;
++		}
++	} else if (mode == IO_SEEK_CUR) {
++		flash_base = block_spec->region_address;
++		/* Ensure the offset is into the flash */
++		if ((((file_state_t *)entity->info)->file_pos +
++					offset >= flash_base) &&
++		    (((file_state_t *)entity->info)->file_pos +
++					offset < flash_base + flash_size)) {
++			((file_state_t *)entity->info)->file_pos += offset;
++			result = IO_SUCCESS;
++		} else {
++			result = IO_FAIL;
++		}
++	} else {
++		result = IO_FAIL;
++	}
++
++	return result;
++}
++
++/* Read data from a file on the flash device */
++static int flash_read(io_entity_t *entity, uintptr_t buffer,
++			     size_t length, size_t *length_read)
++{
++	file_state_t *fp;
++
++	assert(entity != NULL);
++	assert(buffer != (uintptr_t)NULL);
++	assert(length_read != NULL);
++
++	fp = (file_state_t *)entity->info;
++
++	memcpy((void *)buffer, (void *)(fp->base + fp->file_pos), length);
++
++	*length_read = length;
++	/* advance the file 'cursor' for incremental reads */
++	fp->file_pos += length;
++
++	return IO_SUCCESS;
++}
++
++/* Write data to a file on the flash device */
++static int flash_write(io_entity_t *entity, const uintptr_t buffer,
++			      size_t length, size_t *length_written)
++{
++	file_state_t *fp;
++	const io_nor_flash_spec_t *block_spec;
++	size_t file_pos;
++	int ret;
++	uint32_t remaining_block_size;
++	size_t written;
++	uintptr_t buffer_ptr = buffer;
++
++	assert(entity != NULL);
++	assert(buffer != (uintptr_t)NULL);
++	assert(length_written != NULL);
++
++	fp = (file_state_t *)entity->info;
++	block_spec = fp->block_spec;
++	file_pos = fp->file_pos;
++
++	*length_written = 0;
++
++	while (length > 0) {
++		/* Check if we can do a block write */
++		if (IS_FLASH_ADDRESS_BLOCK_ALIGNED(fp, file_pos)) {
++			if (length / block_spec->block_size > 0) {
++				ret = flash_block_write(fp, file_pos,
++							 buffer_ptr, &written);
++			} else {
++				/* Case when the length is smaller than a
++				 * block size
++				 */
++				ret = flash_partial_write(fp, file_pos,
++					buffer_ptr, length, &written);
++			}
++		} else {
++			/* Case when the buffer does not start at the beginning
++			 * of a block
++			 */
++
++			/* Length between the current file_pos and the end of
++			 * the block
++			 */
++			remaining_block_size = block_spec->block_size -
++					(file_pos % block_spec->block_size);
++
++			if (length < remaining_block_size) {
++				ret = flash_partial_write(fp, file_pos,
++						 buffer_ptr, length, &written);
++			} else {
++				ret = flash_partial_write(fp, file_pos,
++					buffer_ptr, remaining_block_size,
++					 &written);
++			}
++		}
++
++		/* If one of the write operations fails then we do not pursue */
++		if (ret != IO_SUCCESS) {
++			return ret;
++		} else {
++			buffer_ptr += written;
++			file_pos += written;
++
++			*length_written += written;
++			length -= written;
++		}
++	}
++
++	/* advance the file 'cursor' for incremental writes */
++	fp->file_pos += length;
++
++	return IO_SUCCESS;
++}
++
++/* Close a file on the flash device */
++static int flash_close(io_entity_t *entity)
++{
++	assert(entity != NULL);
++
++	entity->info = 0;
++
++	/* This would be a mem free() if we had malloc.*/
++	memset((void *)&current_file, 0, sizeof(current_file));
++
++	return IO_SUCCESS;
++}
++
++/* Exported functions */
++
++/* Register the flash driver with the IO abstraction */
++int register_io_dev_nor_flash(const io_dev_connector_t **dev_con)
++{
++	int result;
++	assert(dev_con != NULL);
++
++	result = io_register_device(&flash_dev_info);
++	if (result == IO_SUCCESS)
++		*dev_con = &flash_dev_connector;
++
++	return result;
++}
+diff --git a/platform/drivers/arm/io/vexpress_nor/norflash.h b/platform/drivers/arm/io/vexpress_nor/norflash.h
+new file mode 100644
+index 0000000..893a2c5
+--- /dev/null
++++ b/platform/drivers/arm/io/vexpress_nor/norflash.h
+@@ -0,0 +1,41 @@
++/*
++ * Copyright (c) 2015-2017, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef __NORFLASH_H_
++#define __NORFLASH_H_
++
++#include <stdint.h>
++
++/* First bus cycle */
++#define NOR_CMD_READ_ARRAY		0xFF
++#define NOR_CMD_READ_ID_CODE		0x90
++#define NOR_CMD_READ_QUERY		0x98
++#define NOR_CMD_READ_STATUS_REG		0x70
++#define NOR_CMD_CLEAR_STATUS_REG	0x50
++#define NOR_CMD_WRITE_TO_BUFFER		0xE8
++#define NOR_CMD_WORD_PROGRAM		0x40
++#define NOR_CMD_BLOCK_ERASE		0x20
++#define NOR_CMD_LOCK_UNLOCK		0x60
++#define NOR_CMD_BLOCK_ERASE_ACK		0xD0
++#define NOR_CMD_BUFFERED_PROGRAM	0xE8
++
++/* Second bus cycle */
++#define NOR_LOCK_BLOCK			0x01
++#define NOR_UNLOCK_BLOCK		0xD0
++#define NOR_CMD_BUFFERED_PROGRAM_ACK	0xD0
++
++/* Status register bits */
++#define NOR_DWS				(1 << 7)
++#define NOR_ESS				(1 << 6)
++#define NOR_ES				(1 << 5)
++#define NOR_PS				(1 << 4)
++#define NOR_VPPS			(1 << 3)
++#define NOR_PSS				(1 << 2)
++#define NOR_BLS				(1 << 1)
++#define NOR_BWS				(1 << 0)
++
++#endif /* __NORFLASH_H_ */
++
+diff --git a/platform/interface/io/io_driver.h b/platform/interface/io/io_driver.h
+new file mode 100644
+index 0000000..e2e2d52
+--- /dev/null
++++ b/platform/interface/io/io_driver.h
+@@ -0,0 +1,59 @@
++/*
++ * Copyright (c) 2018, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef __IO_DRIVER_H__
++#define __IO_DRIVER_H__
++
++#include <io_storage.h>
++#include <stdint.h>
++
++
++/* Generic IO entity structure,representing an accessible IO construct on the
++ * device, such as a file */
++typedef struct io_entity {
++	struct io_dev_info *dev_handle;
++	uintptr_t info;
++} io_entity_t;
++
++
++/* Device info structure, providing device-specific functions and a means of
++ * adding driver-specific state */
++typedef struct io_dev_info {
++	const struct io_dev_funcs *funcs;
++	uintptr_t info;
++} io_dev_info_t;
++
++
++/* Structure used to create a connection to a type of device */
++typedef struct io_dev_connector {
++	/* dev_open opens a connection to a particular device driver */
++	int (*dev_open)(const uintptr_t dev_spec, io_dev_info_t **dev_info);
++} io_dev_connector_t;
++
++
++/* Structure to hold device driver function pointers */
++typedef struct io_dev_funcs {
++	io_type_t (*type)(void);
++	int (*open)(io_dev_info_t *dev_info, const uintptr_t spec,
++			io_entity_t *entity);
++	int (*seek)(io_entity_t *entity, int mode, ssize_t offset);
++	int (*size)(io_entity_t *entity, size_t *length);
++	int (*read)(io_entity_t *entity, uintptr_t buffer, size_t length,
++			size_t *length_read);
++	int (*write)(io_entity_t *entity, const uintptr_t buffer,
++			size_t length, size_t *length_written);
++	int (*close)(io_entity_t *entity);
++	int (*dev_init)(io_dev_info_t *dev_info, const uintptr_t init_params);
++	int (*dev_close)(io_dev_info_t *dev_info);
++} io_dev_funcs_t;
++
++
++/* Operations intended to be performed during platform initialisation */
++
++/* Register an IO device */
++int io_register_device(const io_dev_info_t *dev_info);
++
++#endif  /* __IO_DRIVER_H__ */
+diff --git a/platform/interface/io/io_nor_flash.h b/platform/interface/io/io_nor_flash.h
+new file mode 100644
+index 0000000..03058e9
+--- /dev/null
++++ b/platform/interface/io/io_nor_flash.h
+@@ -0,0 +1,32 @@
++/*
++ * Copyright (c) 2018, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef __IO_NOR_FLASH_H__
++#define __IO_NOR_FLASH_H__
++
++#include <platform_def.h>
++
++#ifndef NOR_FLASH_BLOCK_SIZE
++	#error NOR_FLASH_BLOCK_SIZE must be defined as the block \
++		 size of the NOR Flash seen by the software
++#endif
++
++/* IO NOR Flash specification - used to refer to data on a memory map device
++ * supporting block-like entities */
++typedef struct io_nor_spec {
++	/* Base Address of the NOR Flash device - it is required to program
++	 * the flash */
++	uintptr_t device_address;
++	uintptr_t region_address;
++	uint32_t block_size;
++	uint32_t block_count;
++} io_nor_flash_spec_t;
++
++struct io_dev_connector;
++
++int register_io_dev_nor_flash(const struct io_dev_connector **dev_con);
++
++#endif /* __IO_NOR_FLASH_H__ */
+diff --git a/platform/interface/io/io_storage.h b/platform/interface/io/io_storage.h
+new file mode 100644
+index 0000000..42cebd3
+--- /dev/null
++++ b/platform/interface/io/io_storage.h
+@@ -0,0 +1,106 @@
++/*
++ * Copyright (c) 2018, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef __IO_H__
++#define __IO_H__
++
++#include <stdint.h>
++#include <stdio.h> /* For ssize_t */
++#include <uuid.h>
++
++/* Device type which can be used to enable policy decisions about which device
++ * to access */
++typedef enum {
++	IO_TYPE_INVALID,
++	IO_TYPE_FLASH,
++	IO_TYPE_MEMMAP,
++	IO_TYPE_FIRMWARE_IMAGE_PACKAGE,
++	IO_TYPE_MAX
++} io_type_t;
++
++
++/* Modes used when seeking data on a supported device */
++typedef enum {
++	IO_SEEK_INVALID,
++	IO_SEEK_SET,
++	IO_SEEK_END,
++	IO_SEEK_CUR,
++	IO_SEEK_MAX
++} io_seek_mode_t;
++
++
++/* Connector type, providing a means of identifying a device to open */
++struct io_dev_connector;
++
++
++/* File specification - used to refer to data on a device supporting file-like
++ * entities */
++typedef struct io_file_spec {
++	const char *path;
++	unsigned int mode;
++} io_file_spec_t;
++
++/* UUID specification - used to refer to data accessed using UUIDs (i.e. FIP
++ * images) */
++typedef struct io_uuid_spec {
++	const uuid_t uuid;
++} io_uuid_spec_t;
++
++
++/* Block specification - used to refer to data on a device supporting
++ * block-like entities */
++typedef struct io_block_spec {
++	size_t offset;
++	size_t length;
++} io_block_spec_t;
++
++
++/* Access modes used when accessing data on a device */
++#define IO_MODE_INVALID (0)
++#define IO_MODE_RO	(1 << 0)
++#define IO_MODE_RW	(1 << 1)
++
++
++/* Return codes reported by 'io_*' APIs */
++#define IO_SUCCESS		(0)
++#define IO_FAIL			(-1)
++#define IO_NOT_SUPPORTED	(-2)
++#define IO_RESOURCES_EXHAUSTED	(-3)
++
++
++/* Open a connection to a device */
++int io_dev_open(const struct io_dev_connector *dev_con,
++		const uintptr_t dev_spec,
++		uintptr_t *dev_handle);
++
++
++/* Initialise a device explicitly - to permit lazy initialisation or
++ * re-initialisation */
++int io_dev_init(uintptr_t dev_handle, const uintptr_t init_params);
++
++/* TODO: Consider whether an explicit "shutdown" API should be included */
++
++/* Close a connection to a device */
++int io_dev_close(uintptr_t dev_handle);
++
++
++/* Synchronous operations */
++int io_open(uintptr_t dev_handle, const uintptr_t spec, uintptr_t *handle);
++
++int io_seek(uintptr_t handle, io_seek_mode_t mode, ssize_t offset);
++
++int io_size(uintptr_t handle, size_t *length);
++
++int io_read(uintptr_t handle, uintptr_t buffer, size_t length,
++		size_t *length_read);
++
++int io_write(uintptr_t handle, const uintptr_t buffer, size_t length,
++		size_t *length_written);
++
++int io_close(uintptr_t handle);
++
++
++#endif /* __IO_H__ */
+-- 
+2.34.1
+

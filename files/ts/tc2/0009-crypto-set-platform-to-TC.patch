@@ -1,0 +1,29 @@
+From 83ac4c0aa775de694c66205c79ae4be69ff6098b Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Wed, 10 Aug 2022 14:00:33 +0530
+Subject: [PATCH 09/14] crypto: set platform to TC
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+Change-Id: I637a1b0abb3af1da2838578f51d7821b9fb412f0
+
+Upstream-Status: Pending [Not submitted to upstream yet]
+---
+ deployments/crypto/sp/CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/deployments/crypto/sp/CMakeLists.txt b/deployments/crypto/sp/CMakeLists.txt
+index c4f85df..e944b0a 100644
+--- a/deployments/crypto/sp/CMakeLists.txt
++++ b/deployments/crypto/sp/CMakeLists.txt
+@@ -7,7 +7,7 @@
+ cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
+ 
+ # Set default platform.
+-set(TS_PLATFORM "arm/fvp/fvp_base_revc-2xaemv8a" CACHE STRING "Target platform location.")
++set(TS_PLATFORM "arm/total_compute" CACHE STRING "Target platform location.")
+ include(../../deployment.cmake REQUIRED)
+ 
+ #-------------------------------------------------------------------------------
+-- 
+2.34.1
+

@@ -1,0 +1,1803 @@
+From 31f0cb1042b638c0add0d2cbae7344fd1fac5768 Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Wed, 15 Jun 2022 19:33:25 +0530
+Subject: [PATCH 06/14] fwu: add firmware update service components
+
+It includes the various components as mentioned in the fwu psa spec.
+  * Image directory
+  * metadata
+  * states
+  * staging area
+  * frontend mm communication layer
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+Change-Id: Ia05b8f5df5257fb8a4f97deabd1dbf674ce03a56
+---
+ .../frontend/mm_communicate/component.cmake   |  17 +
+ .../frontend/mm_communicate/fwu_mm_service.c  |  90 +++
+ .../frontend/mm_communicate/fwu_mm_service.h  |  33 +
+ .../firmware_update/provider/component.cmake  |  26 +
+ .../firmware_update/provider/fwu_provider.c   | 683 ++++++++++++++++++
+ .../firmware_update/provider/fwu_provider.h   |  28 +
+ .../firmware_update/provider/fwu_state.c      |  29 +
+ .../firmware_update/provider/fwu_state.h      |  20 +
+ .../provider/image_directory.c                |  43 ++
+ .../provider/image_directory.h                |  40 +
+ .../firmware_update/provider/metadata.c       | 239 ++++++
+ .../firmware_update/provider/metadata.h       |  87 +++
+ .../firmware_update/provider/staging_area.c   |  86 +++
+ .../firmware_update/provider/staging_area.h   |  33 +
+ .../linux/ffa/linuxffa_location_strategy.c    |   1 +
+ .../firmware_update/packed-c/component.cmake  |  14 +
+ .../packed-c/firmware_update_proto.h          | 174 +++++
+ 17 files changed, 1643 insertions(+)
+ create mode 100644 components/service/firmware_update/frontend/mm_communicate/component.cmake
+ create mode 100644 components/service/firmware_update/frontend/mm_communicate/fwu_mm_service.c
+ create mode 100644 components/service/firmware_update/frontend/mm_communicate/fwu_mm_service.h
+ create mode 100644 components/service/firmware_update/provider/component.cmake
+ create mode 100644 components/service/firmware_update/provider/fwu_provider.c
+ create mode 100644 components/service/firmware_update/provider/fwu_provider.h
+ create mode 100644 components/service/firmware_update/provider/fwu_state.c
+ create mode 100644 components/service/firmware_update/provider/fwu_state.h
+ create mode 100644 components/service/firmware_update/provider/image_directory.c
+ create mode 100644 components/service/firmware_update/provider/image_directory.h
+ create mode 100644 components/service/firmware_update/provider/metadata.c
+ create mode 100644 components/service/firmware_update/provider/metadata.h
+ create mode 100644 components/service/firmware_update/provider/staging_area.c
+ create mode 100644 components/service/firmware_update/provider/staging_area.h
+ create mode 100644 protocols/service/firmware_update/packed-c/component.cmake
+ create mode 100644 protocols/service/firmware_update/packed-c/firmware_update_proto.h
+
+diff --git a/components/service/firmware_update/frontend/mm_communicate/component.cmake b/components/service/firmware_update/frontend/mm_communicate/component.cmake
+new file mode 100644
+index 0000000..f69f284
+--- /dev/null
++++ b/components/service/firmware_update/frontend/mm_communicate/component.cmake
+@@ -0,0 +1,17 @@
++#-------------------------------------------------------------------------------
++# Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++#
++# SPDX-License-Identifier: BSD-3-Clause
++#
++#-------------------------------------------------------------------------------
++if (NOT DEFINED TGT)
++	message(FATAL_ERROR "mandatory parameter TGT is not defined.")
++endif()
++
++target_sources(${TGT} PRIVATE
++	"${CMAKE_CURRENT_LIST_DIR}/fwu_mm_service.c"
++	)
++
++target_include_directories(${TGT} PRIVATE
++	"${CMAKE_CURRENT_LIST_DIR}"
++	)
+diff --git a/components/service/firmware_update/frontend/mm_communicate/fwu_mm_service.c b/components/service/firmware_update/frontend/mm_communicate/fwu_mm_service.c
+new file mode 100644
+index 0000000..e461a6a
+--- /dev/null
++++ b/components/service/firmware_update/frontend/mm_communicate/fwu_mm_service.c
+@@ -0,0 +1,90 @@
++/*
++ * Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <assert.h>
++#include <fwu_mm_service.h>
++#include "protocols/common/mm/mm_smc.h"
++#include "protocols/rpc/common/packed-c/status.h"
++
++static rpc_status_t convert_rpc_status(rpc_status_t rpc_status)
++{
++	switch (rpc_status) {
++	case TS_RPC_CALL_ACCEPTED:
++		return MM_RETURN_CODE_SUCCESS;
++
++	case TS_RPC_ERROR_EP_DOES_NOT_EXIT:
++		return MM_RETURN_CODE_NOT_SUPPORTED;
++
++	case TS_RPC_ERROR_INVALID_OPCODE:
++		return MM_RETURN_CODE_INVALID_PARAMETER;
++
++	case TS_RPC_ERROR_SERIALIZATION_NOT_SUPPORTED:
++		return MM_RETURN_CODE_INVALID_PARAMETER;
++
++	case TS_RPC_ERROR_INVALID_REQ_BODY:
++		return MM_RETURN_CODE_INVALID_PARAMETER;
++
++	case TS_RPC_ERROR_INVALID_RESP_BODY:
++		return MM_RETURN_CODE_INVALID_PARAMETER;
++
++	case TS_RPC_ERROR_RESOURCE_FAILURE:
++		return MM_RETURN_CODE_NOT_SUPPORTED;
++
++	case TS_RPC_ERROR_NOT_READY:
++		return MM_RETURN_CODE_NOT_SUPPORTED;
++
++	case TS_RPC_ERROR_INVALID_TRANSACTION:
++		return MM_RETURN_CODE_INVALID_PARAMETER;
++
++	case TS_RPC_ERROR_INTERNAL:
++		return MM_RETURN_CODE_NOT_SUPPORTED;
++
++	case TS_RPC_ERROR_INVALID_PARAMETER:
++		return MM_RETURN_CODE_INVALID_PARAMETER;
++
++	default:
++		return MM_RETURN_CODE_NOT_SUPPORTED;
++	}
++}
++
++static int32_t mm_fwu_receive(struct mm_service_interface *iface,
++			       struct mm_service_call_req *mm_req)
++{
++	struct fwu_mm_service *service = iface->context;
++	struct call_req rpc_req = { 0 };
++	rpc_status_t rpc_status = TS_RPC_ERROR_INTERNAL;
++
++	rpc_req.opcode = *(uint32_t *)mm_req->req_buf.data;
++	rpc_req.req_buf.data = mm_req->req_buf.data;
++	rpc_req.req_buf.data_len = mm_req->req_buf.data_len;
++	rpc_req.req_buf.size = mm_req->req_buf.size;
++
++	rpc_req.resp_buf.data = mm_req->resp_buf.data;
++	rpc_req.resp_buf.data_len = mm_req->resp_buf.data_len;
++	rpc_req.resp_buf.size = mm_req->resp_buf.size;
++
++	rpc_status = service->iface->receive(service->iface, &rpc_req);
++
++	mm_req->resp_buf.data_len = rpc_req.resp_buf.data_len;
++
++	if (mm_req->resp_buf.data_len > mm_req->resp_buf.size)
++		return MM_RETURN_CODE_NO_MEMORY;
++
++	return convert_rpc_status(rpc_status);
++}
++
++struct mm_service_interface *fwu_mm_service_init(struct fwu_mm_service *service,
++						       struct rpc_interface *iface)
++{
++	assert(service != NULL);
++	assert(iface != NULL);
++
++	service->iface = iface;
++	service->mm_service.context = service;
++	service->mm_service.receive = mm_fwu_receive;
++
++	return &service->mm_service;
++}
+diff --git a/components/service/firmware_update/frontend/mm_communicate/fwu_mm_service.h b/components/service/firmware_update/frontend/mm_communicate/fwu_mm_service.h
+new file mode 100644
+index 0000000..7d27588
+--- /dev/null
++++ b/components/service/firmware_update/frontend/mm_communicate/fwu_mm_service.h
+@@ -0,0 +1,33 @@
++/*
++ * Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef FWU_MM_SERVICE_H_
++#define FWU_MM_SERVICE_H_
++
++#include "components/rpc/common/endpoint/rpc_interface.h"
++#include "components/rpc/mm_communicate/endpoint/sp/mm_communicate_call_ep.h"
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++/**
++ * MM service interface implementation for parsing MM firmware update requests and
++ * forwarding them to an RPC interface.
++ */
++struct fwu_mm_service {
++	struct mm_service_interface mm_service;
++	struct rpc_interface *iface;
++};
++
++struct mm_service_interface *fwu_mm_service_init(struct fwu_mm_service *service,
++							struct rpc_interface *iface);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif /* FWU_MM_SERVICE_H_ */
+diff --git a/components/service/firmware_update/provider/component.cmake b/components/service/firmware_update/provider/component.cmake
+new file mode 100644
+index 0000000..2220daf
+--- /dev/null
++++ b/components/service/firmware_update/provider/component.cmake
+@@ -0,0 +1,26 @@
++#-------------------------------------------------------------------------------
++# Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++#
++# SPDX-License-Identifier: BSD-3-Clause
++#
++#-------------------------------------------------------------------------------
++if (NOT DEFINED TGT)
++	message(FATAL_ERROR "mandatory parameter TGT is not defined.")
++endif()
++
++target_sources(${TGT} PRIVATE
++	"${CMAKE_CURRENT_LIST_DIR}/fwu_provider.c"
++	"${CMAKE_CURRENT_LIST_DIR}/fwu_state.c"
++	"${CMAKE_CURRENT_LIST_DIR}/image_directory.c"
++	"${CMAKE_CURRENT_LIST_DIR}/metadata.c"
++	"${CMAKE_CURRENT_LIST_DIR}/staging_area.c"
++	)
++
++target_include_directories(${TGT} PRIVATE
++	"${CMAKE_CURRENT_LIST_DIR}"
++	)
++
++target_compile_definitions(${TGT} PRIVATE
++	NR_OF_FW_BANKS=${NR_OF_FW_BANKS}
++	NR_OF_FW_IMAGES=${NR_OF_FW_IMAGES}
++	)
+diff --git a/components/service/firmware_update/provider/fwu_provider.c b/components/service/firmware_update/provider/fwu_provider.c
+new file mode 100644
+index 0000000..8a0ff78
+--- /dev/null
++++ b/components/service/firmware_update/provider/fwu_provider.c
+@@ -0,0 +1,683 @@
++/*
++ * Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++
++#include <arm_io_storage.h>
++#include <assert.h>
++#include <common/debug.h>
++#include <components/rpc/common/endpoint/rpc_interface.h>
++#include <firmware_update_proto.h>
++#include <fwu_state.h>
++#include <fwu_provider.h>
++#include <image_directory.h>
++#include <metadata.h>
++#include <partition.h>
++#include <protocols/common/efi/efi_types.h>
++#include <protocols/rpc/common/packed-c/status.h>
++#include <staging_area.h>
++#include <stdint.h>
++#include <string.h>
++
++/* Service request handlers */
++static rpc_status_t discover_handler(void *context, struct call_req* req);
++static rpc_status_t begin_staging_handler(void *context, struct call_req* req);
++static rpc_status_t end_staging_handler(void *context, struct call_req* req);
++static rpc_status_t cancel_staging_handler(void *context, struct call_req* req);
++static rpc_status_t open_handler(void *context, struct call_req* req);
++static rpc_status_t write_stream_handler(void *context, struct call_req* req);
++static rpc_status_t read_stream_handler(void *context, struct call_req* req);
++static rpc_status_t commit_handler(void *context, struct call_req* req);
++static rpc_status_t accept_image_handler(void *context, struct call_req* req);
++static rpc_status_t select_previous_handler(void *context, struct call_req* req);
++
++/* Handler mapping table for service */
++static const struct service_handler handler_table[] = {
++	{TS_FIRMWARE_UPDATE_OPCODE_DISCOVER,        discover_handler},
++	{TS_FIRMWARE_UPDATE_OPCODE_BEGIN_STAGING,   begin_staging_handler},
++	{TS_FIRMWARE_UPDATE_OPCODE_END_STAGING,     end_staging_handler},
++	{TS_FIRMWARE_UPDATE_OPCODE_CANCEL_STAGING,  cancel_staging_handler},
++	{TS_FIRMWARE_UPDATE_OPCODE_OPEN,            open_handler},
++	{TS_FIRMWARE_UPDATE_OPCODE_WRITE_STREAM,    write_stream_handler},
++	{TS_FIRMWARE_UPDATE_OPCODE_READ_STREAM,     read_stream_handler},
++	{TS_FIRMWARE_UPDATE_OPCODE_COMMIT,          commit_handler},
++	{TS_FIRMWARE_UPDATE_OPCODE_ACCEPT_IMAGE,    accept_image_handler},
++	{TS_FIRMWARE_UPDATE_OPCODE_SELECT_PREVIOUS, select_previous_handler},
++};
++
++struct rpc_interface *fwu_provider_init(struct fwu_provider *context)
++{
++	struct rpc_interface *rpc_interface = NULL;
++
++	if (arm_io_setup()) {
++		ERROR("FWU: failed to initialize IO\n");
++		goto exit;
++	}
++
++	if (partition_init()) {
++		ERROR("FWU: failed to load GPT partitions\n");
++		goto exit;
++	}
++
++	if (fwu_metadata_init()) {
++		ERROR("FWU: failed to load metadata\n");
++		goto exit;
++	}
++
++	fwu_state_init();
++
++	if (context) {
++		service_provider_init(&context->base_provider, context,
++			handler_table, sizeof(handler_table)/sizeof(struct service_handler));
++		rpc_interface = service_provider_get_rpc_interface(&context->base_provider);
++	}
++
++exit:
++	return rpc_interface;
++}
++
++void fwu_provider_deinit(struct fwu_provider *context)
++{
++	(void)context;
++}
++
++static int is_function_handled(uint32_t func)
++{
++	int num_handler_entries =
++		sizeof(handler_table)/sizeof(struct service_handler);
++
++	for (int i = 0; i < num_handler_entries; i++) {
++		if(handler_table[i].opcode == func)
++			return 1;
++	}
++	return 0;
++}
++
++static rpc_status_t discover_handler(void *context, struct call_req* req)
++{
++	struct ts_firmware_update_discover_in *request_desc;
++	struct ts_firmware_update_discover_out *response_desc;
++
++	struct call_param_buf *req_buf = call_req_get_req_buf(req);
++	struct call_param_buf *resp_buf = call_req_get_resp_buf(req);
++
++	/*
++	 * check if req_buf is the actual size of request descriptor
++	 * to ensure we received the proper request that can be handled here
++	 */
++	if (req_buf->data_len != sizeof(*request_desc))
++		return TS_RPC_ERROR_INVALID_REQ_BODY;
++
++	/*
++	 * check if the resp_buf can able to accommodate the response_desc
++	 * that has to be sent as response.
++	 */
++	if (resp_buf->size < sizeof(*response_desc))
++		return TS_RPC_ERROR_INVALID_RESP_BODY;
++
++	request_desc = (struct ts_firmware_update_discover_in *)(req_buf->data);
++	response_desc = (struct ts_firmware_update_discover_out *)(resp_buf->data);
++
++	assert(request_desc->function_id == TS_FIRMWARE_UPDATE_OPCODE_DISCOVER);
++
++	response_desc->status = FWU_SUCCESS;
++	response_desc->version_major = FWU_VERSION_MAJOR;
++	response_desc->version_minor = FWU_VERSION_MINOR;
++	response_desc->num_func = FWU_NUM_FUNC;
++
++	for (int i = 0; i < FWU_NUM_FUNC; i++) {
++		if (is_function_handled(i))
++			response_desc->function_presence[i] = 1;
++	}
++	resp_buf->data_len = sizeof(struct ts_firmware_update_discover_out);
++	call_req_set_opstatus(req, response_desc->status);
++	return TS_RPC_CALL_ACCEPTED;
++}
++
++static rpc_status_t begin_staging_handler(void *context, struct call_req* req)
++{
++	struct ts_firmware_update_begin_staging_in *request_desc;
++	struct ts_firmware_update_begin_staging_out *response_desc;
++
++	struct call_param_buf *req_buf = call_req_get_req_buf(req);
++	struct call_param_buf *resp_buf = call_req_get_resp_buf(req);
++
++	/*
++	 * check if req_buf is the actual size of request descriptor
++	 * to ensure we received the proper request that can be handled here
++	 */
++	if (req_buf->data_len != sizeof(*request_desc))
++		return TS_RPC_ERROR_INVALID_REQ_BODY;
++
++	/*
++	 * check if the resp_buf can able to accommodate the response_desc
++	 * that has to be sent as response.
++	 */
++	if (resp_buf->size < sizeof(*response_desc))
++		return TS_RPC_ERROR_INVALID_RESP_BODY;
++
++	request_desc = (struct ts_firmware_update_begin_staging_in *)(req_buf->data);
++	response_desc = (struct ts_firmware_update_begin_staging_out *)(resp_buf->data);
++
++	assert(request_desc->function_id == TS_FIRMWARE_UPDATE_OPCODE_BEGIN_STAGING);
++
++	/* begin staging should not be invoked in the trial state */
++	if (fwu_state_get() == TRIAL_STATE) {
++		ERROR("FWU: begin staging should not be invoked in the trial state\n");
++		response_desc->status = FWU_DENIED;
++		goto exit;
++	}
++
++	/*
++	 * If begin staging is invoked when it is already in the staging state,
++	 * the previously staged contents should be discarded and new staging process
++	 * should begin
++	 */
++	if (fwu_state_get() == STAGING_STATE) {
++		WARN("FWU: begin staging invoked while already in the staging state\n");
++		fwu_staging_area_discard_all();
++	}
++
++	/* boot index should be the active index */
++	if (fwu_boot_index_get() != fwu_active_index_get()) {
++		ERROR("FWU: boot index is not the active index\n");
++		response_desc->status = FWU_DENIED;
++		goto exit;
++	}
++
++	/* enter into staging state */
++	fwu_state_set(STAGING_STATE);
++
++	response_desc->status = FWU_SUCCESS;
++
++exit:
++	resp_buf->data_len = sizeof(struct ts_firmware_update_begin_staging_out);
++	call_req_set_opstatus(req, response_desc->status);
++	return TS_RPC_CALL_ACCEPTED;
++}
++
++static rpc_status_t end_staging_handler(void *context, struct call_req* req)
++{
++	struct ts_firmware_update_end_staging_in *request_desc;
++	struct ts_firmware_update_end_staging_out *response_desc;
++
++	struct call_param_buf *req_buf = call_req_get_req_buf(req);
++	struct call_param_buf *resp_buf = call_req_get_resp_buf(req);
++
++	/*
++	 * check if req_buf is the actual size of request descriptor
++	 * to ensure we received the proper request that can be handled here
++	 */
++	if (req_buf->data_len != sizeof(*request_desc))
++		return TS_RPC_ERROR_INVALID_REQ_BODY;
++
++	/*
++	 * check if the resp_buf can able to accommodate the response_desc
++	 * that has to be sent as response.
++	 */
++	if (resp_buf->size < sizeof(*response_desc))
++		return TS_RPC_ERROR_INVALID_RESP_BODY;
++
++	request_desc = (struct ts_firmware_update_end_staging_in *)(req_buf->data);
++	response_desc = (struct ts_firmware_update_end_staging_out *)(resp_buf->data);
++
++	assert(request_desc->function_id == TS_FIRMWARE_UPDATE_OPCODE_END_STAGING);
++
++	/* end staging should be invoked only in the staging state */
++	if (fwu_state_get() != STAGING_STATE) {
++		ERROR("FWU: end staging should be invoked only in the staging state\n");
++		response_desc->status = FWU_DENIED;
++		goto exit;
++	}
++
++	/* all image handles should be closed before invoking end staging */
++	if(fwu_staging_area_is_open()) {
++		ERROR("FWU: some staging area is open\n");
++		response_desc->status = FWU_BUSY;
++		goto exit;
++	}
++
++	/* enter into trial state */
++	fwu_state_set(TRIAL_STATE);
++
++	/* update previous active index */
++	if (fwu_active_index_get() != fwu_update_index_get())
++		fwu_previous_active_index_set(fwu_active_index_get());
++
++	/* update active index */
++	fwu_active_index_set(fwu_update_index_get());
++
++	/* update the modified metadata */
++	if (fwu_metadata_update()) {
++		ERROR("FWU: failed to update metadata\n");
++		response_desc->status = FWU_DENIED;
++		goto exit;
++	}
++
++	response_desc->status = FWU_SUCCESS;
++
++exit:
++	resp_buf->data_len = sizeof(struct ts_firmware_update_end_staging_out);
++	call_req_set_opstatus(req, response_desc->status);
++	return TS_RPC_CALL_ACCEPTED;
++}
++
++static rpc_status_t cancel_staging_handler(void *context, struct call_req* req)
++{
++	struct ts_firmware_update_cancel_staging_in *request_desc;
++	struct ts_firmware_update_cancel_staging_out *response_desc;
++
++	struct call_param_buf *req_buf = call_req_get_req_buf(req);
++	struct call_param_buf *resp_buf = call_req_get_resp_buf(req);
++
++	/*
++	 * check if req_buf is the actual size of request descriptor
++	 * to ensure we received the proper request that can be handled here
++	 */
++	if (req_buf->data_len != sizeof(*request_desc))
++		return TS_RPC_ERROR_INVALID_REQ_BODY;
++
++	/*
++	 * check if the resp_buf can able to accommodate the response_desc
++	 * that has to be sent as response.
++	 */
++	if (resp_buf->size < sizeof(*response_desc))
++		return TS_RPC_ERROR_INVALID_RESP_BODY;
++
++	request_desc = (struct ts_firmware_update_cancel_staging_in *)(req_buf->data);
++	response_desc = (struct ts_firmware_update_cancel_staging_out *)(resp_buf->data);
++
++	assert(request_desc->function_id == TS_FIRMWARE_UPDATE_OPCODE_CANCEL_STAGING);
++
++	/* cancel staging should be invoked only in the staging state */
++	if (fwu_state_get() != STAGING_STATE) {
++		ERROR("FWU: cancel staging should be invoked only in the staging state\n");
++		response_desc->status = FWU_DENIED;
++		goto exit;
++	}
++
++	/* discard the stagin buffers and close them */
++	fwu_staging_area_discard_all();
++
++	/* change back to regular state */
++	fwu_state_set(REGULAR_STATE);
++
++	response_desc->status = FWU_SUCCESS;
++
++exit:
++	resp_buf->data_len = sizeof(struct ts_firmware_update_cancel_staging_out);
++	call_req_set_opstatus(req, response_desc->status);
++	return TS_RPC_CALL_ACCEPTED;
++}
++
++/* Acording to the PSA FWU spec, the UUID for the open handler can be of two types
++ * 1. Firmware Update Image Directory UUID
++ * 2. Image type UUID
++ *
++ * The Image directory will be opened only for reading and the images will be
++ * openened only for writing.
++ */
++
++static rpc_status_t open_handler(void *context, struct call_req* req)
++{
++	struct ts_firmware_update_open_in *request_desc;
++	struct ts_firmware_update_open_out *response_desc;
++
++	struct call_param_buf *req_buf = call_req_get_req_buf(req);
++	struct call_param_buf *resp_buf = call_req_get_resp_buf(req);
++
++	uint32_t image_handle;
++	static const EFI_GUID fwu_directory_uuid = FWU_IMAGE_DIRECTORY_UUID;
++
++	/*
++	 * check if req_buf is the actual size of request descriptor
++	 * to ensure we received the proper request that can be handled here
++	 */
++	if (req_buf->data_len != sizeof(*request_desc))
++		return TS_RPC_ERROR_INVALID_REQ_BODY;
++
++	/*
++	 * check if the resp_buf can able to accommodate the response_desc
++	 * that has to be sent as response.
++	 */
++	if (resp_buf->size < sizeof(*response_desc))
++		return TS_RPC_ERROR_INVALID_RESP_BODY;
++
++	request_desc = (struct ts_firmware_update_open_in *)(req_buf->data);
++	response_desc = (struct ts_firmware_update_open_out *)(resp_buf->data);
++
++	assert(request_desc->function_id == TS_FIRMWARE_UPDATE_OPCODE_OPEN);
++
++	/* open should not be invoked in the trial state */
++	if (fwu_state_get() == TRIAL_STATE) {
++		ERROR("FWU: open should not be invoked in the trial state\n");
++		response_desc->status = FWU_DENIED;
++		goto exit;
++	}
++
++	/* check if the UUID is Image Directory UUID */
++	if (!memcmp(&request_desc->image_uuid, &fwu_directory_uuid, sizeof(EFI_GUID))) {
++		response_desc->handle = FWU_IMAGE_DIRECTORY_HANDLE;
++		response_desc->status = FWU_SUCCESS;
++		goto exit;
++	}
++
++	/*
++	 * The UUID could be one of the image type UUID.  It will be opened for
++	 * writing.  Hence we have to create a staging area for the image and will
++	 * return the handle of the staging area
++	 */
++
++	/* create a staging area only when it is in staging state */
++	if (fwu_state_get() != STAGING_STATE) {
++		ERROR("FWU: cannot create staging area when not in the staging state\n");
++		response_desc->status = FWU_DENIED;
++		goto exit;
++	}
++
++	if (fwu_staging_area_create(&request_desc->image_uuid, fwu_update_index_get(), &image_handle)) {
++		ERROR("FWU: failed to create staging area\n");
++		response_desc->status = FWU_UNKNOWN;
++		goto exit;
++	}
++
++	response_desc->handle = image_handle;
++	response_desc->status = FWU_SUCCESS;
++
++exit:
++	resp_buf->data_len = sizeof(struct ts_firmware_update_open_out);
++	call_req_set_opstatus(req, response_desc->status);
++	return TS_RPC_CALL_ACCEPTED;
++}
++
++static rpc_status_t write_stream_handler(void *context, struct call_req* req)
++{
++	struct ts_firmware_update_write_stream_in *request_desc;
++	struct ts_firmware_update_write_stream_out *response_desc;
++
++	struct call_param_buf *req_buf = call_req_get_req_buf(req);
++	struct call_param_buf *resp_buf = call_req_get_resp_buf(req);
++
++	request_desc = (struct ts_firmware_update_write_stream_in *)(req_buf->data);
++	response_desc = (struct ts_firmware_update_write_stream_out *)(resp_buf->data);
++
++	assert(request_desc->function_id == TS_FIRMWARE_UPDATE_OPCODE_WRITE_STREAM);
++
++	/*
++	 * check if req_buf is the actual size of request descriptor and the actual
++	 * data to be written to ensure we received the proper request that can be
++	 * handled here
++	 */
++	if (req_buf->data_len != sizeof(*request_desc) + request_desc->data_len)
++		return TS_RPC_ERROR_INVALID_REQ_BODY;
++
++	/*
++	 * check if the resp_buf can able to accommodate the response_desc
++	 * that has to be sent as response.
++	 */
++	if (resp_buf->size < sizeof(*response_desc))
++		return TS_RPC_ERROR_INVALID_RESP_BODY;
++
++	/* write stream should be invoked only in the staging state */
++	if (fwu_state_get() != STAGING_STATE) {
++		ERROR("FWU: write stream should be invoked only in the staging state\n");
++		response_desc->status = FWU_DENIED;
++		goto exit;
++	}
++
++	/* check if the UUID is Image Directory UUID */
++	if (request_desc->handle == FWU_IMAGE_DIRECTORY_HANDLE) {
++		ERROR("FWU: image directory is read only\n");
++		response_desc->status = FWU_UNKNOWN;
++		goto exit;
++	}
++
++	struct staging_area *image_staging_area = fwu_staging_area_get(request_desc->handle);
++	if (!image_staging_area) {
++		ERROR("FWU: cannot find a staging area for the handle\n");
++		response_desc->status = FWU_UNKNOWN;
++		goto exit;
++	}
++
++	size_t src_size = request_desc->data_len;
++	uint8_t* src_buffer = request_desc->payload;
++	size_t available_size = image_staging_area->buffer_size - image_staging_area->bytes_filled;
++
++	if (src_size > available_size) {
++		ERROR("FWU: image size exceeds available partition size\n");
++		response_desc->status = FWU_OUT_OF_BOUNDS;
++		goto exit;
++	}
++
++	void *dst_buffer = (uint8_t *)image_staging_area->buffer + image_staging_area->bytes_filled;
++	memcpy(dst_buffer, src_buffer, src_size);
++	image_staging_area->bytes_filled += src_size;
++
++	response_desc->status = FWU_SUCCESS;
++
++exit:
++	resp_buf->data_len = sizeof(struct ts_firmware_update_write_stream_out);
++	call_req_set_opstatus(req, response_desc->status);
++	return TS_RPC_CALL_ACCEPTED;
++}
++
++static rpc_status_t read_stream_handler(void *context, struct call_req* req)
++{
++	struct ts_firmware_update_read_stream_in *request_desc;
++	struct ts_firmware_update_read_stream_out *response_desc;
++
++	struct call_param_buf *req_buf = call_req_get_req_buf(req);
++	struct call_param_buf *resp_buf = call_req_get_resp_buf(req);
++
++	/*
++	 * check if req_buf is the actual size of request descriptor
++	 * to ensure we received the proper request that can be handled here
++	 */
++	if (req_buf->data_len != sizeof(*request_desc))
++		return TS_RPC_ERROR_INVALID_REQ_BODY;
++
++	request_desc = (struct ts_firmware_update_read_stream_in *)(req_buf->data);
++	response_desc = (struct ts_firmware_update_read_stream_out *)(resp_buf->data);
++
++	assert(request_desc->function_id == TS_FIRMWARE_UPDATE_OPCODE_READ_STREAM);
++
++	/* Only the Image Directory has read permissions */
++	if (request_desc->handle != FWU_IMAGE_DIRECTORY_HANDLE) {
++		ERROR("FWU: cannot read the conents of the requested image\n");
++		response_desc->status = FWU_UNKNOWN;
++		goto exit;
++	}
++
++	size_t out_len = sizeof(*response_desc) + sizeof(struct fwu_image_directory);
++	/*
++	 * check if the resp_buf can able to accommodate the response_desc
++	 * and the size of fwu_image_directory that has to be sent as response.
++	 */
++	if (resp_buf->size < out_len)
++		return TS_RPC_ERROR_INVALID_RESP_BODY;
++
++	copy_image_directory((struct fwu_image_directory *)response_desc->payload);
++
++	response_desc->read_bytes = sizeof(struct fwu_image_directory);
++	response_desc->total_bytes = sizeof(struct fwu_image_directory);
++	response_desc->status = FWU_SUCCESS;
++
++exit:
++	resp_buf->data_len = out_len;
++	call_req_set_opstatus(req, response_desc->status);
++	return TS_RPC_CALL_ACCEPTED;
++}
++
++static rpc_status_t commit_handler(void *context, struct call_req* req)
++{
++	struct ts_firmware_update_commit_in *request_desc;
++	struct ts_firmware_update_commit_out *response_desc;
++
++	struct call_param_buf *req_buf = call_req_get_req_buf(req);
++	struct call_param_buf *resp_buf = call_req_get_resp_buf(req);
++
++	/*
++	 * check if req_buf is the actual size of request descriptor
++	 * to ensure we received the proper request that can be handled here
++	 */
++	if (req_buf->data_len != sizeof(*request_desc))
++		return TS_RPC_ERROR_INVALID_REQ_BODY;
++
++	/*
++	 * check if the resp_buf can able to accommodate the response_desc
++	 * that has to be sent as response.
++	 */
++	if (resp_buf->size < sizeof(*response_desc))
++		return TS_RPC_ERROR_INVALID_RESP_BODY;
++
++	request_desc = (struct ts_firmware_update_commit_in *)(req_buf->data);
++	response_desc = (struct ts_firmware_update_commit_out *)(resp_buf->data);
++
++	assert(request_desc->function_id == TS_FIRMWARE_UPDATE_OPCODE_COMMIT);
++
++	struct staging_area *image_staging_area = fwu_staging_area_get(request_desc->handle);
++	if (!image_staging_area) {
++		ERROR("FWU: cannot find a staging area for the handle\n");
++		response_desc->status = FWU_UNKNOWN;
++		goto exit;
++	}
++
++	if (fwu_staging_area_commit(image_staging_area)) {
++		ERROR("FWU: failed to commit image\n");
++		response_desc->status = FWU_DENIED;
++		goto exit;
++	}
++
++	/* check for acceptance request and accept the image if needed */
++	if (request_desc->acceptance_req == 0) {
++		if (accept_image(image_staging_area->image_type_uuid, fwu_update_index_get()))
++			ERROR("FWU: failed to accept image\n");
++	}
++
++	/* discard the staging area */
++	fwu_staging_area_discard(image_staging_area);
++
++	response_desc->progress   = 100;
++	response_desc->total_work = 100;
++	response_desc->status = FWU_SUCCESS;
++
++exit:
++	resp_buf->data_len = sizeof(struct ts_firmware_update_commit_out);
++	call_req_set_opstatus(req, response_desc->status);
++	return TS_RPC_CALL_ACCEPTED;
++}
++
++static rpc_status_t accept_image_handler(void *context, struct call_req* req)
++{
++	struct ts_firmware_update_accept_image_in *request_desc;
++	struct ts_firmware_update_accept_image_out *response_desc;
++
++	struct call_param_buf *req_buf = call_req_get_req_buf(req);
++	struct call_param_buf *resp_buf = call_req_get_resp_buf(req);
++
++	/*
++	 * check if req_buf is the actual size of request descriptor
++	 * to ensure we received the proper request that can be handled here
++	 */
++	if (req_buf->data_len != sizeof(*request_desc))
++		return TS_RPC_ERROR_INVALID_REQ_BODY;
++
++	/*
++	 * check if the resp_buf can able to accommodate the response_desc
++	 * that has to be sent as response.
++	 */
++	if (resp_buf->size < sizeof(*response_desc))
++		return TS_RPC_ERROR_INVALID_RESP_BODY;
++
++	request_desc = (struct ts_firmware_update_accept_image_in *)(req_buf->data);
++	response_desc = (struct ts_firmware_update_accept_image_out *)(resp_buf->data);
++
++	assert(request_desc->function_id == TS_FIRMWARE_UPDATE_OPCODE_ACCEPT_IMAGE);
++
++	/* boot index should be the same as active index */
++	if (fwu_boot_index_get() != fwu_active_index_get()) {
++		ERROR("FWU: boot_index is not the same as active_index\n");
++		response_desc->status = FWU_DENIED;
++		goto exit;
++	}
++
++	if (!accept_image(request_desc->image_type_uuid, fwu_active_index_get())) {
++		ERROR("FWU: failed to accept image\n");
++		response_desc->status = FWU_UNKNOWN;
++		goto exit;
++	}
++
++	if (fwu_metadata_update()) {
++		ERROR("FWU: failed to update metadata\n");
++		response_desc->status = FWU_DENIED;
++		goto exit;
++	}
++
++	response_desc->status = FWU_SUCCESS;
++
++exit:
++	resp_buf->data_len = sizeof(struct ts_firmware_update_accept_image_out);
++	call_req_set_opstatus(req, response_desc->status);
++	return TS_RPC_CALL_ACCEPTED;
++}
++
++static rpc_status_t select_previous_handler(void *context, struct call_req* req)
++{
++	struct ts_firmware_update_select_previous_in *request_desc;
++	struct ts_firmware_update_select_previous_out *response_desc;
++
++	struct call_param_buf *req_buf = call_req_get_req_buf(req);
++	struct call_param_buf *resp_buf = call_req_get_resp_buf(req);
++
++	int previous_active_index = fwu_previous_active_index_get();
++
++	/*
++	 * check if req_buf is the actual size of request descriptor
++	 * to ensure we received the proper request that can be handled here
++	 */
++	if (req_buf->data_len != sizeof(*request_desc))
++		return TS_RPC_ERROR_INVALID_REQ_BODY;
++
++	/*
++	 * check if the resp_buf can able to accommodate the response_desc
++	 * that has to be sent as response.
++	 */
++	if (resp_buf->size < sizeof(*response_desc))
++		return TS_RPC_ERROR_INVALID_RESP_BODY;
++
++	request_desc = (struct ts_firmware_update_select_previous_in *)(req_buf->data);
++	response_desc = (struct ts_firmware_update_select_previous_out *)(resp_buf->data);
++
++	assert(request_desc->function_id == TS_FIRMWARE_UPDATE_OPCODE_SELECT_PREVIOUS);
++
++	/* select previous should be invoked only in the trial state */
++	if (fwu_state_get() != TRIAL_STATE) {
++		ERROR("FWU: select previous should be invoked only in the trial state\n");
++		response_desc->status = FWU_DENIED;
++		goto exit;
++	}
++
++	/* boot index should be the same as previous active index */
++	if(fwu_boot_index_get() != previous_active_index) {
++		ERROR("FWU: boot_index is not the same as previous_active_index\n");
++		response_desc->status = FWU_DENIED;
++		goto exit;
++	}
++
++	fwu_active_index_set(previous_active_index);
++
++	if (fwu_metadata_update()) {
++		ERROR("FWU: failed to update metadata\n");
++		response_desc->status = FWU_DENIED;
++		goto exit;
++	}
++
++	response_desc->status = FWU_SUCCESS;
++
++exit:
++	resp_buf->data_len = sizeof(struct ts_firmware_update_select_previous_out);
++	call_req_set_opstatus(req, response_desc->status);
++	return TS_RPC_CALL_ACCEPTED;
++}
+diff --git a/components/service/firmware_update/provider/fwu_provider.h b/components/service/firmware_update/provider/fwu_provider.h
+new file mode 100644
+index 0000000..17af362
+--- /dev/null
++++ b/components/service/firmware_update/provider/fwu_provider.h
+@@ -0,0 +1,28 @@
++/*
++ * Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef FWU_PROVIDER_H
++#define FWU_PROVIDER_H
++
++#include <components/service/common/provider/service_provider.h>
++#include <components/rpc/common/interface/rpc_caller.h>
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++struct fwu_provider {
++	struct service_provider base_provider;
++};
++
++struct rpc_interface *fwu_provider_init(struct fwu_provider *context);
++void fwu_provider_deinit(struct fwu_provider *context);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif /* FWU_PROVIDER_H */
+diff --git a/components/service/firmware_update/provider/fwu_state.c b/components/service/firmware_update/provider/fwu_state.c
+new file mode 100644
+index 0000000..cbeea16
+--- /dev/null
++++ b/components/service/firmware_update/provider/fwu_state.c
+@@ -0,0 +1,29 @@
++/*
++ * Copyright (c) 2022, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <fwu_state.h>
++#include <metadata.h>
++
++static fwu_state_t current_fwu_state;
++
++fwu_state_t fwu_state_get(void)
++{
++    return current_fwu_state;
++}
++
++void fwu_state_set(fwu_state_t state)
++{
++    current_fwu_state = state;
++}
++
++/* A platform can boot either in regular state or trial state */
++void fwu_state_init(void)
++{
++    if(fwu_is_trial_run_state())
++        fwu_state_set(TRIAL_STATE);
++    else
++        fwu_state_set(REGULAR_STATE);
++}
+diff --git a/components/service/firmware_update/provider/fwu_state.h b/components/service/firmware_update/provider/fwu_state.h
+new file mode 100644
+index 0000000..afa0516
+--- /dev/null
++++ b/components/service/firmware_update/provider/fwu_state.h
+@@ -0,0 +1,20 @@
++/*
++ * Copyright (c) 2022, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef FWU_STATE_H
++#define FWU_STATE_H
++
++typedef enum fwu_state {
++    REGULAR_STATE,
++    STAGING_STATE,
++    TRIAL_STATE
++} fwu_state_t;
++
++void fwu_state_set(fwu_state_t state);
++fwu_state_t fwu_state_get(void);
++void fwu_state_init(void);
++
++#endif /* FWU_STATE_H */
+diff --git a/components/service/firmware_update/provider/image_directory.c b/components/service/firmware_update/provider/image_directory.c
+new file mode 100644
+index 0000000..7418b8d
+--- /dev/null
++++ b/components/service/firmware_update/provider/image_directory.c
+@@ -0,0 +1,43 @@
++/*
++ * Copyright (c) 2022, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <assert.h>
++#include <image_directory.h>
++#include <metadata.h>
++#include <stdbool.h>
++#include <stdint.h>
++#include <string.h>
++#include <uuid.h>
++
++static struct fwu_image_directory image_directory;
++static bool is_image_directory_initialized;
++
++void copy_image_directory(struct fwu_image_directory *buffer)
++{
++	assert(is_image_directory_initialized == true);
++	assert(buffer != NULL);
++	memcpy(buffer, &image_directory, sizeof(struct fwu_image_directory));
++}
++
++void populate_image_directory(const struct fwu_metadata* metadata)
++{
++	assert(metadata != NULL);
++
++	uint32_t boot_index = fwu_boot_index_get();
++	image_directory.directory_version = 1;
++	image_directory.num_images = NR_OF_FW_IMAGES;
++	image_directory.active_index = metadata->active_index;
++	image_directory.boot_index = boot_index;
++	for (uint32_t idx = 0; idx < NR_OF_FW_IMAGES; idx++) {
++		memcpy(&image_directory.img_info_entry[idx].img_type_uuid, &metadata->img_entry[idx].img_type_uuid, sizeof(uuid_t));
++		image_directory.img_info_entry[idx].client_permissions = FWU_WRITE_PERM;
++		image_directory.img_info_entry[idx].img_max_size = 0; /* Not supported */
++		image_directory.img_info_entry[idx].lowest_accepted_version = 0; /* Not supported */
++		image_directory.img_info_entry[idx].img_version = 0; /* Not supported */
++		image_directory.img_info_entry[idx].accepted = metadata->img_entry[idx].img_props[boot_index].accepted;
++	}
++	is_image_directory_initialized = true;
++}
+diff --git a/components/service/firmware_update/provider/image_directory.h b/components/service/firmware_update/provider/image_directory.h
+new file mode 100644
+index 0000000..ff7ca6b
+--- /dev/null
++++ b/components/service/firmware_update/provider/image_directory.h
+@@ -0,0 +1,40 @@
++/*
++ * Copyright (c) 2022, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef IMAGE_DIRECTORY_H
++#define IMAGE_DIRECTORY_H
++
++#include <metadata.h>
++#include <stdbool.h>
++#include <uuid.h>
++
++#define FWU_READ_PERM	(1 << 1)
++#define FWU_WRITE_PERM	(1)
++
++struct __attribute__ ((__packed__)) img_info_entry
++{
++	uuid_t   img_type_uuid;
++	uint32_t client_permissions;
++	uint32_t img_max_size;
++	uint32_t lowest_accepted_version;
++	uint32_t img_version;
++	uint32_t accepted;
++	uint32_t reserved;
++};
++
++struct __attribute__ ((__packed__)) fwu_image_directory
++{
++	uint32_t directory_version;
++	uint32_t num_images;
++	uint32_t active_index;
++	uint32_t boot_index;
++	struct img_info_entry img_info_entry[NR_OF_FW_IMAGES];
++};
++
++void populate_image_directory(const struct fwu_metadata* metadata);
++void copy_image_directory(struct fwu_image_directory *buffer);
++
++#endif /* IMAGE_DIRECTORY_H */
+diff --git a/components/service/firmware_update/provider/metadata.c b/components/service/firmware_update/provider/metadata.c
+new file mode 100644
+index 0000000..ed331a5
+--- /dev/null
++++ b/components/service/firmware_update/provider/metadata.c
+@@ -0,0 +1,239 @@
++/*
++ * Copyright (c) 2022, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <assert.h>
++#include <common/debug.h>
++#include <fwu_nvm_accessors.h>
++#include <image_directory.h>
++#include <metadata.h>
++#include <platform/interface/partition/partition.h>
++#include <stdbool.h>
++#include <stdint.h>
++#include <string.h>
++#include <tf_crc32.h>
++#include <uuid.h>
++
++static uint32_t fwu_update_index;
++static uint32_t fwu_boot_index;
++static bool is_metadata_initialized;
++static struct fwu_metadata metadata;
++
++static const char * const metadata_part_names[] = {"FWU-Metadata", "Bkup-FWU-Metadata"};
++
++/*
++ * Assert that crc_32 is the first member of fwu_metadata structure.
++ * It avoids accessing data outside of the metadata structure during
++ * CRC32 computation if the crc_32 field gets moved due the structure
++ * member(s) addition in the future.
++ */
++CASSERT((offsetof(struct fwu_metadata, crc_32) == 0),
++        crc_32_must_be_first_member_of_structure);
++
++/*******************************************************************************
++ * Compute CRC32 of the FWU metadata, and check it against the CRC32 value
++ * present in the FWU metadata.
++ *
++ * return -1 on error, otherwise 0
++ ******************************************************************************/
++static int fwu_metadata_crc_check(void)
++{
++	unsigned char *data = (unsigned char *)&metadata;
++
++	uint32_t calc_crc = tf_crc32(0U, data + sizeof(metadata.crc_32),
++				(sizeof(metadata) -
++				sizeof(metadata.crc_32)));
++
++	if (metadata.crc_32 != calc_crc) {
++		return -1;
++	}
++
++	return 0;
++}
++
++/*******************************************************************************
++ * Check the sanity of FWU metadata.
++ *
++ * return -1 on error, otherwise 0
++ ******************************************************************************/
++static int fwu_metadata_sanity_check(void)
++{
++	/* ToDo: add more conditions for sanity check */
++	if ((metadata.active_index >= NR_OF_FW_BANKS) ||
++		(metadata.previous_active_index >= NR_OF_FW_BANKS)) {
++		return -1;
++	}
++
++	return 0;
++}
++
++/*******************************************************************************
++ * The system runs in the trial run state if any of the images in the active
++ * firmware bank has not been accepted yet.
++ *
++ * Returns true if the system is running in the trial state.
++ ******************************************************************************/
++bool fwu_is_trial_run_state(void)
++{
++	bool trial_run = false;
++
++	assert(is_metadata_initialized == true);
++
++	for (unsigned int i = 0U; i < NR_OF_FW_IMAGES; i++) {
++		struct fwu_image_entry *entry = &metadata.img_entry[i];
++		struct fwu_image_properties *img_props =
++				&entry->img_props[metadata.active_index];
++		if (img_props->accepted == 0) {
++			trial_run = true;
++			break;
++		}
++	}
++	return trial_run;
++}
++
++uint32_t fwu_boot_index_get(void)
++{
++	assert(is_metadata_initialized == true);
++	return fwu_boot_index;
++}
++
++uint32_t fwu_update_index_get(void)
++{
++	assert(is_metadata_initialized == true);
++	return fwu_update_index;
++}
++
++uint32_t fwu_active_index_get(void)
++{
++	assert(is_metadata_initialized == true);
++	return metadata.active_index;
++}
++
++void fwu_active_index_set(uint32_t index)
++{
++	assert(is_metadata_initialized == true);
++	metadata.active_index = index;
++}
++
++uint32_t fwu_previous_active_index_get(void)
++{
++	assert(is_metadata_initialized == true);
++	return metadata.previous_active_index;
++}
++
++void fwu_previous_active_index_set(uint32_t index)
++{
++	assert(is_metadata_initialized == true);
++	metadata.previous_active_index = index;
++}
++
++int accept_image(uuid_t image_type_uuid, int index)
++{
++	assert(is_metadata_initialized == true);
++
++	if(index >= NR_OF_FW_BANKS)
++		return -1;
++
++	for (int i = 0; i < NR_OF_FW_IMAGES; i++) {
++		struct fwu_image_entry *entry = &metadata.img_entry[i];
++		if(!memcmp(&image_type_uuid, &entry->img_type_uuid,  sizeof(uuid_t))) {
++			struct fwu_image_properties *img_props = &entry->img_props[index];
++			img_props->accepted = 1;
++			return 0;
++		}
++	}
++	return -1;
++}
++
++/*******************************************************************************
++ * Verify and load specified FWU metadata image to local FWU metadata structure.
++ *
++ * @partition_name: FWU metadata partition name (either "FWU-Metadata" or
++ *							"Bkup-FWU-Metadata")
++ *
++ * return a negative value on error, otherwise 0
++ ******************************************************************************/
++static int fwu_metadata_load_partition(const char *partition_name)
++{
++	int result;
++
++	const partition_entry_t *partition_entry = get_partition_entry(partition_name);
++	if (partition_entry == NULL) {
++		ERROR("Cannot find partition: %s\n", partition_name);
++		return -1;
++	}
++
++	result = fwu_nvm_read(partition_entry->start, (void *)&metadata, sizeof(metadata));
++	if (result) {
++		ERROR("Failed to read metadata from IO storage\n");
++		return result;
++	}
++
++	/* sanity check on loaded parameters */
++	result = fwu_metadata_sanity_check();
++	if (result) {
++		ERROR("Sanity %s\n", "check failed on FWU metadata");
++		return result;
++	}
++
++	/* CRC check on loaded parameters */
++	result = fwu_metadata_crc_check();
++	if (result)
++		ERROR("CRC %s\n", "check failed on FWU metadata");
++
++	return result;
++}
++
++static int fwu_metadata_load(void)
++{
++	int result;
++
++	for (int i = 0; i < NR_OF_FW_BANKS; i++) {
++		result = fwu_metadata_load_partition(metadata_part_names[i]);
++		if (!result) {
++			populate_image_directory(&metadata);
++			return result;
++		}
++	}
++	return result;
++}
++
++int fwu_metadata_update(void)
++{
++	uint32_t calc_crc = tf_crc32(0U, (unsigned char *)&metadata + sizeof(metadata.crc_32),
++				(sizeof(metadata) - sizeof(metadata.crc_32)));
++	metadata.crc_32 = calc_crc;
++
++	for (int i = 0; i < NR_OF_FW_BANKS; i++) {
++		const partition_entry_t *partition_entry = get_partition_entry(metadata_part_names[i]);
++		if (partition_entry == NULL) {
++			ERROR("cannot find partition: %s\n", metadata_part_names[i]);
++			return -1;
++		}
++		if (fwu_nvm_write(partition_entry->start, (void *)&metadata, sizeof(metadata))) {
++			ERROR("failed to write to %s\n", metadata_part_names[i]);
++			return -1;
++		}
++	}
++
++	return 0;
++}
++
++/*******************************************************************************
++ * Load verified copy of FWU metadata image kept in the platform NV storage
++ * into local FWU metadata structure.
++ ******************************************************************************/
++int fwu_metadata_init(void)
++{
++	if(fwu_metadata_load())
++		return -1;
++
++	/* TODO: get boot index from BL2 */
++	fwu_boot_index = metadata.active_index;
++	fwu_update_index = (metadata.active_index + 1) % NR_OF_FW_BANKS;
++	is_metadata_initialized = true;
++
++	return 0;
++}
+diff --git a/components/service/firmware_update/provider/metadata.h b/components/service/firmware_update/provider/metadata.h
+new file mode 100644
+index 0000000..6eb9cb7
+--- /dev/null
++++ b/components/service/firmware_update/provider/metadata.h
+@@ -0,0 +1,87 @@
++/*
++ * Copyright (c) 2022, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ *
++ * FWU metadata information as per the specification section 4.1:
++ * https://developer.arm.com/documentation/den0118/a/
++ *
++ */
++
++#ifndef FWU_METADATA_H
++#define FWU_METADATA_H
++
++#include <stdint.h>
++#include <stdbool.h>
++#include <uuid.h>
++
++/* Properties of image in a bank */
++struct __attribute__ ((__packed__)) fwu_image_properties {
++
++	/* UUID of the image in this bank */
++	uuid_t img_uuid;
++
++	/* [0]: bit describing the image acceptance status –
++	 *      1 means the image is accepted
++	 * [31:1]: MBZ
++	 */
++	uint32_t accepted;
++
++	/* reserved (MBZ) */
++	uint32_t reserved;
++
++};
++
++/* Image entry information */
++struct __attribute__ ((__packed__)) fwu_image_entry {
++
++	/* UUID identifying the image type */
++	uuid_t img_type_uuid;
++
++	/* UUID of the storage volume where the image is located */
++	uuid_t location_uuid;
++
++	/* Properties of images with img_type_uuid in the different FW banks */
++	struct fwu_image_properties img_props[NR_OF_FW_BANKS];
++
++};
++
++/*
++ * FWU metadata filled by the updater and consumed by TF-A for
++ * various purposes as below:
++ * 1. Get active FW bank.
++ * 2. Rollback to previous working FW bank.
++ * 3. Get properties of all images present in all banks.
++ */
++struct __attribute__ ((__packed__)) fwu_metadata {
++
++	/* Metadata CRC value */
++	uint32_t crc_32;
++
++	/* Metadata version */
++	uint32_t version;
++
++	/* Bank index with which device boots */
++	uint32_t active_index;
++
++	/* Previous bank index with which device booted successfully */
++	uint32_t previous_active_index;
++
++	/* Image entry information */
++	struct fwu_image_entry img_entry[NR_OF_FW_IMAGES];
++
++};
++
++bool fwu_is_trial_run_state(void);
++int accept_image(uuid_t image_type_uuid, int index);
++int fwu_metadata_init(void);
++int fwu_metadata_update(void);
++
++uint32_t fwu_boot_index_get(void);
++uint32_t fwu_active_index_get(void);
++void fwu_active_index_set(uint32_t index);
++uint32_t fwu_update_index_get(void);
++uint32_t fwu_previous_active_index_get(void);
++void fwu_previous_active_index_set(uint32_t index);
++
++#endif /* FWU_METADATA_H */
+diff --git a/components/service/firmware_update/provider/staging_area.c b/components/service/firmware_update/provider/staging_area.c
+new file mode 100644
+index 0000000..110cc71
+--- /dev/null
++++ b/components/service/firmware_update/provider/staging_area.c
+@@ -0,0 +1,86 @@
++/*
++ * Copyright (c) 2022, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <errno.h>
++#include <fwu_nvm_accessors.h>
++#include <staging_area.h>
++#include <stdint.h>
++#include <stdlib.h>
++#include <string.h>
++#include <uuid.h>
++#include <platform/interface/partition/partition.h>
++
++static struct staging_area reserve_staging_area[MAX_STAGING_AREA];
++
++int fwu_staging_area_create(uuid_t* image_type_uuid, int update_index, uint32_t *handle)
++{
++	const partition_entry_t *partition_entry =
++		get_partition_entry_by_type_uuid_and_index(image_type_uuid, update_index);
++
++	if (partition_entry == NULL)
++		return -EINVAL;
++
++	for(int i = 0; i < MAX_STAGING_AREA; i++) {
++		if(reserve_staging_area[i].ongoing_transfer == false) {
++			struct staging_area *image_staging_area = &reserve_staging_area[i];
++			image_staging_area->partition_start = partition_entry->start;
++			image_staging_area->bytes_filled = 0;
++			image_staging_area->ongoing_transfer = true;
++			memcpy(&image_staging_area->image_type_uuid, image_type_uuid, sizeof(uuid_t));
++			image_staging_area->buffer_size = partition_entry->length;
++			image_staging_area->buffer = calloc(1, image_staging_area->buffer_size);
++			if (!image_staging_area->buffer)
++				return -ENOMEM;
++			*handle = i;
++			return 0;
++		}
++	}
++	return -ENOMEM;
++}
++
++bool fwu_staging_area_is_open(void)
++{
++	for(int i = 0; i < MAX_STAGING_AREA; i++) {
++		if(reserve_staging_area[i].ongoing_transfer == true) {
++			return true;
++		}
++	}
++	return false;
++}
++
++struct staging_area* fwu_staging_area_get(int handle)
++{
++	if((handle < MAX_STAGING_AREA) &&
++		(reserve_staging_area[handle].ongoing_transfer == true))
++			return &reserve_staging_area[handle];
++
++	return NULL;
++}
++
++int fwu_staging_area_commit(struct staging_area* image_staging_area)
++{
++	return fwu_nvm_write(image_staging_area->partition_start,
++		image_staging_area->buffer, image_staging_area->bytes_filled);
++}
++
++void fwu_staging_area_discard(struct staging_area* image_staging_area)
++{
++	image_staging_area->ongoing_transfer = false;
++	image_staging_area->buffer_size = 0;
++	image_staging_area->bytes_filled = 0;
++	image_staging_area->partition_start = 0;
++	memset(&image_staging_area->image_type_uuid, 0, sizeof(uuid_t));
++	free(image_staging_area->buffer);
++}
++
++void fwu_staging_area_discard_all()
++{
++	for(int i = 0; i < MAX_STAGING_AREA; i++) {
++		if(reserve_staging_area[i].ongoing_transfer == true) {
++			fwu_staging_area_discard(&reserve_staging_area[i]);
++		}
++	}
++}
+diff --git a/components/service/firmware_update/provider/staging_area.h b/components/service/firmware_update/provider/staging_area.h
+new file mode 100644
+index 0000000..a0c66f0
+--- /dev/null
++++ b/components/service/firmware_update/provider/staging_area.h
+@@ -0,0 +1,33 @@
++/*
++ * Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef FWU_STAGING_AREA_H
++#define FWU_STAGING_AREA_H
++
++#include <stdbool.h>
++#include <stdint.h>
++#include <uuid.h>
++
++#define MAX_STAGING_AREA		10
++#define FWU_IMAGE_DIRECTORY_HANDLE	MAX_STAGING_AREA
++
++struct staging_area {
++	uuid_t   image_type_uuid;
++	uint64_t partition_start;
++	uint64_t buffer_size;
++	uint64_t bytes_filled;
++	void* buffer;
++	bool ongoing_transfer;
++};
++
++bool fwu_staging_area_is_open(void);
++int fwu_staging_area_create(uuid_t *image_type_uuid, int update_index, uint32_t *handle);
++int fwu_staging_area_commit(struct staging_area* image_staging_area);
++struct staging_area* fwu_staging_area_get(int handle);
++void fwu_staging_area_discard(struct staging_area* image_staging_area);
++void fwu_staging_area_discard_all(void);
++
++#endif /* FWU_STAGING_AREA_H */
+diff --git a/components/service/locator/linux/ffa/linuxffa_location_strategy.c b/components/service/locator/linux/ffa/linuxffa_location_strategy.c
+index d1547a3..059a80b 100644
+--- a/components/service/locator/linux/ffa/linuxffa_location_strategy.c
++++ b/components/service/locator/linux/ffa/linuxffa_location_strategy.c
+@@ -122,6 +122,7 @@ static size_t suggest_tf_org_partition_uuids(const char *sn,
+ 		{"protected-storage",           "751bf801-3dde-4768-a514-0f10aeed1790",	0},
+ 		{"test-runner",                 "33c75baf-ac6a-4fe4-8ac7-e9909bee2d17",	0},
+ 		{"attestation",                 "a1baf155-8876-4695-8f7c-54955e8db974",	0},
++		{"firmware-update",             "6823a838-1b06-470e-9774-0cce8bfb53fd", 0},
+ 
+ 		/* Secure Enclave proxy accessed services */
+ 		{"crypto",                      "46bb39d1-b4d9-45b5-88ff-040027dab249",	SE_PROXY_INTERFACE_ID_CRYPTO},
+diff --git a/protocols/service/firmware_update/packed-c/component.cmake b/protocols/service/firmware_update/packed-c/component.cmake
+new file mode 100644
+index 0000000..bb8cfb9
+--- /dev/null
++++ b/protocols/service/firmware_update/packed-c/component.cmake
+@@ -0,0 +1,14 @@
++#-------------------------------------------------------------------------------
++# Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++#
++# SPDX-License-Identifier: BSD-3-Clause
++#
++#-------------------------------------------------------------------------------
++if (NOT DEFINED TGT)
++	message(FATAL_ERROR "mandatory parameter TGT is not defined.")
++endif()
++
++target_include_directories(${TGT}
++	 PRIVATE
++		"${CMAKE_CURRENT_LIST_DIR}"
++	)
+diff --git a/protocols/service/firmware_update/packed-c/firmware_update_proto.h b/protocols/service/firmware_update/packed-c/firmware_update_proto.h
+new file mode 100644
+index 0000000..0c285a0
+--- /dev/null
++++ b/protocols/service/firmware_update/packed-c/firmware_update_proto.h
+@@ -0,0 +1,174 @@
++/*
++ * Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef FIRMWARE_UPDATE_PROTO_H
++#define FIRMWARE_UPDATE_PROTO_H
++
++#include <stdint.h>
++#include <uuid.h>
++
++/**
++ * The major version number of the PSA FWU API. It will be incremented on
++ * significant updates that may include breaking changes.
++ */
++#define FWU_VERSION_MAJOR 1
++
++/**
++ * The minor version number of the PSA FWU API. It will be incremented in
++ * small updates that are unlikely to include breaking changes.
++ */
++#define FWU_VERSION_MINOR 0
++
++enum FWU_FUNCS {
++	TS_FIRMWARE_UPDATE_OPCODE_DISCOVER,
++	TS_FIRMWARE_UPDATE_OPCODE_BEGIN_STAGING,
++	TS_FIRMWARE_UPDATE_OPCODE_END_STAGING,
++	TS_FIRMWARE_UPDATE_OPCODE_CANCEL_STAGING,
++	TS_FIRMWARE_UPDATE_OPCODE_OPEN,
++	TS_FIRMWARE_UPDATE_OPCODE_WRITE_STREAM,
++	TS_FIRMWARE_UPDATE_OPCODE_READ_STREAM,
++	TS_FIRMWARE_UPDATE_OPCODE_COMMIT,
++	TS_FIRMWARE_UPDATE_OPCODE_ACCEPT_IMAGE,
++	TS_FIRMWARE_UPDATE_OPCODE_SELECT_PREVIOUS,
++	FWU_NUM_FUNC
++};
++
++#define FWU_SUCCESS       0
++#define FWU_UNKNOWN       ((int32_t)-1)
++#define FWU_BUSY          ((int32_t)-2)
++#define FWU_OUT_OF_BOUNDS ((int32_t)-3)
++#define FWU_AUTH_FAIL     ((int32_t)-4)
++#define FWU_NO_PERMISSION ((int32_t)-5)
++#define FWU_DENIED        ((int32_t)-6)
++#define FWU_RESUME        ((int32_t)-7)
++
++#define FWU_SP_UUID \
++    {0x6823a838, 0x1b06, 0x470e, { 0x97, 0x74, 0x0c, 0xce, 0x8b, 0xfb, 0x53, 0xfd }}
++
++#define FWU_IMAGE_DIRECTORY_UUID \
++    {0xdeee58d9, 0x5147, 0x4ad3, { 0xa2, 0x90, 0x77, 0x66, 0x6e, 0x23, 0x41, 0xa5}}
++
++struct __attribute__ ((__packed__)) ts_firmware_update_discover_in
++{
++    uint32_t function_id;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_discover_out
++{
++    uint32_t status;
++    uint8_t  version_major;
++    uint8_t  version_minor;
++    uint16_t num_func;
++    uint8_t  function_presence[FWU_NUM_FUNC];
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_begin_staging_in
++{
++    uint32_t function_id;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_begin_staging_out
++{
++    uint32_t status;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_end_staging_in
++{
++    uint32_t function_id;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_end_staging_out
++{
++    uint32_t status;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_cancel_staging_in
++{
++    uint32_t function_id;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_cancel_staging_out
++{
++    uint32_t status;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_open_in
++{
++    uint32_t function_id;
++    uuid_t   image_uuid;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_open_out
++{
++    uint32_t status;
++    uint32_t handle;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_write_stream_in
++{
++    uint32_t function_id;
++    uint32_t handle;
++    uint32_t data_len;
++    uint8_t  payload[];
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_write_stream_out
++{
++    uint32_t status;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_read_stream_in
++{
++    uint32_t function_id;
++    uint32_t handle;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_read_stream_out
++{
++    uint32_t status;
++    uint32_t read_bytes;
++    uint32_t total_bytes;
++    uint8_t  payload[];
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_commit_in
++{
++    uint32_t function_id;
++    uint32_t handle;
++    uint32_t acceptance_req;
++    uint32_t max_atomic_len;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_commit_out
++{
++    uint32_t status;
++    uint32_t progress;
++    uint32_t total_work;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_accept_image_in
++{
++    uint32_t function_id;
++    uint32_t reserved;
++    uuid_t   image_type_uuid;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_accept_image_out
++{
++    uint32_t status;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_select_previous_in
++{
++    uint32_t function_id;
++};
++
++struct __attribute__ ((__packed__)) ts_firmware_update_select_previous_out
++{
++    uint32_t status;
++};
++
++#endif /* FIRMWARE_UPDATE_PROTO_H */
+-- 
+2.34.1
+
