@@ -5,7 +5,7 @@
 	},
 
 	"crypto" : {
-		"image": "crypto-sp.bin",
+		"image": "crypto.bin",
 		"pm": "crypto.dts"
 	},
 

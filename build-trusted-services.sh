@@ -41,8 +41,8 @@ do_build() {
         pushd $TS_SRC/deployments/$sp/$TS_ENVIRONMENT
         $CMAKE -S . -B build -DCROSS_COMPILE=$TS_COMPILER-
         $CMAKE --build build --parallel "$PARALLELISM"
-        cp $TS_SRC/deployments/$sp/$TS_ENVIRONMENT/*.dts $TFA_SP_DIR
-        cp $TS_SRC/deployments/$sp/$TS_ENVIRONMENT/build/*.bin $TFA_SP_DIR
+        cp $TS_SRC/deployments/$sp/$TS_ENVIRONMENT/*.dts $TFA_SP_DIR/$sp.dts
+        cp $TS_SRC/deployments/$sp/$TS_ENVIRONMENT/build/*.bin $TFA_SP_DIR/$sp.bin
         popd
     done
 
@@ -52,7 +52,7 @@ do_build() {
         $CMAKE -S . -B build -DCROSS_COMPILE=$TS_APPS_COMPILER-
         $CMAKE --build build
         install -D $TS_SRC/deployments/$test_app/arm-linux/build/$test_app $BUILDROOT_ROOTFS_OVERLAY/bin/$test_app
-        install -D $TS_SRC/deployments/$test_app/arm-linux/build/libts_install/arm-linux/lib/libts.so $BUILDROOT_ROOTFS_OVERLAY/lib/libts.so
+        install -D $TS_SRC/deployments/$test_app/arm-linux/build/libts_install/arm-linux/lib/libts.so $BUILDROOT_ROOTFS_OVERLAY/lib/libts.so.1
         popd
     done
 }
