@@ -52,9 +52,9 @@ do_build() {
         $CMAKE -S . -B $TS_OUTDIR/$test_app -DCROSS_COMPILE=$TS_APPS_COMPILER-
         $CMAKE --build $TS_OUTDIR/$test_app
         install -D $TS_OUTDIR/$test_app/$test_app $BUILDROOT_ROOTFS_OVERLAY/bin/$test_app
-        install -D $TS_OUTDIR/$test_app/libts_install/arm-linux/lib/libts.so $BUILDROOT_ROOTFS_OVERLAY/lib/libts.so.1
         popd
     done
+    install -D $TS_OUTDIR/$test_app/libts_install/arm-linux/lib/libts.so $BUILDROOT_ROOTFS_OVERLAY/lib/libts.so.1
 }
 
 do_clean() {
