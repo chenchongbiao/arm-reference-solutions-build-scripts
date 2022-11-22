@@ -41,6 +41,7 @@ do_build() {
                 -DSCP_TOOLCHAIN:STRING="GNU"
                 -DCMAKE_OBJCOPY="${SCP_COMPILER}-objcopy"
                 -DSCP_LOG_LEVEL=${SCP_LOG_LEVEL}
+                -DDISABLE_CPPCHECK=true
             )
 
             case "${SCP_BUILD_MODE}" in
