@@ -1,0 +1,31 @@
+From 6b518bb1af6b3421e61f59d6db4422819a89ee7a Mon Sep 17 00:00:00 2001
+From: Ben Horgan <ben.horgan@arm.com>
+Date: Thu, 24 Nov 2022 15:02:24 +0000
+Subject: [PATCH 2/2] buildfix: Fix build for Ubuntu 22.04
+
+Don't warn on deprecated functions as otherwise the build
+fails due to the use of deprecated openssl functions and
+-Werror.
+
+Signed-off-by: Ben Horgan <ben.horgan@arm.com>
+---
+ app/apploader/package_tool/rules.mk | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/app/apploader/package_tool/rules.mk b/app/apploader/package_tool/rules.mk
+index fab2fc6..a8ef5a5 100644
+--- a/app/apploader/package_tool/rules.mk
++++ b/app/apploader/package_tool/rules.mk
+@@ -37,7 +37,8 @@ HOST_FLAGS := -D__TRUSTY__
+ 
+ # The COSE code also needs to use different APIs/macros for error printing
+ # depending on whether it's compiled for a host tool or Trusty application.
+-HOST_FLAGS += -D__COSE_HOST__
++HOST_FLAGS += -D__COSE_HOST__ \
++	-Wno-error=deprecated-declarations
+ 
+ HOST_LIBS := \
+ 	c++ \
+-- 
+2.34.1
+
