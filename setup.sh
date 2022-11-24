@@ -95,10 +95,10 @@ OPENSSL_DIR=$SCRIPT_DIR/../tools/openssl
 if [ ! -f $OPENSSL_DIR/bin/openssl ]; then
 
     mkdir $OPENSSL_DIR
-    OPENSSL_VER="3.0.2"
+    OPENSSL_VER="3.0.7"
     OPENSSL_DIRNAME="openssl-${OPENSSL_VER}"
     OPENSSL_FILENAME="openssl-${OPENSSL_VER}"
-    OPENSSL_CHECKSUM="98e91ccead4d4756ae3c9cde5e09191a8e586d9f4d50838e7ec09d6411dfdb63"
+    OPENSSL_CHECKSUM="83049d042a260e696f62406ac5c08bf706fd84383f945cf21bd61e9ed95c396e"
     curl --connect-timeout 5 --retry 5 --retry-delay 1 --create-dirs -fsSLo $OPENSSL_DIR/${OPENSSL_FILENAME}.tar.gz \
       https://www.openssl.org/source/${OPENSSL_FILENAME}.tar.gz
     echo "${OPENSSL_CHECKSUM}  $OPENSSL_DIR/${OPENSSL_FILENAME}.tar.gz" | sha256sum -c

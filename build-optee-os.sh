@@ -34,6 +34,7 @@ do_build() {
         CROSS_COMPILE_core=$OPTEE_COMPILER-
         CROSS_COMPILE_ta_arm64=$OPTEE_COMPILER-
         PLATFORM=$OPTEE_PLATFORM
+        CFG_USER_TA_TARGETS=ta_arm64
         CFG_ARM64_core=y
         CFG_TEE_CORE_LOG_LEVEL=3
         CFG_TEE_BENCHMARK=n

@@ -1,0 +1,284 @@
+From 6c8bdf9a6ca5d50f92e2ae5843f619cbf53cfe2e Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Mon, 23 May 2022 16:25:46 +0530
+Subject: [PATCH 12/14] firmware-update: add new deployment for the sp
+ environment
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+Change-Id: I3d1ec71f4300a6d3f37195f19f9adbe3773f4ea8
+
+Upstream-Status: Pending [Not submitted to upstream yet]
+---
+ deployments/firmware-update/sp/CMakeLists.txt | 111 ++++++++++++++++++
+ .../firmware-update/sp/firmware-update.c      |  99 ++++++++++++++++
+ .../firmware-update/sp/firmware-update.dts    |  34 ++++++
+ 3 files changed, 244 insertions(+)
+ create mode 100644 deployments/firmware-update/sp/CMakeLists.txt
+ create mode 100644 deployments/firmware-update/sp/firmware-update.c
+ create mode 100644 deployments/firmware-update/sp/firmware-update.dts
+
+diff --git a/deployments/firmware-update/sp/CMakeLists.txt b/deployments/firmware-update/sp/CMakeLists.txt
+new file mode 100644
+index 0000000..10b2bc3
+--- /dev/null
++++ b/deployments/firmware-update/sp/CMakeLists.txt
+@@ -0,0 +1,111 @@
++#-------------------------------------------------------------------------------
++# Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++#
++# SPDX-License-Identifier: BSD-3-Clause
++#
++#-------------------------------------------------------------------------------
++cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
++
++# Set default platform.
++set(TS_PLATFORM "arm/total_compute" CACHE STRING "Target platform location.")
++include(../../deployment.cmake REQUIRED)
++
++#-------------------------------------------------------------------------------
++#  The CMakeLists.txt for building the firmware-update deployment for
++#  generic sp environment.
++#
++#  Builds the secure storage service provider for running in an SEL0 secure
++#  partition hosted by any SPM.
++#-------------------------------------------------------------------------------
++include(${TS_ROOT}/environments/sp/env.cmake)
++set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type")
++project(trusted-services LANGUAGES C ASM)
++add_executable(firmware-update)
++target_include_directories(firmware-update PRIVATE "${TOP_LEVEL_INCLUDE_DIRS}")
++set(SP_NAME "firmware-update")
++set(SP_UUID_CANON "6823a838-1b06-470e-9774-0cce8bfb53fd")
++set(SP_UUID_LE "0x38a82368 0x0e47061b 0xce0c7497 0xfd53fb8b")
++set(TRACE_PREFIX "FWU" CACHE STRING "Trace prefix")
++set(SP_STACK_SIZE "64 * 1024" CACHE STRING "Stack size")
++set(SP_HEAP_SIZE "5 * 1024 * 1024" CACHE STRING "Heap size")
++
++# Setting the MM communication buffer parameters
++set(FFA_SHARED_MM_BUFFER_ADDR "0xFCA00000" CACHE STRING "MM communication buffer address")
++set(FFA_SHARED_MM_BUFFER_SIZE "4 * 1024 * 1024" CACHE STRING "MM communication buffer size")
++
++add_components(TARGET "firmware-update"
++	BASE_DIR ${TS_ROOT}
++	COMPONENTS
++		components/common/fdt
++		components/common/tlv
++		components/common/trace
++		components/common/utils
++		components/common/uuid
++		components/common/crc32
++		components/messaging/ffa/libsp
++		components/rpc/common/interface
++		components/rpc/ffarpc/endpoint
++		components/rpc/mm_communicate/endpoint/sp
++		components/service/common/include
++		components/service/common/provider
++		components/service/firmware_update/backend
++		components/service/firmware_update/frontend/mm_communicate
++		components/service/firmware_update/provider
++		protocols/rpc/common/packed-c
++		protocols/service/firmware_update/packed-c
++		environments/sp
++)
++
++target_sources(firmware-update PRIVATE
++	firmware-update.c
++)
++
++#-------------------------------------------------------------------------------
++#  Set target platform to provide drivers needed by the deployment
++#
++#-------------------------------------------------------------------------------
++add_platform(TARGET "firmware-update")
++
++#################################################################
++
++target_compile_definitions(firmware-update PRIVATE
++	ARM64=1
++	FFA_SHARED_MM_BUFFER_ADDR=${FFA_SHARED_MM_BUFFER_ADDR}
++	FFA_SHARED_MM_BUFFER_SIZE=${FFA_SHARED_MM_BUFFER_SIZE}
++)
++
++if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
++	target_compile_options(firmware-update PRIVATE
++		-fdiagnostics-show-option
++		-gdwarf-2
++		-mstrict-align
++		-std=c99
++		-march=armv8-a+crc
++	)
++
++	# Options for GCC that control linking
++	target_link_options(firmware-update PRIVATE
++		-zmax-page-size=4096
++	)
++
++	# Options directly for LD, these are not understood by GCC
++	target_link_options(firmware-update PRIVATE
++		-Wl,--as-needed
++		-Wl,--sort-section=alignment
++	)
++endif()
++
++compiler_generate_binary_output(TARGET firmware-update NAME "${SP_UUID_CANON}.bin" SP_BINARY)
++install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${SP_UUID_CANON}.bin DESTINATION ${TS_ENV}/bin)
++
++include(${TS_ROOT}/tools/cmake/common/ExportMemoryRegionsToManifest.cmake REQUIRED)
++export_memory_regions_to_manifest(TARGET firmware-update NAME "${SP_UUID_CANON}_memory_regions.dtsi" RES EXPORT_MEMORY_REGIONS_DTSI)
++
++######################################## install
++if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
++	set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/install CACHE PATH "location to install build output to." FORCE)
++endif()
++install(TARGETS firmware-update
++			PUBLIC_HEADER DESTINATION ${TS_ENV}/include
++			RUNTIME DESTINATION ${TS_ENV}/bin
++		)
+diff --git a/deployments/firmware-update/sp/firmware-update.c b/deployments/firmware-update/sp/firmware-update.c
+new file mode 100644
+index 0000000..6626bee
+--- /dev/null
++++ b/deployments/firmware-update/sp/firmware-update.c
+@@ -0,0 +1,99 @@
++/*
++ * Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <components/rpc/common/endpoint/rpc_interface.h>
++#include <components/rpc/mm_communicate/endpoint/sp/mm_communicate_call_ep.h>
++#include <ffa_api.h>
++#include <firmware_update_proto.h>
++#include <fwu_mm_service.h>
++#include <fwu_provider.h>
++#include <protocols/common/efi/efi_types.h>
++#include <sp_api.h>
++#include <sp_rxtx.h>
++#include <trace.h>
++
++uint16_t own_id = 0; /* !!Needs refactoring as parameter to ffarpc_caller_init */
++static int sp_init(uint16_t *own_sp_id);
++
++#if !defined(FFA_SHARED_MM_BUFFER_ADDR) || !defined(FFA_SHARED_MM_BUFFER_SIZE)
++#error "MM communication buffer is undefined, please define it in the build system"
++#endif
++
++void __noreturn sp_main(struct ffa_init_info *init_info)
++{
++	struct rpc_interface *fwu_rpc_iface = NULL;
++	struct fwu_provider fwu_provider = {0};
++	struct fwu_mm_service fwu_mm_service = { 0 };
++	struct mm_communicate_ep mm_communicate_call_ep = { 0 };
++	struct mm_service_interface *fwu_mm_service_interface = NULL;
++	struct ffa_direct_msg req_msg = { 0 };
++	struct ffa_direct_msg resp_msg = { 0 };
++
++	static const EFI_GUID fwu_service_guid = FWU_SP_UUID;
++
++	/* Boot phase */
++	if (sp_init(&own_id) != 0) goto fatal_error;
++
++	/* Initialize service layer and associate with RPC endpoint */
++	fwu_rpc_iface = fwu_provider_init(&fwu_provider);
++
++	/* Initialize Firmware Update MM service */
++	fwu_mm_service_interface = fwu_mm_service_init(&fwu_mm_service,
++							fwu_rpc_iface);
++
++	/* Initialize MM communication layer */
++	if (!mm_communicate_call_ep_init(&mm_communicate_call_ep,
++					(void *)FFA_SHARED_MM_BUFFER_ADDR,
++					FFA_SHARED_MM_BUFFER_SIZE))
++		goto fatal_error;
++
++	/* Attach Firmware Update service to MM communication layer */
++	mm_communicate_call_ep_attach_service(&mm_communicate_call_ep,
++					&fwu_service_guid, fwu_mm_service_interface);
++
++	/* End of boot phase */
++	ffa_msg_wait(&req_msg);
++
++	while (1) {
++		mm_communicate_call_ep_receive(&mm_communicate_call_ep,
++							&req_msg, &resp_msg);
++
++		ffa_msg_send_direct_resp(req_msg.destination_id,
++					req_msg.source_id, resp_msg.args[0],
++					resp_msg.args[1], resp_msg.args[2],
++					resp_msg.args[3], resp_msg.args[4],
++					&req_msg);
++	}
++
++fatal_error:
++	/* SP is not viable */
++	EMSG("FWU SP error");
++	while (1) {}
++}
++
++void sp_interrupt_handler(uint32_t interrupt_id)
++{
++	(void)interrupt_id;
++}
++
++static int sp_init(uint16_t *own_sp_id)
++{
++	int status = -1;
++	ffa_result ffa_res;
++	sp_result sp_res;
++	static uint8_t tx_buffer[4096] __aligned(4096);
++	static uint8_t rx_buffer[4096] __aligned(4096);
++
++	sp_res = sp_rxtx_buffer_map(tx_buffer, rx_buffer, sizeof(rx_buffer));
++	if (sp_res == SP_RESULT_OK) {
++		ffa_res = ffa_id_get(own_sp_id);
++		if (ffa_res == FFA_OK) {
++			status = 0;
++		}
++	}
++
++	return status;
++}
+diff --git a/deployments/firmware-update/sp/firmware-update.dts b/deployments/firmware-update/sp/firmware-update.dts
+new file mode 100644
+index 0000000..b95ee69
+--- /dev/null
++++ b/deployments/firmware-update/sp/firmware-update.dts
+@@ -0,0 +1,34 @@
++/*
++ * Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++/dts-v1/;
++
++/ {
++	compatible = "arm,ffa-manifest-1.0";
++	ffa-version = <0x00010000>; /* 31:16 - Major, 15:0 - Minor */
++	uuid = <0x38a82368 0x0e47061b 0xce0c7497 0xfd53fb8b>;
++	description = "firmware-update";
++	execution-ctx-count = <1>;
++	exception-level = <1>; /* S-EL0 */
++	execution-state = <0>; /* AArch64 */
++	entrypoint-offset = <0x00004000>;
++	xlat-granule = <0>; /* 4KiB */
++	messaging-method = <0x3>; /* Direct messaging only */
++
++	memory-regions {
++		compatible = "arm,ffa-manifest-memory-regions";
++		flash {
++			base-address = <0x00000000 0x08000000>;
++			pages-count = <0x4000>;
++			attributes = <0x3>; /* read-write */
++		};
++		mm-memory {
++			base-address = <0x00000000 0xfca00000>;
++			pages-count = <0x400>;
++			attributes = <0x3>; /* read-write */
++		};
++	};
++};
+-- 
+2.34.1
+

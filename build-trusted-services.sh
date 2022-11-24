@@ -39,32 +39,27 @@ do_build() {
     mkdir -p $TFA_SP_DIR
     for sp in $SECURE_PARTITIONS; do
         pushd $TS_SRC/deployments/$sp/$TS_ENVIRONMENT
-        $CMAKE -S . -B build -DCROSS_COMPILE=$TS_COMPILER-
-        $CMAKE --build build --parallel "$PARALLELISM"
-        cp $TS_SRC/deployments/$sp/$TS_ENVIRONMENT/*.dts $TFA_SP_DIR
-        cp $TS_SRC/deployments/$sp/$TS_ENVIRONMENT/build/*.bin $TFA_SP_DIR
+        $CMAKE -S . -B $TS_OUTDIR/$sp -DCROSS_COMPILE=$TS_COMPILER-
+        $CMAKE --build $TS_OUTDIR/$sp --parallel "$PARALLELISM"
+        cp $TS_SRC/deployments/$sp/$TS_ENVIRONMENT/*.dts $TFA_SP_DIR/$sp.dts
+        cp $TS_OUTDIR/$sp/*.bin $TFA_SP_DIR/$sp.bin
         popd
     done
 
     export PATH=$AARCH64_LINUX:$PATH
     for test_app in $TS_TEST_APPS; do
         pushd $TS_SRC/deployments/$test_app/arm-linux
-        $CMAKE -S . -B build -DCROSS_COMPILE=$TS_APPS_COMPILER-
-        $CMAKE --build build
-        install -D $TS_SRC/deployments/$test_app/arm-linux/build/$test_app $BUILDROOT_ROOTFS_OVERLAY/bin/$test_app
-        install -D $TS_SRC/deployments/$test_app/arm-linux/build/libts_install/arm-linux/lib/libts.so $BUILDROOT_ROOTFS_OVERLAY/lib/libts.so
+        $CMAKE -S . -B $TS_OUTDIR/$test_app -DCROSS_COMPILE=$TS_APPS_COMPILER-
+        $CMAKE --build $TS_OUTDIR/$test_app
+        install -D $TS_OUTDIR/$test_app/$test_app $BUILDROOT_ROOTFS_OVERLAY/bin/$test_app
         popd
     done
+    install -D $TS_OUTDIR/$test_app/libts_install/arm-linux/lib/libts.so $BUILDROOT_ROOTFS_OVERLAY/lib/libts.so.1
 }
 
 do_clean() {
     info_echo "Cleaning Trusted Services"
-    for sp in $SECURE_PARTITIONS; do
-        rm -rf $TS_SRC/deployments/$sp/$TS_ENVIRONMENT/build/
-    done
-    for test_app in $TS_TEST_APPS; do
-        rm -rf $TS_SRC/deployments/$test_app/arm-linux/build
-    done
+    rm -rf $TS_OUTDIR
 }
 
 do_deploy() {

@@ -1,0 +1,33 @@
+From 8bf784f2d1a2a971d7d14e29c508239b86a56ca5 Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Thu, 29 Sep 2022 11:40:12 +0530
+Subject: [PATCH 14/14] fix: update is_metadata_initialized before populating
+ image directory
+
+is_metadata_initialized must be set to true if the the metadata
+partition can be accessed properly before the image directory
+is populated
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+Change-Id: Ia5a810266ee0bd1d284c3b5d80a6da345d9f6951
+
+Upstream-Status: Pending [Not submitted to upstream yet]
+---
+ components/service/firmware_update/provider/metadata.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/components/service/firmware_update/provider/metadata.c b/components/service/firmware_update/provider/metadata.c
+index 4643293..246a62d 100644
+--- a/components/service/firmware_update/provider/metadata.c
++++ b/components/service/firmware_update/provider/metadata.c
+@@ -193,6 +193,7 @@ static int fwu_metadata_load(void)
+ 	for (int i = 0; i < NR_OF_FW_BANKS; i++) {
+ 		result = fwu_metadata_load_partition(metadata_part_names[i]);
+ 		if (!result) {
++			is_metadata_initialized = true;
+ 			populate_image_directory(&metadata);
+ 			return result;
+ 		}
+-- 
+2.34.1
+

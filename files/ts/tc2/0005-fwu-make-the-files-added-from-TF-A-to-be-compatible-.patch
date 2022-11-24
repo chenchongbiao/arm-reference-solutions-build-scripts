@@ -1,0 +1,339 @@
+From 86522e00775fdacc2bf86987863af87b2a32ac5a Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Tue, 24 May 2022 12:05:38 +0530
+Subject: [PATCH 05/14] fwu: make the files added from TF-A to be compatible
+ with TS
+
+This includes:
+  * including appropriate header files
+  * add a new header file
+  * using appropriate function calls
+  * modifying the way to retrieve image handle
+  * adding component.cmake file
+  * adding the tc platform specific partition information
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+Change-Id: Ib4f10cefc3b28b06ea6e0d594085f77959f58afd
+---
+ components/common/crc32/arm_acle.h            | 24 +++++++++++
+ components/common/crc32/component.cmake       | 17 ++++++++
+ components/common/crc32/tf_crc32.c            |  4 +-
+ .../firmware_update/backend/component.cmake   |  4 ++
+ platform/drivers/arm/partition/gpt.c          | 12 +++---
+ platform/drivers/arm/partition/partition.c    | 40 ++++++-------------
+ platform/interface/partition/gpt.h            |  7 ++--
+ platform/interface/partition/partition.h      | 10 +++--
+ .../arm/total_compute/platform.cmake          |  8 ++++
+ protocols/common/efi/efi_types.h              |  2 +-
+ 10 files changed, 83 insertions(+), 45 deletions(-)
+ create mode 100644 components/common/crc32/arm_acle.h
+ create mode 100644 components/common/crc32/component.cmake
+
+diff --git a/components/common/crc32/arm_acle.h b/components/common/crc32/arm_acle.h
+new file mode 100644
+index 0000000..ea95daa
+--- /dev/null
++++ b/components/common/crc32/arm_acle.h
+@@ -0,0 +1,24 @@
++/*
++ * Copyright (c) 2022 ARM Limited
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ *
++ * The definitions below are a subset of what we would normally get by using
++ * the compiler's version of arm_acle.h. We can't use that directly because
++ * we specify -nostdinc in the Makefiles.
++ *
++ * We just define the functions we need so far.
++ */
++
++#ifndef ARM_ACLE_H
++#define ARM_ACLE_H
++
++#if !defined(__aarch64__) || defined(__clang__)
++#	define __crc32b __builtin_arm_crc32b
++#	define __crc32w __builtin_arm_crc32w
++#else
++#	define __crc32b __builtin_aarch64_crc32b
++#	define __crc32w __builtin_aarch64_crc32w
++#endif
++
++#endif	/* ARM_ACLE_H */
+diff --git a/components/common/crc32/component.cmake b/components/common/crc32/component.cmake
+new file mode 100644
+index 0000000..9e78074
+--- /dev/null
++++ b/components/common/crc32/component.cmake
+@@ -0,0 +1,17 @@
++#-------------------------------------------------------------------------------
++# Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++#
++# SPDX-License-Identifier: BSD-3-Clause
++#
++#-------------------------------------------------------------------------------
++if (NOT DEFINED TGT)
++	message(FATAL_ERROR "mandatory parameter TGT is not defined.")
++endif()
++
++target_sources(${TGT} PRIVATE
++	"${CMAKE_CURRENT_LIST_DIR}/tf_crc32.c"
++	)
++
++target_include_directories(${TGT} PRIVATE
++	"${CMAKE_CURRENT_LIST_DIR}"
++	)
+diff --git a/components/common/crc32/tf_crc32.c b/components/common/crc32/tf_crc32.c
+index b33d36e..21d2a16 100644
+--- a/components/common/crc32/tf_crc32.c
++++ b/components/common/crc32/tf_crc32.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2021, Arm Limited. All rights reserved.
++ * Copyright (c) 2021-2022, Arm Limited. All rights reserved.
+  *
+  * SPDX-License-Identifier: BSD-3-Clause
+  */
+@@ -9,7 +9,7 @@
+ 
+ #include <arm_acle.h>
+ #include <common/debug.h>
+-#include <common/tf_crc32.h>
++#include <tf_crc32.h>
+ 
+ /* compute CRC using Arm intrinsic function
+  *
+diff --git a/components/service/firmware_update/backend/component.cmake b/components/service/firmware_update/backend/component.cmake
+index 7742a41..dafd65b 100644
+--- a/components/service/firmware_update/backend/component.cmake
++++ b/components/service/firmware_update/backend/component.cmake
+@@ -18,3 +18,7 @@ target_include_directories(${TGT} PRIVATE "${CMAKE_CURRENT_LIST_DIR}")
+ set_property(TARGET ${TGT} APPEND PROPERTY TS_PLATFORM_DRIVER_DEPENDENCIES
+ 	"nor_flash"
+ 	)
++
++set_property(TARGET ${TGT} APPEND PROPERTY TS_PLATFORM_DRIVER_DEPENDENCIES
++	"gpt_partition"
++	)
+diff --git a/platform/drivers/arm/partition/gpt.c b/platform/drivers/arm/partition/gpt.c
+index ee0bddf..3a45613 100644
+--- a/platform/drivers/arm/partition/gpt.c
++++ b/platform/drivers/arm/partition/gpt.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2016-2017, ARM Limited and Contributors. All rights reserved.
++ * Copyright (c) 2016-2022, ARM Limited and Contributors. All rights reserved.
+  *
+  * SPDX-License-Identifier: BSD-3-Clause
+  */
+@@ -8,10 +8,8 @@
+ #include <errno.h>
+ #include <string.h>
+ 
+-#include <common/debug.h>
+-#include <drivers/partition/efi.h>
+-#include <drivers/partition/gpt.h>
+-#include <lib/utils.h>
++#include <gpt.h>
++#include <protocols/common/efi/efi_types.h>
+ 
+ static int unicode_to_ascii(unsigned short *str_in, unsigned char *str_out)
+ {
+@@ -48,7 +46,7 @@ int parse_gpt_entry(gpt_entry_t *gpt_entry, partition_entry_t *entry)
+ 		return -EINVAL;
+ 	}
+ 
+-	zeromem(entry, sizeof(partition_entry_t));
++	memset(entry, 0, sizeof(partition_entry_t));
+ 	result = unicode_to_ascii(gpt_entry->name, (uint8_t *)entry->name);
+ 	if (result != 0) {
+ 		return result;
+@@ -58,7 +56,7 @@ int parse_gpt_entry(gpt_entry_t *gpt_entry, partition_entry_t *entry)
+ 	entry->length = (uint64_t)(gpt_entry->last_lba -
+ 				   gpt_entry->first_lba + 1) *
+ 			PLAT_PARTITION_BLOCK_SIZE;
+-	guidcpy(&entry->part_guid, &gpt_entry->unique_uuid);
++	memcpy(&entry->part_guid, &gpt_entry->unique_uuid, sizeof(struct efi_guid));
+ 
+ 	return 0;
+ }
+diff --git a/platform/drivers/arm/partition/partition.c b/platform/drivers/arm/partition/partition.c
+index c84816f..a5f871d 100644
+--- a/platform/drivers/arm/partition/partition.c
++++ b/platform/drivers/arm/partition/partition.c
+@@ -5,18 +5,17 @@
+  */
+ 
+ #include <assert.h>
+-#include <inttypes.h>
++#include <errno.h>
+ #include <stdio.h>
+ #include <string.h>
+ 
++#include <arm_io_storage.h>
+ #include <common/debug.h>
+-#include <common/tf_crc32.h>
+-#include <drivers/io/io_storage.h>
+-#include <drivers/partition/efi.h>
+-#include <drivers/partition/partition.h>
+-#include <drivers/partition/gpt.h>
+-#include <drivers/partition/mbr.h>
+-#include <plat/common/platform.h>
++#include <gpt.h>
++#include <io_storage.h>
++#include <mbr.h>
++#include <partition.h>
++#include <tf_crc32.h>
+ 
+ static uint8_t mbr_sector[PLAT_PARTITION_BLOCK_SIZE];
+ static partition_entry_list_t list;
+@@ -216,28 +215,16 @@ static int verify_partition_gpt(uintptr_t image_handle)
+ 	return 0;
+ }
+ 
+-int load_partition_table(unsigned int image_id)
++int load_partition_table(void)
+ {
+ 	uintptr_t dev_handle, image_handle, image_spec = 0;
+ 	mbr_entry_t mbr_entry;
+ 	int result;
+ 
+-	result = plat_get_image_source(image_id, &dev_handle, &image_spec);
+-	if (result != 0) {
+-		WARN("Failed to obtain reference to image id=%u (%i)\n",
+-			image_id, result);
+-		return result;
+-	}
+-
+-	result = io_open(dev_handle, image_spec, &image_handle);
+-	if (result != 0) {
+-		WARN("Failed to access image id=%u (%i)\n", image_id, result);
+-		return result;
+-	}
+-
++	plat_get_nvm_handle(&image_handle);
+ 	result = load_mbr_header(image_handle, &mbr_entry);
+ 	if (result != 0) {
+-		WARN("Failed to access image id=%u (%i)\n", image_id, result);
++		WARN("Failed to access GPT MBR header (%i)\n", result);
+ 		return result;
+ 	}
+ 	if (mbr_entry.type == PARTITION_TYPE_GPT) {
+@@ -250,7 +237,6 @@ int load_partition_table(unsigned int image_id)
+ 		result = load_mbr_entries(image_handle);
+ 	}
+ 
+-	io_close(image_handle);
+ 	return result;
+ }
+ 
+@@ -271,7 +257,7 @@ const partition_entry_t *get_partition_entry_by_uuid(const uuid_t *part_uuid)
+ 	int i;
+ 
+ 	for (i = 0; i < list.entry_count; i++) {
+-		if (guidcmp(part_uuid, &list.list[i].part_guid) == 0) {
++		if (memcmp(part_uuid, &list.list[i].part_guid, sizeof(uuid_t)) == 0) {
+ 			return &list.list[i];
+ 		}
+ 	}
+@@ -284,7 +270,7 @@ const partition_entry_list_t *get_partition_entry_list(void)
+ 	return &list;
+ }
+ 
+-void partition_init(unsigned int image_id)
++int partition_init(void)
+ {
+-	load_partition_table(image_id);
++	return load_partition_table();
+ }
+diff --git a/platform/interface/partition/gpt.h b/platform/interface/partition/gpt.h
+index c2a229e..5f42faf 100644
+--- a/platform/interface/partition/gpt.h
++++ b/platform/interface/partition/gpt.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2016, ARM Limited and Contributors. All rights reserved.
++ * Copyright (c) 2016-2022, ARM Limited and Contributors. All rights reserved.
+  *
+  * SPDX-License-Identifier: BSD-3-Clause
+  */
+@@ -7,9 +7,8 @@
+ #ifndef GPT_H
+ #define GPT_H
+ 
+-#include <drivers/partition/efi.h>
+-#include <drivers/partition/partition.h>
+-#include <tools_share/uuid.h>
++#include <partition.h>
++#include <protocols/common/efi/efi_types.h>
+ 
+ #define PARTITION_TYPE_GPT		0xee
+ #define GPT_HEADER_OFFSET		PLAT_PARTITION_BLOCK_SIZE
+diff --git a/platform/interface/partition/partition.h b/platform/interface/partition/partition.h
+index 11e5acf..64d0ab9 100644
+--- a/platform/interface/partition/partition.h
++++ b/platform/interface/partition/partition.h
+@@ -10,8 +10,8 @@
+ #include <stdint.h>
+ 
+ #include <lib/cassert.h>
+-#include <drivers/partition/efi.h>
+-#include <tools_share/uuid.h>
++#include <protocols/common/efi/efi_types.h>
++#include <uuid.h>
+ 
+ #if !PLAT_PARTITION_MAX_ENTRIES
+ # define PLAT_PARTITION_MAX_ENTRIES	128
+@@ -31,6 +31,8 @@ CASSERT((PLAT_PARTITION_BLOCK_SIZE == 512) ||
+ 
+ #define DEFAULT_GPT_HEADER_SIZE 	92
+ 
++#define EFI_NAMELEN 			36
++
+ typedef struct partition_entry {
+ 	uint64_t		start;
+ 	uint64_t		length;
+@@ -43,10 +45,10 @@ typedef struct partition_entry_list {
+ 	int			entry_count;
+ } partition_entry_list_t;
+ 
+-int load_partition_table(unsigned int image_id);
++int load_partition_table(void);
+ const partition_entry_t *get_partition_entry(const char *name);
+ const partition_entry_t *get_partition_entry_by_uuid(const uuid_t *part_uuid);
+ const partition_entry_list_t *get_partition_entry_list(void);
+-void partition_init(unsigned int image_id);
++int partition_init(void);
+ 
+ #endif /* PARTITION_H */
+diff --git a/platform/providers/arm/total_compute/platform.cmake b/platform/providers/arm/total_compute/platform.cmake
+index 59fd985..3d8ae30 100644
+--- a/platform/providers/arm/total_compute/platform.cmake
++++ b/platform/providers/arm/total_compute/platform.cmake
+@@ -28,3 +28,11 @@ if ("nor_flash" IN_LIST _platform_driver_dependencies)
+ 	target_sources(${TGT} PRIVATE "${TS_ROOT}/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_hw.c")
+ 	target_sources(${TGT} PRIVATE "${TS_ROOT}/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_ops.c")
+ endif()
++
++if ("gpt_partition" IN_LIST _platform_driver_dependencies)
++	set(NR_OF_FW_IMAGES "1" CACHE STRING "Number of firmware images")
++	set(NR_OF_FW_BANKS "2" CACHE STRING "Number of firmware banks")
++	target_include_directories(${TGT} PRIVATE "${TS_ROOT}/platform/interface/partition")
++	target_sources(${TGT} PRIVATE "${TS_ROOT}/platform/drivers/arm/partition/gpt.c")
++	target_sources(${TGT} PRIVATE "${TS_ROOT}/platform/drivers/arm/partition/partition.c")
++endif()
+diff --git a/protocols/common/efi/efi_types.h b/protocols/common/efi/efi_types.h
+index 4998c53..e5a5b47 100644
+--- a/protocols/common/efi/efi_types.h
++++ b/protocols/common/efi/efi_types.h
+@@ -17,7 +17,7 @@
+  * 128 bit buffer containing a unique identifier value.
+  * Unless otherwise specified, aligned on a 64 bit boundary.
+  */
+-typedef struct {
++typedef struct efi_guid {
+ 	uint32_t Data1;
+ 	uint16_t Data2;
+ 	uint16_t Data3;
+-- 
+2.34.1
+

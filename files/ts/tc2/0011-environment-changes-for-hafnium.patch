@@ -1,0 +1,153 @@
+From 1c64dcca2135422e9bc4ce69f3f0db9a89fac27d Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Mon, 18 Jul 2022 20:07:49 +0530
+Subject: [PATCH 11/14] environment changes for hafnium
+
+Changes in linker scripts and elf loader
+1. use mem_perm_set
+2. clear the bss section (global variables)
+3. proper alignment for each section
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+Change-Id: I771483cd4fde2e02b02ef508550f8ecc889a9579
+
+Upstream-Status: Pending [Not submitted to upstream yet]
+---
+ environments/sp/entry.S | 53 +++++++++++++++++++++++++++++++++++++++--
+ environments/sp/sp.ld.S |  8 +++++++
+ 2 files changed, 59 insertions(+), 2 deletions(-)
+
+diff --git a/environments/sp/entry.S b/environments/sp/entry.S
+index 5fc0af3..0a1478c 100644
+--- a/environments/sp/entry.S
++++ b/environments/sp/entry.S
+@@ -7,6 +7,36 @@
+ 
+ #define	R_AARCH64_RELATIVE	1027
+ 
++
++.macro ffa_mem_perm_set start:req end:req perm:req
++	adrp x29, \start
++	add x29, x29, :lo12: \start
++
++	adrp x30, \end
++	add x30, x30, :lo12:\end
++
++	/* x30 = end - begin */
++	sub x30, x30, x29
++	/* x28 = x30 >> 12 (number of pages) */
++	mov x28, #12
++	lsrv x28, x30, x28
++
++	/* 0x84000089 is function identifier for FFA_MEM_PERM_SET_32 */
++	mov w0, #0x89
++	movk w0, #0x8400, lsl #16
++	mov x1, x29
++	mov x2, x28
++	mov w3, #\perm
++
++	svc #0
++
++	/* 0x84000061 is function identifier for FFA_SUCCESS_32 */
++	mov w1, #0x61
++	movk w1, #0x8400, lsl #16
++	cmp w1, w0
++	b.ne .
++.endm
++
+ /**
+  * The following code is responsible for setting the initial value of the stack
+  * pointer and doing relocation on SP boot.
+@@ -17,6 +47,8 @@ FUNC __sp_entry, :
+ 	add	x4, x4, :lo12:__stack_end
+ 	mov	sp, x4
+ 
++	/* setting to RW to support relocation */
++	ffa_mem_perm_set __text_end __image_end 5
+ 	/*
+ 	 * X4 = load address
+ 	 * X5 = relocation table start
+@@ -43,7 +75,7 @@ FUNC __sp_entry, :
+ 
+ 	/* Only R_AARCH64_RELATIVE type is supported */
+ 	cmp	w8, #R_AARCH64_RELATIVE
+-	bne	3f	/* Error */
++	bne	4f	/* Error */
+ 
+ 	/*
+ 	 * Apply relative adjustment on address
+@@ -55,10 +87,27 @@ FUNC __sp_entry, :
+ 	cmp	x5, x6
+ 	bne	1b
+ 
++	/* setting .rodata, .rel section to RO */
++	ffa_mem_perm_set __text_end __rela_end_2 7
++
++	/* Zero out the bss section. */
++	adrp x29, bss_begin
++	add x29, x29, :lo12:bss_begin
++
++	adrp x30, bss_end
++	add x30, x30, :lo12:bss_end
++
+ 2:
+-	b	_sp_entry
++	cmp x29, x30
++	b.hs 3f
++
++	stp xzr, xzr, [x29], #16
++	b 2b
+ 
+ 3:
++	b	_sp_entry
++
++4:
+ 	adr	X0,	error_invalid_relocation
+ 	bl	trace_puts
+ 	b	.
+diff --git a/environments/sp/sp.ld.S b/environments/sp/sp.ld.S
+index e0380e3..630971b 100644
+--- a/environments/sp/sp.ld.S
++++ b/environments/sp/sp.ld.S
+@@ -26,6 +26,7 @@ SECTIONS {
+ 		*(.gnu.linkonce.t.*)
+ 		/* Workaround for an erratum in ARM's VFP11 coprocessor */
+ 		*(.vfp11_veneer)
++		. = ALIGN(4096);
+ 		__text_end = .;
+ 	}
+ 	.plt : { *(.plt) }
+@@ -84,6 +85,7 @@ SECTIONS {
+ 
+ 	/* Page align to allow dropping execute bit for RW data */
+ 	. = ALIGN(4096);
++	__rela_end_2 = .;
+ 
+ 	.dynamic : { *(.dynamic) }
+ 	.tdata : { *(.tdata .tdata.* .gnu.linkonce.td.*) }
+@@ -91,9 +93,13 @@ SECTIONS {
+ 	.got : { *(.got.plt) *(.got) }
+ 
+ 	.data : { *(.data .data.* .gnu.linkonce.d.*) }
++	. = ALIGN(16);
++	bss_begin = .;
+ 	.bss : {
+ 		*(.bss .bss.* .gnu.linkonce.b.* COMMON)
+ 	}
++	. = ALIGN(16);
++	bss_end = .;
+ 	.stack : {
+ 		. = ALIGN(4);
+ 		__stack_start = .;
+@@ -101,6 +107,8 @@ SECTIONS {
+ 		. = ALIGN(4);
+ 		__stack_end = .;
+ 	}
++	. = ALIGN(4096);
++	__image_end = .;
+ 
+ 	/DISCARD/ : { *(.interp) }
+ }
+-- 
+2.34.1
+

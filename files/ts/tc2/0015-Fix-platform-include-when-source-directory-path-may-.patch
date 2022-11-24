@@ -1,7 +1,7 @@
-From da99c1355f0a9839b49186b63392760fe3558d00 Mon Sep 17 00:00:00 2001
+From 04dd514566f98c95d21079fd7bdafe15e1fcf225 Mon Sep 17 00:00:00 2001
 From: Ben Horgan <ben.horgan@arm.com>
 Date: Mon, 5 Jul 2021 13:22:14 +0000
-Subject: [PATCH 1/8] Fix platform include when source directory path may
+Subject: [PATCH 14/16] Fix platform include when source directory path may
  include uppercase
 
 Yocto source paths may include uppercase characters
@@ -26,5 +26,5 @@ index ae34c6e..3f4959c 100644
  	set(CMAKE_CONFIGURE_DEPENDS ${_platdef})
  
 -- 
-2.17.1
+2.34.1
 

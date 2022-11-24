@@ -1,0 +1,370 @@
+From 5dd5f92661b3ed982c63b31d5138ddd587d9fe4b Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Mon, 12 Sep 2022 12:27:26 +0530
+Subject: [PATCH 13/14] firmware-update: remove shim layer dependencies
+
+* move some header files from shim layer to trusted services
+* accommodate some definitions inside the existing header files
+* update proper location for the header files
+
+Change-Id: I626614c46cfd50295368a40325a3e127eb311bfa
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+
+Upstream-Status: Pending [Not submitted to upstream yet]
+---
+ components/common/crc32/tf_crc32.c            |  2 +-
+ components/common/uuid/component.cmake        |  4 ++
+ components/common/uuid/uuid.h                 | 11 +++++
+ .../firmware_update/backend/arm_io_storage.c  |  1 -
+ .../backend/fwu_nvm_accessors.c               |  1 -
+ .../firmware_update/provider/component.cmake  |  5 ---
+ .../firmware_update/provider/fwu_provider.c   |  2 +-
+ .../firmware_update/provider/metadata.c       |  2 +-
+ environments/sp/component.cmake               |  4 ++
+ environments/sp/debug.h                       | 20 +++++++++
+ platform/drivers/arm/io/io_storage.c          |  1 -
+ .../arm/io/vexpress_nor/io_vexpress_nor_hw.c  |  4 +-
+ platform/drivers/arm/io/vexpress_nor/mmio.h   | 42 +++++++++++++++++++
+ platform/drivers/arm/partition/partition.c    |  3 +-
+ platform/interface/io/io_nor_flash.h          |  2 -
+ platform/interface/partition/cassert.h        | 18 ++++++++
+ platform/interface/partition/partition.h      |  2 +-
+ .../arm/total_compute/platform.cmake          | 15 ++++++-
+ 18 files changed, 120 insertions(+), 19 deletions(-)
+ create mode 100644 environments/sp/debug.h
+ create mode 100644 platform/drivers/arm/io/vexpress_nor/mmio.h
+ create mode 100644 platform/interface/partition/cassert.h
+
+diff --git a/components/common/crc32/tf_crc32.c b/components/common/crc32/tf_crc32.c
+index 21d2a16..afedbe9 100644
+--- a/components/common/crc32/tf_crc32.c
++++ b/components/common/crc32/tf_crc32.c
+@@ -8,7 +8,7 @@
+ #include <assert.h>
+ 
+ #include <arm_acle.h>
+-#include <common/debug.h>
++#include <debug.h>
+ #include <tf_crc32.h>
+ 
+ /* compute CRC using Arm intrinsic function
+diff --git a/components/common/uuid/component.cmake b/components/common/uuid/component.cmake
+index ebd7050..23c20a6 100644
+--- a/components/common/uuid/component.cmake
++++ b/components/common/uuid/component.cmake
+@@ -11,3 +11,7 @@ endif()
+ target_sources(${TGT} PRIVATE
+ 	"${CMAKE_CURRENT_LIST_DIR}/uuid.c"
+ 	)
++
++target_include_directories(${TGT} PRIVATE
++	"${CMAKE_CURRENT_LIST_DIR}"
++	)
+diff --git a/components/common/uuid/uuid.h b/components/common/uuid/uuid.h
+index e45e37a..35f0e41 100644
+--- a/components/common/uuid/uuid.h
++++ b/components/common/uuid/uuid.h
+@@ -55,6 +55,17 @@ size_t uuid_parse_to_octets(const char *canonical_form, uint8_t *buf, size_t buf
+  */
+ size_t uuid_parse_to_octets_reversed(const char *canonical_form, uint8_t *buf, size_t buf_size);
+ 
++/* Length of a node address (an IEEE 802 address). */
++#define _UUID_NODE_LEN          6
++
++typedef struct {
++        uint8_t         time_low[4];
++        uint8_t         time_mid[2];
++        uint8_t         time_hi_and_version[2];
++        uint8_t         clock_seq_hi_and_reserved;
++        uint8_t         clock_seq_low;
++        uint8_t         node[_UUID_NODE_LEN];
++} uuid_t;
+ 
+ #ifdef __cplusplus
+ }
+diff --git a/components/service/firmware_update/backend/arm_io_storage.c b/components/service/firmware_update/backend/arm_io_storage.c
+index 26619d0..cf2cbde 100644
+--- a/components/service/firmware_update/backend/arm_io_storage.c
++++ b/components/service/firmware_update/backend/arm_io_storage.c
+@@ -9,7 +9,6 @@
+ #include <io_driver.h>
+ #include <io_nor_flash.h>
+ #include <io_storage.h>
+-#include <platform_def.h>
+ 
+ #pragma weak plat_get_nvm_handle
+ 
+diff --git a/components/service/firmware_update/backend/fwu_nvm_accessors.c b/components/service/firmware_update/backend/fwu_nvm_accessors.c
+index 87f1223..f31fa0c 100644
+--- a/components/service/firmware_update/backend/fwu_nvm_accessors.c
++++ b/components/service/firmware_update/backend/fwu_nvm_accessors.c
+@@ -6,7 +6,6 @@
+ 
+ #include <arm_io_storage.h>
+ #include <io_storage.h>
+-#include <platform_def.h>
+ 
+ int fwu_nvm_write(unsigned long long offset, const void *buffer, size_t size)
+ {
+diff --git a/components/service/firmware_update/provider/component.cmake b/components/service/firmware_update/provider/component.cmake
+index 2220daf..e8fd2fb 100644
+--- a/components/service/firmware_update/provider/component.cmake
++++ b/components/service/firmware_update/provider/component.cmake
+@@ -19,8 +19,3 @@ target_sources(${TGT} PRIVATE
+ target_include_directories(${TGT} PRIVATE
+ 	"${CMAKE_CURRENT_LIST_DIR}"
+ 	)
+-
+-target_compile_definitions(${TGT} PRIVATE
+-	NR_OF_FW_BANKS=${NR_OF_FW_BANKS}
+-	NR_OF_FW_IMAGES=${NR_OF_FW_IMAGES}
+-	)
+diff --git a/components/service/firmware_update/provider/fwu_provider.c b/components/service/firmware_update/provider/fwu_provider.c
+index 8a0ff78..44b4665 100644
+--- a/components/service/firmware_update/provider/fwu_provider.c
++++ b/components/service/firmware_update/provider/fwu_provider.c
+@@ -7,7 +7,7 @@
+ 
+ #include <arm_io_storage.h>
+ #include <assert.h>
+-#include <common/debug.h>
++#include <debug.h>
+ #include <components/rpc/common/endpoint/rpc_interface.h>
+ #include <firmware_update_proto.h>
+ #include <fwu_state.h>
+diff --git a/components/service/firmware_update/provider/metadata.c b/components/service/firmware_update/provider/metadata.c
+index ed331a5..4643293 100644
+--- a/components/service/firmware_update/provider/metadata.c
++++ b/components/service/firmware_update/provider/metadata.c
+@@ -5,7 +5,7 @@
+  */
+ 
+ #include <assert.h>
+-#include <common/debug.h>
++#include <debug.h>
+ #include <fwu_nvm_accessors.h>
+ #include <image_directory.h>
+ #include <metadata.h>
+diff --git a/environments/sp/component.cmake b/environments/sp/component.cmake
+index 87f813a..3bf5983 100644
+--- a/environments/sp/component.cmake
++++ b/environments/sp/component.cmake
+@@ -38,6 +38,10 @@ target_compile_definitions(${TGT} PRIVATE
+ 	SP_HEAP_SIZE=${SP_HEAP_SIZE}
+ )
+ 
++target_include_directories(${TGT} PRIVATE
++	"${CMAKE_CURRENT_LIST_DIR}"
++	)
++
+ include(../../../external/newlib/newlib.cmake)
+ 
+ target_link_libraries(${TGT} PRIVATE
+diff --git a/environments/sp/debug.h b/environments/sp/debug.h
+new file mode 100644
+index 0000000..78911d4
+--- /dev/null
++++ b/environments/sp/debug.h
+@@ -0,0 +1,20 @@
++/*
++ * Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++/*
++ *TODO:
++ * Hafnium implements FFA_CONSOLE_LOG and the SP has to use it to print
++ * messages in console. It is implemented in
++ * https://review.trustedfirmware.org/c/hafnium/hafnium/+/15334
++ * A sample implementation about how to use this ABI is done in EDKII
++ * https://github.com/odeprez/edk2/commit/2eb8bc1744566c30f985fbd6fc840776d497c3b4#diff-37f4c4b257fb2be325e7ee81ed964cebae0ce8f7fac654941aca52a5ded4d595R39
++ *
++ * Similar implementation needs to be done.
++ */
++
++#define ERROR
++#define WARN
++#define VERBOSE
+diff --git a/platform/drivers/arm/io/io_storage.c b/platform/drivers/arm/io/io_storage.c
+index 46373ff..4fcfc37 100644
+--- a/platform/drivers/arm/io/io_storage.c
++++ b/platform/drivers/arm/io/io_storage.c
+@@ -7,7 +7,6 @@
+ #include <assert.h>
+ #include <io_driver.h>
+ #include <io_storage.h>
+-#include <platform_def.h>
+ #include <stddef.h>
+ 
+ 
+diff --git a/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_hw.c b/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_hw.c
+index ada813b..b63655e 100644
+--- a/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_hw.c
++++ b/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_hw.c
+@@ -6,9 +6,9 @@
+ 
+ #include <assert.h>
+ #include <debug.h>
+-#include <mmio.h>
++#include "mmio.h"
+ #include <string.h>
+-#include <cdefs.h>
++#include <sys/cdefs.h>
+ #include "io_vexpress_nor_internal.h"
+ #include "norflash.h"
+ 
+diff --git a/platform/drivers/arm/io/vexpress_nor/mmio.h b/platform/drivers/arm/io/vexpress_nor/mmio.h
+new file mode 100644
+index 0000000..e8a7df0
+--- /dev/null
++++ b/platform/drivers/arm/io/vexpress_nor/mmio.h
+@@ -0,0 +1,42 @@
++/*
++ * Copyright (c) 2018, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef __MMIO_H__
++#define __MMIO_H__
++
++#include <stdint.h>
++
++static inline void mmio_write_8(uintptr_t addr, uint8_t value)
++{
++	*(volatile uint8_t*)addr = value;
++}
++
++static inline uint8_t mmio_read_8(uintptr_t addr)
++{
++	return *(volatile uint8_t*)addr;
++}
++
++static inline void mmio_write_32(uintptr_t addr, uint32_t value)
++{
++	*(volatile uint32_t*)addr = value;
++}
++
++static inline uint32_t mmio_read_32(uintptr_t addr)
++{
++	return *(volatile uint32_t*)addr;
++}
++
++static inline void mmio_write_64(uintptr_t addr, uint64_t value)
++{
++	*(volatile uint64_t*)addr = value;
++}
++
++static inline uint64_t mmio_read_64(uintptr_t addr)
++{
++	return *(volatile uint64_t*)addr;
++}
++
++#endif /* __MMIO_H__ */
+diff --git a/platform/drivers/arm/partition/partition.c b/platform/drivers/arm/partition/partition.c
+index 2a2cfbd..50a0ee6 100644
+--- a/platform/drivers/arm/partition/partition.c
++++ b/platform/drivers/arm/partition/partition.c
+@@ -10,12 +10,13 @@
+ #include <string.h>
+ 
+ #include <arm_io_storage.h>
+-#include <common/debug.h>
++#include <debug.h>
+ #include <gpt.h>
+ #include <io_storage.h>
+ #include <mbr.h>
+ #include <partition.h>
+ #include <tf_crc32.h>
++#include <inttypes.h>
+ 
+ static uint8_t mbr_sector[PLAT_PARTITION_BLOCK_SIZE];
+ static partition_entry_list_t list;
+diff --git a/platform/interface/io/io_nor_flash.h b/platform/interface/io/io_nor_flash.h
+index 03058e9..dc3b521 100644
+--- a/platform/interface/io/io_nor_flash.h
++++ b/platform/interface/io/io_nor_flash.h
+@@ -7,8 +7,6 @@
+ #ifndef __IO_NOR_FLASH_H__
+ #define __IO_NOR_FLASH_H__
+ 
+-#include <platform_def.h>
+-
+ #ifndef NOR_FLASH_BLOCK_SIZE
+ 	#error NOR_FLASH_BLOCK_SIZE must be defined as the block \
+ 		 size of the NOR Flash seen by the software
+diff --git a/platform/interface/partition/cassert.h b/platform/interface/partition/cassert.h
+new file mode 100644
+index 0000000..8844e8b
+--- /dev/null
++++ b/platform/interface/partition/cassert.h
+@@ -0,0 +1,18 @@
++/*
++ * Copyright (c) 2018, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef __CASSERT_H__
++#define __CASSERT_H__
++
++/*******************************************************************************
++ * Macro to flag a compile time assertion. It uses the preprocessor to generate
++ * an invalid C construct if 'cond' evaluates to false.
++ * The following  compilation error is triggered if the assertion fails:
++ * "error: size of array 'msg' is negative"
++ ******************************************************************************/
++#define CASSERT(cond, msg)	typedef char msg[(cond) ? 1 : -1]
++
++#endif /* __CASSERT_H__ */
+diff --git a/platform/interface/partition/partition.h b/platform/interface/partition/partition.h
+index 7987065..ff252ea 100644
+--- a/platform/interface/partition/partition.h
++++ b/platform/interface/partition/partition.h
+@@ -9,7 +9,7 @@
+ 
+ #include <stdint.h>
+ 
+-#include <lib/cassert.h>
++#include <cassert.h>
+ #include <protocols/common/efi/efi_types.h>
+ #include <uuid.h>
+ 
+diff --git a/platform/providers/arm/total_compute/platform.cmake b/platform/providers/arm/total_compute/platform.cmake
+index 3d8ae30..34a3400 100644
+--- a/platform/providers/arm/total_compute/platform.cmake
++++ b/platform/providers/arm/total_compute/platform.cmake
+@@ -23,6 +23,14 @@ if ("trng" IN_LIST _platform_driver_dependencies)
+ endif()
+ 
+ if ("nor_flash" IN_LIST _platform_driver_dependencies)
++	target_compile_definitions(${TGT} PRIVATE
++		FLASH_SIZE=0x4000000
++		NOR_FLASH_BLOCK_SIZE=0x40000
++		FLASH_BASE=0x08000000
++		MAX_IO_HANDLES=1
++		MAX_IO_DEVICES=1
++		DEBUG=1
++	)
+ 	target_include_directories(${TGT} PRIVATE "${TS_ROOT}/platform/interface/io")
+ 	target_sources(${TGT} PRIVATE "${TS_ROOT}/platform/drivers/arm/io/io_storage.c")
+ 	target_sources(${TGT} PRIVATE "${TS_ROOT}/platform/drivers/arm/io/vexpress_nor/io_vexpress_nor_hw.c")
+@@ -30,9 +38,12 @@ if ("nor_flash" IN_LIST _platform_driver_dependencies)
+ endif()
+ 
+ if ("gpt_partition" IN_LIST _platform_driver_dependencies)
+-	set(NR_OF_FW_IMAGES "1" CACHE STRING "Number of firmware images")
+-	set(NR_OF_FW_BANKS "2" CACHE STRING "Number of firmware banks")
++	target_compile_definitions(${TGT} PRIVATE
++		NR_OF_FW_IMAGES=1
++		NR_OF_FW_BANKS=2
++	)
+ 	target_include_directories(${TGT} PRIVATE "${TS_ROOT}/platform/interface/partition")
+ 	target_sources(${TGT} PRIVATE "${TS_ROOT}/platform/drivers/arm/partition/gpt.c")
+ 	target_sources(${TGT} PRIVATE "${TS_ROOT}/platform/drivers/arm/partition/partition.c")
+ endif()
++
+-- 
+2.34.1
+

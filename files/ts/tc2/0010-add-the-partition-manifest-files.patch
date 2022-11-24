@@ -1,0 +1,74 @@
+From 8cd591ca21d6cdc0905247181a197f2073b926af Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Mon, 22 Aug 2022 18:09:16 +0530
+Subject: [PATCH 10/14] add the partition manifest files
+
+Add the partition manifest files for the crypto and internal trusted
+storage secure partitions
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+Change-Id: Ib1795eb7307d3585b72070ff8dd93d553f5857ec
+
+Upstream-Status: Pending [Not submitted to upstream yet]
+---
+ deployments/crypto/sp/crypto.dts              | 20 +++++++++++++++++++
+ .../sp/internal-trusted-storage.dts           | 20 +++++++++++++++++++
+ 2 files changed, 40 insertions(+)
+ create mode 100644 deployments/crypto/sp/crypto.dts
+ create mode 100644 deployments/internal-trusted-storage/sp/internal-trusted-storage.dts
+
+diff --git a/deployments/crypto/sp/crypto.dts b/deployments/crypto/sp/crypto.dts
+new file mode 100644
+index 0000000..83c3db5
+--- /dev/null
++++ b/deployments/crypto/sp/crypto.dts
+@@ -0,0 +1,20 @@
++/*
++ * Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++/dts-v1/;
++
++/ {
++	compatible = "arm,ffa-manifest-1.0";
++	ffa-version = <0x00010000>; /* 31:16 - Major, 15:0 - Minor */
++	uuid = <0xd552dfd9 0xb24ba216 0x6dd2a49a 0xc0e8843b>;
++	description = "crypto-sp";
++	execution-ctx-count = <1>;
++	exception-level = <1>; /* S-EL0 */
++	execution-state = <0>; /* AArch64 */
++	entrypoint-offset = <0x00004000>;
++	xlat-granule = <0>; /* 4KiB */
++	messaging-method = <0x3>; /* Direct request/response supported */
++};
+diff --git a/deployments/internal-trusted-storage/sp/internal-trusted-storage.dts b/deployments/internal-trusted-storage/sp/internal-trusted-storage.dts
+new file mode 100644
+index 0000000..c47d6f7
+--- /dev/null
++++ b/deployments/internal-trusted-storage/sp/internal-trusted-storage.dts
+@@ -0,0 +1,20 @@
++/*
++ * Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++/dts-v1/;
++
++/ {
++	compatible = "arm,ffa-manifest-1.0";
++	ffa-version = <0x00010000>; /* 31:16 - Major, 15:0 - Minor */
++	uuid = <0x48ef1edc 0xcf4c7ab1 0xcfdf8bac 0x141b71f7>;
++	description = "internal-trusted-storage";
++	execution-ctx-count = <1>;
++	exception-level = <1>; /* S-EL0 */
++	execution-state = <0>; /* AArch64 */
++	entrypoint-offset = <0x00004000>;
++	xlat-granule = <0>; /* 4KiB */
++	messaging-method = <0x3>; /* Direct request/response supported */
++};
+-- 
+2.34.1
+

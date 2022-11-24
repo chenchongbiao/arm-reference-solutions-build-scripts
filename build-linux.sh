@@ -39,7 +39,7 @@ do_build() {
     for config in ${!lconfig}; do
         CONFIG=$CONFIG"$CFG_DIR/$config "
     done
-    CONFIG=$CONFIG"$LINUX_SRC/arch/arm64/configs/gki_defconfig"
+    CONFIG="$LINUX_SRC/arch/arm64/configs/gki_defconfig "$CONFIG
     pushd $LINUX_SRC
     scripts/kconfig/merge_config.sh -O $LINUX_OUTDIR -m $CONFIG
     make O=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- olddefconfig
@@ -47,18 +47,18 @@ do_build() {
     make O=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- -j $PARALLELISM $LINUX_IMAGE_TYPE modules
     popd
 
-    pushd $ARM_FFA_USER_SRC
-    make KDIR=$LINUX_OUTDIR CROSS_COMPILE=$LINUX_COMPILER- BUILD_DIR=$ARM_FFA_USER_OUTDIR module
+    pushd $ARM_FFA_TEE_SRC
+    make KDIR=$LINUX_OUTDIR CROSS_COMPILE=$LINUX_COMPILER- BUILD_DIR=$ARM_FFA_TEE_OUTDIR module
     # signing the module
-    $LINUX_OUTDIR/scripts/sign-file sha1 $LINUX_OUTDIR/certs/signing_key.pem $LINUX_OUTDIR/certs/signing_key.x509 $ARM_FFA_USER_OUTDIR/arm-ffa-user.ko
-    install -D $ARM_FFA_USER_OUTDIR/arm-ffa-user.ko $BUILDROOT_ROOTFS_OVERLAY/root/arm-ffa-user.ko
+    $LINUX_OUTDIR/scripts/sign-file sha1 $LINUX_OUTDIR/certs/signing_key.pem $LINUX_OUTDIR/certs/signing_key.x509 $ARM_FFA_TEE_OUTDIR/arm-ffa-tee.ko
+    install -D $ARM_FFA_TEE_OUTDIR/arm-ffa-tee.ko $BUILDROOT_ROOTFS_OVERLAY/root/arm-ffa-tee.ko
     popd
 }
 
 do_clean() {
     info_echo "Cleaning Linux kernel"
     rm -rf $LINUX_OUTDIR
-    rm -rf $ARM_FFA_USER_OUTDIR
+    rm -rf $ARM_FFA_TEE_OUTDIR
 }
 
 do_deploy() {
@@ -66,21 +66,10 @@ do_deploy() {
     ln -s $LINUX_OUTDIR/arch/arm64/boot/Image $DEPLOY_DIR/$PLATFORM/Image 2>/dev/null || :
 }
 
-do_patch_kernel() {
+do_patch() {
     info_echo "Patching Linux kernel"
     PATCHES_DIR=$FILES_DIR/kernel/$PLATFORM/
     with_default_shell_opts patching $PATCHES_DIR $LINUX_SRC
-}
-
-do_patch_arm_ffa_user() {
-    info_echo "Patching arm ffa user kernel module"
-    PATCHES_DIR=$FILES_DIR/arm-ffa-user/
-    with_default_shell_opts patching $PATCHES_DIR $ARM_FFA_USER_SRC
-}
-
-do_patch() {
-    do_patch_kernel
-    do_patch_arm_ffa_user
 }
 
 source "$(dirname ${BASH_SOURCE[0]})/framework.sh"

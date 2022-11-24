@@ -5,8 +5,13 @@
 	},
 
 	"crypto" : {
-		"image": "crypto-sp.bin",
+		"image": "crypto.bin",
 		"pm": "crypto.dts"
+	},
+
+	"firmware-update" : {
+		"image": "firmware-update.bin",
+		"pm": "firmware-update.dts"
 	},
 
 	"op-tee" : {
