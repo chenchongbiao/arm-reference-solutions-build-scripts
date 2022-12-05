@@ -6,6 +6,7 @@
 import argparse
 import uuid
 import zlib
+import os
 
 def main(metadata_file, img_type_uuids, location_uuids, img_uuids):
     def add_field_to_metadata(value):
@@ -18,6 +19,10 @@ def main(metadata_file, img_type_uuids, location_uuids, img_uuids):
         uuid_val = uuid.UUID(uuid_str)
         with open(metadata_file, "ab") as fp:
             fp.write(uuid_val.bytes_le)
+
+    # Delete the metadata_file if it exists
+    if os.path.exists(metadata_file):
+        os.remove(metadata_file)
 
     # Fill metadata preamble
     add_field_to_metadata(1) #version=1
