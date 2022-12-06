@@ -1,0 +1,26 @@
+From fd7079d70458395f4988d134fc84ec2492b80161 Mon Sep 17 00:00:00 2001
+From: Will Deacon <will@kernel.org>
+Date: Wed, 27 Oct 2021 10:38:21 +0100
+Subject: [PATCH 41/97] HACK: Force virtio to use DMA API
+
+Signed-off-by: Will Deacon <will@kernel.org>
+---
+ drivers/virtio/virtio_ring.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/virtio/virtio_ring.c b/drivers/virtio/virtio_ring.c
+index 603a6f4345ef..438dd5007560 100644
+--- a/drivers/virtio/virtio_ring.c
++++ b/drivers/virtio/virtio_ring.c
+@@ -260,7 +260,7 @@ static bool vring_use_dma_api(struct virtio_device *vdev)
+ 	if (xen_domain())
+ 		return true;
+ 
+-	return false;
++	return true;
+ }
+ 
+ size_t virtio_max_dma_size(struct virtio_device *vdev)
+-- 
+2.34.1
+

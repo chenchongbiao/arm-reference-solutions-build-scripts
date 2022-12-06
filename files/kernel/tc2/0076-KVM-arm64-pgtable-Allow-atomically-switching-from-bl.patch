@@ -1,0 +1,136 @@
+From fd4db6bdac16bce65bb45808a7ff17284f4f4d9b Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Mon, 28 Feb 2022 14:56:40 +0000
+Subject: [PATCH 76/97] KVM: arm64: pgtable: Allow atomically switching from
+ block to table
+
+To keep surrounding mappings alive when changing the state of an area
+inside a block mapping, the block mapping must be atomically switched to
+a pre-initialized table. Add helpers to do this.
+
+No functional change intended.
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ arch/arm64/kvm/hyp/pgtable.c | 66 +++++++++++++++++++++++++++---------
+ 1 file changed, 50 insertions(+), 16 deletions(-)
+
+diff --git a/arch/arm64/kvm/hyp/pgtable.c b/arch/arm64/kvm/hyp/pgtable.c
+index 67ced0d23498..779f3f690f32 100644
+--- a/arch/arm64/kvm/hyp/pgtable.c
++++ b/arch/arm64/kvm/hyp/pgtable.c
+@@ -46,6 +46,8 @@
+ 					 KVM_PTE_LEAF_ATTR_LO_S2_S2AP_W | \
+ 					 KVM_PTE_LEAF_ATTR_HI_S2_XN)
+ 
++#define KVM_PTE_BLOCK_ATTR_NT		BIT(16)
++
+ struct kvm_pgtable_walk_data {
+ 	struct kvm_pgtable		*pgt;
+ 	struct kvm_pgtable_walker	*walker;
+@@ -77,12 +79,12 @@ static bool kvm_block_mapping_supported(u64 addr, u64 end, u64 phys, u32 level)
+ 	return IS_ALIGNED(addr, granule);
+ }
+ 
+-static u32 kvm_pgtable_idx(struct kvm_pgtable_walk_data *data, u32 level)
++static u32 kvm_pgtable_idx(u64 addr, u32 level)
+ {
+ 	u64 shift = kvm_granule_shift(level);
+ 	u64 mask = BIT(PAGE_SHIFT - 3) - 1;
+ 
+-	return (data->addr >> shift) & mask;
++	return (addr >> shift) & mask;
+ }
+ 
+ static u32 __kvm_pgd_page_idx(struct kvm_pgtable *pgt, u64 addr)
+@@ -144,13 +146,18 @@ static void kvm_clear_pte(kvm_pte_t *ptep)
+ 	WRITE_ONCE(*ptep, 0);
+ }
+ 
++static kvm_pte_t kvm_table_pte(kvm_pte_t *childp,
++			       struct kvm_pgtable_mm_ops *mm_ops)
++{
++	return kvm_phys_to_pte(mm_ops->virt_to_phys(childp)) |
++		FIELD_PREP(KVM_PTE_TYPE, KVM_PTE_TYPE_TABLE) |
++		KVM_PTE_VALID;
++}
++
+ static void kvm_set_table_pte(kvm_pte_t *ptep, kvm_pte_t *childp,
+ 			      struct kvm_pgtable_mm_ops *mm_ops)
+ {
+-	kvm_pte_t old = *ptep, pte = kvm_phys_to_pte(mm_ops->virt_to_phys(childp));
+-
+-	pte |= FIELD_PREP(KVM_PTE_TYPE, KVM_PTE_TYPE_TABLE);
+-	pte |= KVM_PTE_VALID;
++	kvm_pte_t old = *ptep, pte = kvm_table_pte(childp, mm_ops);
+ 
+ 	WARN_ON(kvm_pte_valid(old));
+ 	smp_store_release(ptep, pte);
+@@ -233,7 +240,7 @@ static int __kvm_pgtable_walk(struct kvm_pgtable_walk_data *data,
+ 	if (WARN_ON_ONCE(level >= KVM_PGTABLE_MAX_LEVELS))
+ 		return -EINVAL;
+ 
+-	for (idx = kvm_pgtable_idx(data, level); idx < PTRS_PER_PTE; ++idx) {
++	for (idx = kvm_pgtable_idx(data->addr, level); idx < PTRS_PER_PTE; ++idx) {
+ 		kvm_pte_t *ptep = &pgtable[idx];
+ 
+ 		if (data->addr >= data->end)
+@@ -677,19 +684,46 @@ static bool stage2_pte_is_counted(kvm_pte_t pte)
+ 	return !!pte;
+ }
+ 
+-static void stage2_put_pte(kvm_pte_t *ptep, struct kvm_pgtable *pgt, u64 addr,
+-			   u32 level)
++/*
++ * Passing a valid PTE as @new, to change a block into a table entry, only works
++ * with FEAT_BBM level 1 or greater. Otherwise strict break-before-make is
++ * necessary.
++ */
++static void stage2_xchg_pte(kvm_pte_t *ptep, struct kvm_pgtable *pgt, u64 addr,
++			    u32 level, kvm_pte_t new)
+ {
+-	/*
+-	 * Clear the existing PTE, and perform break-before-make with
+-	 * TLB maintenance if it was valid.
+-	 */
+-	if (kvm_pte_valid(*ptep)) {
+-		kvm_clear_pte(ptep);
++	kvm_pte_t old = *ptep, final = 0;
++
++	if (new) {
++		WARN_ON(kvm_pgt_level_is_last(level) || !kvm_pte_valid(old) ||
++			kvm_pte_table(old, level));
++
++		/*
++		 * Add the nT bit to the block, invalidate, write the table
++		 * pointer, invalidate.
++		 */
++		final = new;
++		new = old | KVM_PTE_BLOCK_ATTR_NT;
++	}
++
++	if (kvm_pte_valid(old)) {
++		WRITE_ONCE(*ptep, new);
+ 		kvm_call_hyp(__kvm_tlb_flush_vmid_ipa, pgt->mmu, addr, level);
+ 	}
+ 
+-	pgt->mm_ops->put_page(ptep);
++	if (final) {
++		WRITE_ONCE(*ptep, final);
++		kvm_call_hyp(__kvm_tlb_flush_vmid_ipa, pgt->mmu, addr, level);
++	}
++
++	if (!new)
++		pgt->mm_ops->put_page(ptep);
++}
++
++static void stage2_put_pte(kvm_pte_t *ptep, struct kvm_pgtable *pgt, u64 addr,
++			   u32 level)
++{
++	return stage2_xchg_pte(ptep, pgt, addr, level, 0);
+ }
+ 
+ static bool stage2_pte_cacheable(struct kvm_pgtable *pgt, kvm_pte_t pte)
+-- 
+2.34.1
+

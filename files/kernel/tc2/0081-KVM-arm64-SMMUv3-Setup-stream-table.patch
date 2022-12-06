@@ -1,0 +1,176 @@
+From a8b4ae1b557cf3b242a55dbfd89011d74875d82b Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Fri, 11 Feb 2022 18:50:02 +0000
+Subject: [PATCH 81/97] KVM: arm64: SMMUv3: Setup stream table
+
+Map the stream table allocated by the host into the hypervisor address
+space. Upon finalization, it will be unmapped from the host address
+space.
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ arch/arm64/kvm/hyp/nvhe/iommu/arm-smmu-v3.c | 125 ++++++++++++++++++++
+ include/kvm/arm_smmu_v3.h                   |   4 +
+ 2 files changed, 129 insertions(+)
+
+diff --git a/arch/arm64/kvm/hyp/nvhe/iommu/arm-smmu-v3.c b/arch/arm64/kvm/hyp/nvhe/iommu/arm-smmu-v3.c
+index dd816514d657..cea2a4200811 100644
+--- a/arch/arm64/kvm/hyp/nvhe/iommu/arm-smmu-v3.c
++++ b/arch/arm64/kvm/hyp/nvhe/iommu/arm-smmu-v3.c
+@@ -75,6 +75,127 @@ static int smmu_init_registers(struct hyp_arm_smmu_v3_device *smmu)
+ 	return 0;
+ }
+ 
++/* Transfer ownership of structures from host to hyp */
++static void *smmu_take_pages(u64 base, size_t size)
++{
++	int ret;
++	u64 phys_max;
++	void *hyp_ptr;
++
++	phys_max = 1ULL <<
++		   id_aa64mmfr0_parange_to_phys_shift(ID_AA64MMFR0_PARANGE_MAX);
++	if (!base || !PAGE_ALIGNED(base) || base >= phys_max)
++		return NULL;
++
++	hyp_ptr = hyp_phys_to_virt(base);
++	ret = pkvm_create_mappings(hyp_ptr, hyp_ptr + size, PAGE_HYP);
++	if (ret)
++		return NULL;
++
++	return hyp_ptr;
++}
++
++static int smmu_init_strtab_l2(struct hyp_arm_smmu_v3_device *smmu)
++{
++	int idx;
++	u64 *l2_table;
++	u64 l1std, base, span;
++	size_t num_l2_entries, table_size;
++
++	for (idx = 0; idx < smmu->strtab_num_l1_entries; idx++) {
++		l1std = smmu->strtab_base[idx];
++
++		if (l1std & ~(STRTAB_L1_DESC_SPAN | STRTAB_L1_DESC_L2PTR_MASK))
++			return -EINVAL;
++
++		span = l1std & STRTAB_L1_DESC_SPAN;
++		if (!span)
++			continue;
++
++		num_l2_entries = 1 << (span - 1);
++		/* Check span validity */
++		if ((idx << smmu->strtab_split) + num_l2_entries >
++		    smmu->strtab_num_entries ||
++		    num_l2_entries > (1 << smmu->strtab_split))
++			return -EINVAL;
++
++		base = l1std & STRTAB_L1_DESC_L2PTR_MASK;
++		if (!base)
++			return -EINVAL;
++
++		table_size = num_l2_entries * STRTAB_STE_DWORDS * 8;
++		l2_table = smmu_take_pages(base, table_size);
++		if (!l2_table)
++			return -EINVAL;
++
++		memset(l2_table, 0, table_size);
++	}
++
++	return 0;
++}
++
++static int smmu_init_strtab(struct hyp_arm_smmu_v3_device *smmu)
++{
++	int ret;
++	u64 strtab_base;
++	size_t strtab_size;
++	u32 strtab_cfg, fmt;
++	int split, log2size;
++
++	strtab_base = readq_relaxed(smmu->base + ARM_SMMU_STRTAB_BASE);
++	if (strtab_base & ~(STRTAB_BASE_ADDR_MASK | STRTAB_BASE_RA))
++		return -EINVAL;
++
++	strtab_cfg = readl_relaxed(smmu->base + ARM_SMMU_STRTAB_BASE_CFG);
++	if (strtab_cfg & ~(STRTAB_BASE_CFG_FMT | STRTAB_BASE_CFG_SPLIT |
++			   STRTAB_BASE_CFG_LOG2SIZE))
++		return -EINVAL;
++
++	fmt = FIELD_GET(STRTAB_BASE_CFG_FMT, strtab_cfg);
++	split = FIELD_GET(STRTAB_BASE_CFG_SPLIT, strtab_cfg);
++	log2size = FIELD_GET(STRTAB_BASE_CFG_LOG2SIZE, strtab_cfg);
++
++	smmu->strtab_split = split;
++	smmu->strtab_num_entries = 1 << log2size;
++
++	switch (fmt) {
++	case STRTAB_BASE_CFG_FMT_LINEAR:
++		if (split)
++			return -EINVAL;
++		smmu->strtab_num_l1_entries = smmu->strtab_num_entries;
++		strtab_size = smmu->strtab_num_l1_entries *
++			      STRTAB_STE_DWORDS * 8;
++		break;
++	case STRTAB_BASE_CFG_FMT_2LVL:
++		if (split != 6 && split != 8 && split != 10)
++			return -EINVAL;
++		smmu->strtab_num_l1_entries = 1 << max(0, log2size - split);
++		strtab_size = smmu->strtab_num_l1_entries *
++			      STRTAB_L1_DESC_DWORDS * 8;
++		break;
++	default:
++		return -EINVAL;
++	}
++
++	strtab_base &= STRTAB_BASE_ADDR_MASK;
++	smmu->strtab_base = smmu_take_pages(strtab_base, strtab_size);
++	if (!smmu->strtab_base)
++		return -EINVAL;
++
++	switch (fmt) {
++	case STRTAB_BASE_CFG_FMT_LINEAR:
++		/* Disable all STEs */
++		memset(smmu->strtab_base, 0, strtab_size);
++		break;
++	case STRTAB_BASE_CFG_FMT_2LVL:
++		ret = smmu_init_strtab_l2(smmu);
++		if (ret)
++			return ret;
++		break;
++	}
++	return 0;
++}
++
+ static int smmu_init_device(struct hyp_arm_smmu_v3_device *smmu)
+ {
+ 	int ret;
+@@ -91,6 +212,10 @@ static int smmu_init_device(struct hyp_arm_smmu_v3_device *smmu)
+ 	if (ret)
+ 		return ret;
+ 
++	ret = smmu_init_strtab(smmu);
++	if (ret)
++		return ret;
++
+ 	return 0;
+ }
+ 
+diff --git a/include/kvm/arm_smmu_v3.h b/include/kvm/arm_smmu_v3.h
+index e95633a088c5..c19380ae3f1a 100644
+--- a/include/kvm/arm_smmu_v3.h
++++ b/include/kvm/arm_smmu_v3.h
+@@ -13,6 +13,10 @@ struct hyp_arm_smmu_v3_device {
+ 
+ 	/* Runtime */
+ 	void __iomem		*base;
++	u64			*strtab_base;
++	size_t			strtab_num_entries;
++	size_t			strtab_num_l1_entries;
++	u8			strtab_split;
+ };
+ 
+ extern size_t kvm_nvhe_sym(kvm_hyp_arm_smmu_v3_nr_devices);
+-- 
+2.34.1
+

@@ -1,0 +1,434 @@
+From d7cf157130460f54a8d1803891ee05dbb56c73f4 Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Tue, 1 Mar 2022 12:25:53 +0000
+Subject: [PATCH 95/97] DEBUG: KVM: arm64: pkvm: Add pgtable tests
+
+Test pinning, in particular our ability to rebuild page tables when
+modifying a pinned block.
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ arch/arm64/kvm/hyp/include/nvhe/mem_protect.h |   2 +
+ arch/arm64/kvm/hyp/nvhe/Makefile              |   1 +
+ arch/arm64/kvm/hyp/nvhe/mem_protect.c         |   4 +-
+ arch/arm64/kvm/hyp/nvhe/setup.c               |   2 +
+ arch/arm64/kvm/hyp/nvhe/test_mem_protect.c    | 355 ++++++++++++++++++
+ 5 files changed, 362 insertions(+), 2 deletions(-)
+ create mode 100644 arch/arm64/kvm/hyp/nvhe/test_mem_protect.c
+
+diff --git a/arch/arm64/kvm/hyp/include/nvhe/mem_protect.h b/arch/arm64/kvm/hyp/include/nvhe/mem_protect.h
+index a157b579394d..c727fc8c317d 100644
+--- a/arch/arm64/kvm/hyp/include/nvhe/mem_protect.h
++++ b/arch/arm64/kvm/hyp/include/nvhe/mem_protect.h
+@@ -109,4 +109,6 @@ static __always_inline void __load_host_stage2(void)
+ 	else
+ 		write_sysreg(0, vttbr_el2);
+ }
++
++int test_s2_pgtables(void);
+ #endif /* __KVM_NVHE_MEM_PROTECT__ */
+diff --git a/arch/arm64/kvm/hyp/nvhe/Makefile b/arch/arm64/kvm/hyp/nvhe/Makefile
+index a35e744d85a9..dbcaafb2146f 100644
+--- a/arch/arm64/kvm/hyp/nvhe/Makefile
++++ b/arch/arm64/kvm/hyp/nvhe/Makefile
+@@ -27,6 +27,7 @@ obj-y += $(lib-objs)
+ obj-$(CONFIG_KVM_S2MPU) += iommu/s2mpu.o
+ 
+ obj-$(CONFIG_ARM_SMMU_V3_PKVM) += iommu/arm-smmu-v3.o
++obj-y += test_mem_protect.o
+ obj-y += pl011.o
+ 
+ # In order to access id_aa64mmfr2_el1, older GCC required declaring the arch as
+diff --git a/arch/arm64/kvm/hyp/nvhe/mem_protect.c b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+index cc83bf4d0d37..0b290b55d6fa 100644
+--- a/arch/arm64/kvm/hyp/nvhe/mem_protect.c
++++ b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+@@ -32,9 +32,9 @@ struct host_kvm host_kvm;
+ /* At the moment we don't differentiate between global and local pinning */
+ #define pkvm_host_stage2_is_pinned() (!!host_kvm.pgt.pin_mask)
+ 
+-static struct hyp_pool host_s2_pool;
++struct hyp_pool host_s2_pool;
+ 
+-static bool host_stage2_force_pte;
++bool host_stage2_force_pte;
+ 
+ static pkvm_id pkvm_guest_id(struct kvm_vcpu *vcpu)
+ {
+diff --git a/arch/arm64/kvm/hyp/nvhe/setup.c b/arch/arm64/kvm/hyp/nvhe/setup.c
+index c1d3a367675f..9d2326eb905a 100644
+--- a/arch/arm64/kvm/hyp/nvhe/setup.c
++++ b/arch/arm64/kvm/hyp/nvhe/setup.c
+@@ -439,6 +439,8 @@ void __noreturn __pkvm_init_finalise(void)
+ 			goto out;
+ 	}
+ 
++	test_s2_pgtables();
++
+ 	ret = fix_host_ownership();
+ 	if (ret)
+ 		goto out;
+diff --git a/arch/arm64/kvm/hyp/nvhe/test_mem_protect.c b/arch/arm64/kvm/hyp/nvhe/test_mem_protect.c
+new file mode 100644
+index 000000000000..b82348ff1cdb
+--- /dev/null
++++ b/arch/arm64/kvm/hyp/nvhe/test_mem_protect.c
+@@ -0,0 +1,355 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++/*
++ * Copyright (C) 2022 Linaro Ltd.
++ */
++#include <asm/kvm_pgtable.h>
++#include <asm/kvm_pkvm.h>
++#include <kvm/pl011.h>
++#include <nvhe/mem_protect.h>
++
++extern struct hyp_pool host_s2_pool;
++extern bool host_stage2_force_pte;
++
++#define KVM_INVALID_PTE_OWNER_MASK	GENMASK(32, 1)
++
++static int get_leaf(u64 addr, kvm_pte_t *pte, u32 *level)
++{
++	int ret;
++
++	ret = kvm_pgtable_get_leaf(&host_kvm.pgt, addr, pte, level);
++	if (ret) {
++		pkvm_debug("cannae get leaf: 0x%x\n", -ret);
++		return ret;
++	}
++
++	//pkvm_debug("leaf PTE for 0x%llx is 0x%llx, sz 0x%llx, l%x\n",
++	//	   addr, *pte, kvm_granule_size(*level), *level);
++	return 0;
++}
++
++#define pin_mask	host_kvm.pgt.pin_mask
++#define force_pte	host_stage2_force_pte
++
++#define print_start_test() \
++	pkvm_debug("# %s%s%s\n", __func__,		\
++		   pin_mask ? " (pinned)" : "",		\
++		   force_pte ? " (force pte)" : "")
++
++#define failed(fmt, ...)				\
++	do {						\
++		nr_failed++;				\
++		pkvm_debug("FAILED (l0x%x):" fmt, __LINE__, ##__VA_ARGS__); \
++	} while (0)
++
++#define failed_pte() failed("invalid pte 0x%llx level 0x%x\n", pte, level)
++
++static int test_s2_map_annotate(u64 base, u64 size)
++{
++	int ret;
++	u32 level = 0;
++	int nr_failed = 0;
++	kvm_pte_t pte = 0;
++	u64 addr, addr2, offset;
++	kvm_pte_t annotation = 0;
++	u64 l1_granule = kvm_granule_size(1);
++	u64 l2_granule = kvm_granule_size(2);
++	struct kvm_pgtable *pgt = &host_kvm.pgt;
++	enum kvm_pgtable_prot prot = pkvm_mkstate(PKVM_HOST_MEM_PROT,
++						  PKVM_PAGE_OWNED |
++						  pin_mask);
++
++	print_start_test();
++
++	ret = kvm_pgtable_stage2_map(pgt, base, size, base, prot,
++				     &host_s2_pool);
++	if (ret) {
++		failed("map: 0x%x\n", -ret);
++		return nr_failed;
++	}
++
++	/* Do we have a large block mapping? */
++	addr = base + size / 3;
++	if (get_leaf(addr, &pte, &level) || !kvm_pte_valid(pte) ||
++	    (!force_pte && level != 1)) /* FIXME: depends. */
++		failed_pte();
++
++	/* Remove one page */
++	addr = ALIGN_DOWN(addr, PAGE_SIZE);
++	annotation = 1 << (16 + 1); /* Hyp owner */
++	ret = kvm_pgtable_stage2_annotate(pgt, addr, PAGE_SIZE, &host_s2_pool,
++					  annotation);
++	if (ret)
++		failed("annotate: 0x%x\n", -ret);
++
++	if (get_leaf(addr, &pte, &level) || level != KVM_PGTABLE_MAX_LEVELS - 1)
++		failed_pte();
++
++	/* Are other pages in this block still valid? */
++	addr2 = ALIGN_DOWN(addr, l2_granule);
++	offset = addr - addr2;
++	addr2 += (offset + l2_granule / 2) % l2_granule;
++	if (get_leaf(addr2, &pte, &level)) {
++		failed("get leaf\n");
++	} else {
++		if (level != (KVM_PGTABLE_MAX_LEVELS - 1))
++			failed_pte();
++		if (pin_mask && (!kvm_pte_valid(pte) ||
++				 kvm_pte_to_phys(pte != addr2)))
++			failed_pte();
++	}
++
++	/* Do we still have block mappings around? */
++	addr2 = ALIGN_DOWN(addr, l1_granule);
++	offset = addr - addr2;
++	addr2 += (offset + l1_granule / 2) % l1_granule;
++	if (get_leaf(addr2, &pte, &level)) {
++		failed("get leaf\n");
++	} else {
++		if (level != 2 && !force_pte) /* FIXME: depends. */
++			failed_pte();
++		if (pin_mask && (!kvm_pte_valid(pte) ||
++				 kvm_pte_to_phys(pte != addr2)))
++			failed_pte();
++	}
++
++
++	ret = kvm_pgtable_stage2_unmap(pgt, base, size, &host_s2_pool);
++	if (ret)
++		failed("unmap failed: %x\n", -ret);
++
++	return nr_failed;
++}
++
++static int test_s2_map_unmap(u64 base, u64 size)
++{
++	int ret;
++	u32 level = 0;
++	int nr_failed = 0;
++	kvm_pte_t pte = 0;
++	u64 addr, addr2, offset;
++	struct kvm_pgtable *pgt = &host_kvm.pgt;
++	enum kvm_pgtable_prot prot = pkvm_mkstate(PKVM_HOST_MEM_PROT,
++						  PKVM_PAGE_OWNED |
++						  pin_mask);
++
++	print_start_test();
++
++	ret = kvm_pgtable_stage2_map(pgt, base, size, base, prot,
++				     &host_s2_pool);
++	if (ret) {
++		failed("map failed: 0x%x\n", -ret);
++		return nr_failed;
++	}
++
++	/* Do we have a large block mapping? */
++	addr = base + size / 3;
++	if (get_leaf(addr, &pte, &level) || !kvm_pte_valid(pte)) {
++		failed_pte();
++		return nr_failed;
++	}
++
++	/* Remove one page */
++	addr = ALIGN_DOWN(addr, PAGE_SIZE);
++	ret = kvm_pgtable_stage2_unmap(pgt, addr, PAGE_SIZE, &host_s2_pool);
++	if (ret)
++		failed("unmap page failed: 0x%x\n", -ret);
++
++	if (get_leaf(addr, &pte, &level) || kvm_pte_valid(pte))
++		failed_pte();
++
++	/* Are other pages in this block still valid? (FIXME: 64k) */
++	addr2 = ALIGN_DOWN(addr, SZ_2M);
++	offset = addr - addr2;
++	addr2 += (offset + SZ_1M) % SZ_2M;
++	if (get_leaf(addr2, &pte, &level) || (pin_mask &&
++					      !kvm_pte_valid(pte)))
++		failed_pte();
++
++	/* Do we still have block mappings around? */
++	if (size > SZ_1G) {
++		addr2 = ALIGN_DOWN(addr, SZ_1G);
++		offset = addr - addr2;
++		addr2 += (offset + SZ_512M) % SZ_1G;
++		if (get_leaf(addr2, &pte, &level) || (pin_mask &&
++						      !kvm_pte_valid(pte)))
++			failed_pte();
++	}
++
++	ret = kvm_pgtable_stage2_unmap(pgt, base, size, &host_s2_pool);
++	if (ret)
++		failed("unmap failed: %x\n", -ret);
++	return nr_failed;
++}
++
++static int test_s2_map_anchor(u64 base, u64 size)
++{
++	int ret;
++	u32 level = 0;
++	u64 addr, addr2;
++	int nr_failed = 0;
++	kvm_pte_t pte = 0;
++	kvm_pte_t annotation = 0;
++	u64 l2_granule = kvm_granule_size(2);
++	struct kvm_pgtable *pgt = &host_kvm.pgt;
++	enum kvm_pgtable_prot prot = pkvm_mkstate(PKVM_HOST_MEM_PROT,
++						  PKVM_PAGE_OWNED |
++						  pin_mask);
++
++	print_start_test();
++
++	ret = kvm_pgtable_stage2_map(pgt, base, size, base, prot,
++				     &host_s2_pool);
++	if (ret) {
++		failed("map failed: 0x%x\n", -ret);
++		return nr_failed;
++	}
++
++	/* Remove one block */
++	addr = base + 2 * (size / 3);
++	addr2 = ALIGN_DOWN(addr, l2_granule);
++	annotation = 1 << (16 + 1); /* Hyp owner */
++	ret = kvm_pgtable_stage2_annotate(pgt, addr2, l2_granule, &host_s2_pool,
++					  annotation);
++	if (ret)
++		failed("annotate failed: 0x%x\n", -ret);
++
++	if (get_leaf(addr, &pte, &level) || level != KVM_PGTABLE_MAX_LEVELS - 1)
++		failed_pte();
++
++	/* Overwrite with block */
++	ret = kvm_pgtable_stage2_map(pgt, addr2, l2_granule, addr2, prot,
++				     &host_s2_pool);
++	if (ret)
++		failed("map failed: 0x%x\n", -ret);
++
++	if (get_leaf(addr, &pte, &level) ||
++	    (!force_pte && level == KVM_PGTABLE_MAX_LEVELS - 1))
++		failed_pte();
++
++	ret = kvm_pgtable_stage2_unmap(pgt, base, size, &host_s2_pool);
++	if (ret) {
++		failed("unmap failed: %x\n", -ret);
++		return nr_failed;
++	}
++
++	if (get_leaf(addr, &pte, &level) || pte)
++		failed_pte();
++
++	return nr_failed;
++}
++
++static int test_s2_map_local_pin(u64 base, u64 size)
++{
++	int ret;
++	u32 level = 0;
++	int nr_failed = 0;
++	kvm_pte_t pte = 0;
++	u64 addr, addr2, offset;
++	kvm_pte_t annotation = 0;
++	u64 l2_granule = kvm_granule_size(2);
++	struct kvm_pgtable *pgt = &host_kvm.pgt;
++	enum kvm_pgtable_prot prot = pkvm_mkstate(PKVM_HOST_MEM_PROT,
++						  PKVM_PAGE_OWNED);
++
++	print_start_test();
++
++	ret = kvm_pgtable_stage2_map(pgt, base, size, base, prot,
++				     &host_s2_pool);
++	if (ret) {
++		failed("map failed: 0x%x\n", -ret);
++		return nr_failed;
++	}
++
++	addr = ALIGN_DOWN(base + size / 2, PAGE_SIZE);
++	/* Pin one page */
++	ret = kvm_pgtable_stage2_map(pgt, addr, PAGE_SIZE, addr,
++				     prot | PKVM_PAGE_PINNED, &host_s2_pool);
++	if (ret)
++		failed("pin failed: 0x%x\n", -ret);
++
++	/* FIXME: what am I testing here?? */
++	addr2 = ALIGN_DOWN(addr, l2_granule);
++	offset = addr - addr2;
++	addr2 += (offset + l2_granule / 2) % l2_granule;
++	annotation = 1 << (16 + 1); /* Hyp owner */
++	ret = kvm_pgtable_stage2_annotate(pgt, addr2, PAGE_SIZE, &host_s2_pool,
++					  annotation);
++	if (ret)
++		failed("annotate failed: 0x%x\n", -ret);
++
++	if (get_leaf(addr2, &pte, &level) || level != KVM_PGTABLE_MAX_LEVELS - 1)
++		failed_pte();
++
++	if (get_leaf(addr, &pte, &level) || level != KVM_PGTABLE_MAX_LEVELS - 1 ||
++	    !kvm_pte_valid(pte))
++		failed_pte();
++	
++	get_leaf(addr + PAGE_SIZE, &pte, &level);
++
++	ret = kvm_pgtable_stage2_unmap_unpinned(pgt, base, size, &host_s2_pool);
++	if (ret)
++		failed("unmap_unpinned failed: %x\n", -ret);
++
++	if (get_leaf(addr, &pte, &level) || level != KVM_PGTABLE_MAX_LEVELS - 1 ||
++	    !kvm_pte_valid(pte))
++		failed_pte();
++
++	get_leaf(addr2, &pte, &level);
++
++	ret = kvm_pgtable_stage2_unmap(pgt, base, size, &host_s2_pool);
++	if (ret)
++		failed("unmap_unpinned failed: %x\n", -ret);
++
++	if (get_leaf(addr, &pte, &level) || kvm_pte_valid(pte))
++		failed_pte();
++
++	return nr_failed;
++}
++
++int test_s2_pgtables(void)
++{
++	int ret = 0;
++	u64 base, size;
++	u64 size_force_tests;
++	struct memblock_region *reg;
++	kvm_pte_t old_pinned = pin_mask;
++	bool old_force_pte = force_pte;
++
++	reg = &hyp_memory[0];
++	base = reg->base;
++	size = reg->size;
++
++	pkvm_debug("### %s starting selftests on range [0x%llx, 0x%llx]\n",
++		   __func__, base, base + size - 1);
++	pkvm_debug(" default pin=%x force_pte=%x\n", !!pin_mask, force_pte);
++
++	/* Disable temporarily */
++	pin_mask = 0;
++	force_pte = false;
++
++	ret += test_s2_map_annotate(base, size);
++	ret += test_s2_map_unmap(base, size);
++	ret += test_s2_map_anchor(base, size);
++
++	force_pte = true;
++
++	/* Super slow */
++	size_force_tests = min_t(size_t, size, SZ_64M);
++	ret += test_s2_map_annotate(base, size_force_tests);
++	ret += test_s2_map_unmap(base, size_force_tests);
++	ret += test_s2_map_anchor(base, size_force_tests);
++
++	force_pte = false;
++	pin_mask = KVM_PGTABLE_PROT_SW2;
++
++	ret += test_s2_map_annotate(base, size);
++	ret += test_s2_map_unmap(base, size);
++	ret += test_s2_map_anchor(base, size);
++	ret += test_s2_map_local_pin(base, size);
++
++	force_pte = old_force_pte;
++	pin_mask = old_pinned;
++	pkvm_debug("### selftests complete, 0x%x failures\n", ret);
++
++	return ret;
++}
+-- 
+2.34.1
+

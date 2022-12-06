@@ -1,0 +1,301 @@
+From e0d34b7c9d5061f6e744180ce26a88c0b3b046de Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Wed, 23 Feb 2022 16:46:29 +0000
+Subject: [PATCH 77/97] KVM: arm64: pgtable: Allow pinning stage-2 mappings
+
+When sharing stage-2 page tables with the SMMU, since devices do not
+generally support page faults, we cannot remove valid mappings as a
+side-effect or changing a block mapping into a table.
+
+Let the hypervisor pin pages using one of the software bits in the PTE
+(SW2 for pKVM). It could pin all stage-2 pages, or only pin what the
+host declares as DMA memory through some hypercall. Keep pinned pages
+alive while switching from block to table and vice versa. For the moment
+we only support identity-map.
+
+Unfortunately this requires break-before-make relaxation introduced by
+Armv8.4. Callers should ensure it is supported before setting
+pgt.pin_mask. Otherwise they can set 'force_pte', which disables block
+mappings but requires a lot of tables for mapping the whole host (around
+16MiB to map 8GiB of memory)
+
+Only the map() path is done here. unmap() will be in a separate patch.
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ arch/arm64/include/asm/kvm_pgtable.h |   4 +
+ arch/arm64/kvm/hyp/pgtable.c         | 154 +++++++++++++++++++++++++--
+ 2 files changed, 150 insertions(+), 8 deletions(-)
+
+diff --git a/arch/arm64/include/asm/kvm_pgtable.h b/arch/arm64/include/asm/kvm_pgtable.h
+index 742479a4d13a..377ee4c3ec47 100644
+--- a/arch/arm64/include/asm/kvm_pgtable.h
++++ b/arch/arm64/include/asm/kvm_pgtable.h
+@@ -161,6 +161,9 @@ typedef bool (*kvm_pgtable_force_pte_cb_t)(u64 addr, u64 end,
+  * @mm_ops:		Memory management callbacks.
+  * @mmu:		Stage-2 KVM MMU struct. Unused for stage-1 page-tables.
+  * @flags:		Stage-2 page-table flags.
++ * @pin_mask		PTE bit indicating that a page is pinned. Such a page is
++ *			not unmapped as a side-effect of transitions between
++ *			block and table mappings.
+  * @force_pte_cb:	Function that returns true if page level mappings must
+  *			be used instead of block mappings.
+  */
+@@ -174,6 +177,7 @@ struct kvm_pgtable {
+ 	struct kvm_s2_mmu			*mmu;
+ 	enum kvm_pgtable_stage2_flags		flags;
+ 	kvm_pgtable_force_pte_cb_t		force_pte_cb;
++	kvm_pte_t				pin_mask;
+ };
+ 
+ /**
+diff --git a/arch/arm64/kvm/hyp/pgtable.c b/arch/arm64/kvm/hyp/pgtable.c
+index 779f3f690f32..6d6a34c3afd3 100644
+--- a/arch/arm64/kvm/hyp/pgtable.c
++++ b/arch/arm64/kvm/hyp/pgtable.c
+@@ -573,6 +573,7 @@ struct stage2_map_data {
+ 
+ 	kvm_pte_t			*anchor;
+ 	kvm_pte_t			*childp;
++	bool				pin_anchor;
+ 
+ 	struct kvm_pgtable		*pgt;
+ 	void				*memcache;
+@@ -737,6 +738,11 @@ static bool stage2_pte_executable(kvm_pte_t pte)
+ 	return kvm_pte_valid(pte) && !(pte & KVM_PTE_LEAF_ATTR_HI_S2_XN);
+ }
+ 
++static bool stage2_pte_is_pinned(struct kvm_pgtable *pgt, kvm_pte_t pte)
++{
++	return pte & pgt->pin_mask;
++}
++
+ static bool stage2_leaf_mapping_allowed(u64 addr, u64 end, u32 level,
+ 					struct stage2_map_data *data)
+ {
+@@ -752,6 +758,8 @@ static int stage2_map_walker_try_leaf(u64 addr, u64 end, u32 level,
+ {
+ 	kvm_pte_t new, old = *ptep;
+ 	u64 granule = kvm_granule_size(level), phys = data->phys;
++	bool old_is_nt = !kvm_pgt_level_is_last(level) &&
++			 old & KVM_PTE_BLOCK_ATTR_NT;
+ 	struct kvm_pgtable *pgt = data->pgt;
+ 	struct kvm_pgtable_mm_ops *mm_ops = pgt->mm_ops;
+ 
+@@ -780,7 +788,9 @@ static int stage2_map_walker_try_leaf(u64 addr, u64 end, u32 level,
+ 		if (!((old ^ new) & ~KVM_PTE_LEAF_ATTR_HI_SW))
+ 			goto out_set_pte;
+ 
+-		stage2_put_pte(ptep, pgt, addr, level);
++		/* If we're cementing a temporary 'nT' block, keep it alive */
++		if (!old_is_nt)
++			stage2_put_pte(ptep, pgt, addr, level);
+ 	}
+ 
+ 	/* Perform CMOs before installation of the guest stage-2 PTE */
+@@ -797,6 +807,75 @@ static int stage2_map_walker_try_leaf(u64 addr, u64 end, u32 level,
+ 	smp_store_release(ptep, new);
+ 	if (kvm_phys_is_valid(phys))
+ 		data->phys += granule;
++
++	if (old_is_nt)
++		kvm_call_hyp(__kvm_tlb_flush_vmid_ipa, pgt->mmu, addr, level);
++	return 0;
++}
++
++static bool stage2_needs_rebuild_table(struct stage2_map_data *data,
++				       kvm_pte_t block_pte)
++{
++	return stage2_pte_is_pinned(data->pgt, block_pte) &&
++		kvm_pte_valid(block_pte);
++}
++
++static int stage2_rebuild_idmap(u64 start, u64 end, u32 level, kvm_pte_t *table,
++				struct stage2_map_data *data);
++
++/*
++ * stage2_rebuild_table - Fill pte entries outside the [start, end) range
++ * @block_pte: the block being replaced
++ * @table: the table that replaces the block
++ * @table_pte: on success, output table PTE
++ */
++static int stage2_rebuild_table(u64 start, u64 end, u32 level,
++				kvm_pte_t block_pte, kvm_pte_t *table,
++				struct stage2_map_data *data,
++				kvm_pte_t *table_pte)
++{
++	int ret;
++	u64 limit;
++	u64 base = kvm_pte_to_phys(block_pte);
++	u64 granule = kvm_granule_size(level);
++	struct stage2_map_data map_data = {
++		.pgt = data->pgt,
++		.memcache = data->memcache,
++		.attr = block_pte,
++		/*
++		 * We're here because idmap created a block, so force_pte was
++		 * false
++		 */
++		.force_pte = false,
++	};
++
++	if (!stage2_needs_rebuild_table(data, block_pte))
++		return 0;
++
++	BUG_ON(!(data->pgt->flags & KVM_PGTABLE_S2_IDMAP));
++
++	/*
++	 * The ongoing walk will fill PTEs in the range [start, end), so we
++	 * recreate the identity mappings within [base, start) and [end, limit).
++	 */
++	limit = base + granule;
++	if (start >= limit || end < base || (start < base && end >= limit))
++		return 0;
++
++	start = max(start, base);
++	end = min(end, limit);
++
++	ret = stage2_rebuild_idmap(base, start, level + 1, table, &map_data);
++	if (ret)
++		return ret;
++
++	ret = stage2_rebuild_idmap(end, limit, level + 1, table, &map_data);
++	if (ret)
++		return ret;
++
++	*table_pte = kvm_table_pte(table, data->pgt->mm_ops);
++	/* Ensure table entries are visible before the new PTE */
++	smp_wmb();
+ 	return 0;
+ }
+ 
+@@ -804,6 +883,8 @@ static int stage2_map_walk_table_pre(u64 addr, u64 end, u32 level,
+ 				     kvm_pte_t *ptep,
+ 				     struct stage2_map_data *data)
+ {
++	kvm_pte_t new = 0;
++
+ 	if (data->anchor)
+ 		return 0;
+ 
+@@ -811,7 +892,17 @@ static int stage2_map_walk_table_pre(u64 addr, u64 end, u32 level,
+ 		return 0;
+ 
+ 	data->childp = kvm_pte_follow(*ptep, data->pgt->mm_ops);
+-	kvm_clear_pte(ptep);
++
++	/*
++	 * If the tables we're replacing might contain pinned mappings,
++	 * immediately replace the PTE with a temporary nT block entry.
++	 * Otherwise just clear it.
++	 */
++	if (kvm_phys_is_valid(data->phys) && data->pgt->pin_mask)
++		new = kvm_init_valid_leaf_pte(data->phys, data->attr, level) |
++			KVM_PTE_BLOCK_ATTR_NT;
++
++	WRITE_ONCE(*ptep, new);
+ 
+ 	/*
+ 	 * Invalidate the whole stage-2, as we may have numerous leaf
+@@ -828,9 +919,14 @@ static int stage2_map_walk_leaf(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
+ {
+ 	struct kvm_pgtable_mm_ops *mm_ops = data->pgt->mm_ops;
+ 	kvm_pte_t *childp, pte = *ptep;
++	kvm_pte_t table_pte = 0;
+ 	int ret;
+ 
+ 	if (data->anchor) {
++		if (stage2_pte_is_pinned(data->pgt, pte))
++			/* Pin the parent block */
++			data->pin_anchor = true;
++
+ 		if (stage2_pte_is_counted(pte))
+ 			mm_ops->put_page(ptep);
+ 
+@@ -853,14 +949,24 @@ static int stage2_map_walk_leaf(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
+ 
+ 	/*
+ 	 * If we've run into an existing block mapping then replace it with
+-	 * a table. Accesses beyond 'end' that fall within the new table
+-	 * will be mapped lazily.
++	 * a table. If pinning is not requested, accesses beyond 'end' that fall
++	 * within the new table will be mapped lazily.
+ 	 */
+-	if (stage2_pte_is_counted(pte))
+-		stage2_put_pte(ptep, data->pgt, addr, level);
++	if (stage2_pte_is_counted(pte)) {
++		ret = stage2_rebuild_table(addr, end, level, pte, childp, data,
++					   &table_pte);
++		if (ret) {
++			mm_ops->put_page(childp);
++			return ret;
++		}
+ 
+-	kvm_set_table_pte(ptep, childp, mm_ops);
+-	mm_ops->get_page(ptep);
++		stage2_xchg_pte(ptep, data->pgt, addr, level, table_pte);
++	}
++
++	if (!table_pte) {
++		kvm_set_table_pte(ptep, childp, mm_ops);
++		mm_ops->get_page(ptep);
++	}
+ 
+ 	return 0;
+ }
+@@ -871,6 +977,7 @@ static int stage2_map_walk_table_post(u64 addr, u64 end, u32 level,
+ {
+ 	struct kvm_pgtable_mm_ops *mm_ops = data->pgt->mm_ops;
+ 	kvm_pte_t *childp;
++	kvm_pte_t pte;
+ 	int ret = 0;
+ 
+ 	if (!data->anchor)
+@@ -881,6 +988,16 @@ static int stage2_map_walk_table_post(u64 addr, u64 end, u32 level,
+ 		data->anchor = NULL;
+ 		data->childp = NULL;
+ 		ret = stage2_map_walk_leaf(addr, end, level, ptep, data);
++
++		/* If we've removed a PTE that was pinned. Pin the whole block. */
++		if (data->pin_anchor) {
++			pte = *ptep | data->pgt->pin_mask;
++			WRITE_ONCE(*ptep, pte);
++			data->pin_anchor = false;
++
++			/* No TLB invalidation needed for SW bits */
++			BUG_ON(data->pgt->pin_mask & ~KVM_PTE_LEAF_ATTR_HI_SW);
++		}
+ 	} else {
+ 		childp = kvm_pte_follow(*ptep, mm_ops);
+ 	}
+@@ -927,6 +1044,27 @@ static int stage2_map_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
+ 	return -EINVAL;
+ }
+ 
++static int stage2_rebuild_idmap(u64 start, u64 end, u32 level, kvm_pte_t *table,
++				struct stage2_map_data *data)
++{
++	struct kvm_pgtable_walker walker = {
++		.cb		= stage2_map_walker,
++		.flags		= KVM_PGTABLE_WALK_TABLE_PRE |
++				  KVM_PGTABLE_WALK_LEAF |
++				  KVM_PGTABLE_WALK_TABLE_POST,
++		.arg		= data,
++	};
++	struct kvm_pgtable_walk_data walk_data = {
++		.pgt		= data->pgt,
++		.addr		= ALIGN_DOWN(start, PAGE_SIZE),
++		.end		= PAGE_ALIGN(end),
++		.walker		= &walker,
++	};
++
++	data->phys = start;
++	return __kvm_pgtable_walk(&walk_data, table, level);
++}
++
+ int kvm_pgtable_stage2_map(struct kvm_pgtable *pgt, u64 addr, u64 size,
+ 			   u64 phys, enum kvm_pgtable_prot prot,
+ 			   void *mc)
+-- 
+2.34.1
+

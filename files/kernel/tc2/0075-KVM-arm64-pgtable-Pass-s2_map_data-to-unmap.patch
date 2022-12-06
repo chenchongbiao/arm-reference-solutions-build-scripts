@@ -1,0 +1,45 @@
+From cfc21d21ba30337d6a986ae262e46b2456d1b0a2 Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Mon, 28 Feb 2022 12:15:55 +0000
+Subject: [PATCH 75/97] KVM: arm64: pgtable: Pass s2_map_data to unmap()
+
+In order to allocate tables to fix identity mappings on unmap, pass the
+same parameters to unmap() as map().
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ arch/arm64/kvm/hyp/pgtable.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/kvm/hyp/pgtable.c b/arch/arm64/kvm/hyp/pgtable.c
+index 8ccd093c6e60..67ced0d23498 100644
+--- a/arch/arm64/kvm/hyp/pgtable.c
++++ b/arch/arm64/kvm/hyp/pgtable.c
+@@ -955,6 +955,8 @@ static int stage2_unmap_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
+ 			       void * const arg)
+ {
+ 	struct kvm_pgtable *pgt = arg;
++	struct stage2_map_data *data = arg;
++	struct kvm_pgtable *pgt = data->pgt;
+ 	struct kvm_pgtable_mm_ops *mm_ops = pgt->mm_ops;
+ 	kvm_pte_t pte = *ptep, *childp = NULL;
+ 	bool need_flush = false;
+@@ -996,9 +998,14 @@ static int stage2_unmap_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
+ int kvm_pgtable_stage2_unmap(struct kvm_pgtable *pgt, u64 addr, u64 size,
+ 				void *mc)
+ {
++	struct stage2_map_data map_data = {
++		.pgt		= pgt,
++		.memcache	= mc,
++		.force_pte	= true,
++	};
+ 	struct kvm_pgtable_walker walker = {
+ 		.cb	= stage2_unmap_walker,
+-		.arg	= pgt,
++		.arg	= &map_data,
+ 		.flags	= KVM_PGTABLE_WALK_LEAF | KVM_PGTABLE_WALK_TABLE_POST,
+ 	};
+ 
+-- 
+2.34.1
+

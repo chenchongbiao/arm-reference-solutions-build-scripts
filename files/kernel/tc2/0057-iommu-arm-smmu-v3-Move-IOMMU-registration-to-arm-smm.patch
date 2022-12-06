@@ -1,0 +1,223 @@
+From 8297c01f455b7d4e27e1f57de104c09dbd6cba9e Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Thu, 17 Feb 2022 16:30:39 +0000
+Subject: [PATCH 57/97] iommu/arm-smmu-v3: Move IOMMU registration to
+ arm-smmu-v3-common.c
+
+The KVM driver will need to implement a few IOMMU ops, so move the
+helpers to arm-smmu-v3-common.
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ .../arm/arm-smmu-v3/arm-smmu-v3-common.c      | 77 +++++++++++++++++++
+ drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3.c   | 66 +---------------
+ drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3.h   |  4 +
+ 3 files changed, 83 insertions(+), 64 deletions(-)
+
+diff --git a/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-common.c b/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-common.c
+index c1f4710a18d6..160b3b342914 100644
+--- a/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-common.c
++++ b/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-common.c
+@@ -3,6 +3,9 @@
+ #include <linux/of.h>
+ #include <linux/of_address.h>
+ #include <linux/of_platform.h>
++#include <linux/pci.h>
++
++#include <linux/amba/bus.h>
+ 
+ #include "arm-smmu-v3.h"
+ 
+@@ -499,3 +502,77 @@ int arm_smmu_init_strtab(struct arm_smmu_device *smmu)
+ 	set_bit(0, smmu->vmid_map);
+ 	return 0;
+ }
++
++static int arm_smmu_set_bus_ops(struct iommu_ops *ops)
++{
++	int err;
++
++#ifdef CONFIG_PCI
++	if (pci_bus_type.iommu_ops != ops) {
++		err = bus_set_iommu(&pci_bus_type, ops);
++		if (err)
++			return err;
++	}
++#endif
++#ifdef CONFIG_ARM_AMBA
++	if (amba_bustype.iommu_ops != ops) {
++		err = bus_set_iommu(&amba_bustype, ops);
++		if (err)
++			goto err_reset_pci_ops;
++	}
++#endif
++	if (platform_bus_type.iommu_ops != ops) {
++		err = bus_set_iommu(&platform_bus_type, ops);
++		if (err)
++			goto err_reset_amba_ops;
++	}
++
++	return 0;
++
++err_reset_amba_ops:
++#ifdef CONFIG_ARM_AMBA
++	bus_set_iommu(&amba_bustype, NULL);
++#endif
++err_reset_pci_ops: __maybe_unused;
++#ifdef CONFIG_PCI
++	bus_set_iommu(&pci_bus_type, NULL);
++#endif
++	return err;
++}
++
++int arm_smmu_register_iommu(struct arm_smmu_device *smmu,
++			    struct iommu_ops *ops, phys_addr_t ioaddr)
++{
++	int ret;
++	struct device *dev = smmu->dev;
++
++	ret = iommu_device_sysfs_add(&smmu->iommu, dev, NULL, "smmu3.%pa",
++				     &ioaddr);
++	if (ret)
++		return ret;
++
++	ret = iommu_device_register(&smmu->iommu, ops, dev);
++	if (ret) {
++		dev_err(dev, "Failed to register iommu\n");
++		goto err_sysfs_remove;
++	}
++
++	ret = arm_smmu_set_bus_ops(ops);
++	if (ret)
++		goto err_unregister_device;
++
++	return 0;
++
++err_unregister_device:
++	iommu_device_unregister(&smmu->iommu);
++err_sysfs_remove:
++	iommu_device_sysfs_remove(&smmu->iommu);
++	return ret;
++}
++
++void arm_smmu_unregister_iommu(struct arm_smmu_device *smmu)
++{
++	arm_smmu_set_bus_ops(NULL);
++	iommu_device_unregister(&smmu->iommu);
++	iommu_device_sysfs_remove(&smmu->iommu);
++}
+diff --git a/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3.c b/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3.c
+index bd2822ec7d1d..545d5d3c166b 100644
+--- a/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3.c
++++ b/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3.c
+@@ -24,8 +24,6 @@
+ #include <linux/pci-ats.h>
+ #include <linux/platform_device.h>
+ 
+-#include <linux/amba/bus.h>
+-
+ #include "arm-smmu-v3.h"
+ #include "../../iommu-sva-lib.h"
+ 
+@@ -3227,43 +3225,6 @@ static unsigned long arm_smmu_resource_size(struct arm_smmu_device *smmu)
+ 		return SZ_128K;
+ }
+ 
+-static int arm_smmu_set_bus_ops(struct iommu_ops *ops)
+-{
+-	int err;
+-
+-#ifdef CONFIG_PCI
+-	if (pci_bus_type.iommu_ops != ops) {
+-		err = bus_set_iommu(&pci_bus_type, ops);
+-		if (err)
+-			return err;
+-	}
+-#endif
+-#ifdef CONFIG_ARM_AMBA
+-	if (amba_bustype.iommu_ops != ops) {
+-		err = bus_set_iommu(&amba_bustype, ops);
+-		if (err)
+-			goto err_reset_pci_ops;
+-	}
+-#endif
+-	if (platform_bus_type.iommu_ops != ops) {
+-		err = bus_set_iommu(&platform_bus_type, ops);
+-		if (err)
+-			goto err_reset_amba_ops;
+-	}
+-
+-	return 0;
+-
+-err_reset_amba_ops:
+-#ifdef CONFIG_ARM_AMBA
+-	bus_set_iommu(&amba_bustype, NULL);
+-#endif
+-err_reset_pci_ops: __maybe_unused;
+-#ifdef CONFIG_PCI
+-	bus_set_iommu(&pci_bus_type, NULL);
+-#endif
+-	return err;
+-}
+-
+ static void __iomem *arm_smmu_ioremap(struct device *dev, resource_size_t start,
+ 				      resource_size_t size)
+ {
+@@ -3367,37 +3328,14 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
+ 		return ret;
+ 
+ 	/* And we're up. Go go go! */
+-	ret = iommu_device_sysfs_add(&smmu->iommu, dev, NULL,
+-				     "smmu3.%pa", &ioaddr);
+-	if (ret)
+-		return ret;
+-
+-	ret = iommu_device_register(&smmu->iommu, &arm_smmu_ops, dev);
+-	if (ret) {
+-		dev_err(dev, "Failed to register iommu\n");
+-		goto err_sysfs_remove;
+-	}
+-
+-	ret = arm_smmu_set_bus_ops(&arm_smmu_ops);
+-	if (ret)
+-		goto err_unregister_device;
+-
+-	return 0;
+-
+-err_unregister_device:
+-	iommu_device_unregister(&smmu->iommu);
+-err_sysfs_remove:
+-	iommu_device_sysfs_remove(&smmu->iommu);
+-	return ret;
++	return arm_smmu_register_iommu(smmu, &arm_smmu_ops, ioaddr);
+ }
+ 
+ static int arm_smmu_device_remove(struct platform_device *pdev)
+ {
+ 	struct arm_smmu_device *smmu = platform_get_drvdata(pdev);
+ 
+-	arm_smmu_set_bus_ops(NULL);
+-	iommu_device_unregister(&smmu->iommu);
+-	iommu_device_sysfs_remove(&smmu->iommu);
++	arm_smmu_unregister_iommu(smmu);
+ 	arm_smmu_device_disable(smmu);
+ 	iopf_queue_free(smmu->evtq.iopf);
+ 
+diff --git a/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3.h b/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3.h
+index 11e7f3b6ece6..bd8ed2a08037 100644
+--- a/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3.h
++++ b/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3.h
+@@ -756,6 +756,10 @@ int arm_smmu_write_reg_sync(struct arm_smmu_device *smmu, u32 val,
+ int arm_smmu_update_gbpa(struct arm_smmu_device *smmu, u32 set, u32 clr);
+ int arm_smmu_device_disable(struct arm_smmu_device *smmu);
+ 
++int arm_smmu_register_iommu(struct arm_smmu_device *smmu,
++			    struct iommu_ops *ops, phys_addr_t ioaddr);
++void arm_smmu_unregister_iommu(struct arm_smmu_device *smmu);
++
+ int arm_smmu_write_ctx_desc(struct arm_smmu_domain *smmu_domain, int ssid,
+ 			    struct arm_smmu_ctx_desc *cd);
+ void arm_smmu_tlb_inv_asid(struct arm_smmu_device *smmu, u16 asid);
+-- 
+2.34.1
+

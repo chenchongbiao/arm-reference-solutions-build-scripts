@@ -1,0 +1,109 @@
+From 830c18a918935d433f2f336f8549e016a3b602fe Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Fri, 25 Feb 2022 19:10:11 +0000
+Subject: [PATCH 89/97] iommu/dma: Allow registering a callback for
+ prepare_msi()
+
+Allow an IOMMU driver to request being notified when the IRQ driver
+registers an MSI region.
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ drivers/iommu/dma-iommu.c | 35 ++++++++++++++++++++++++++++++++++-
+ include/linux/dma-iommu.h |  3 +++
+ 2 files changed, 37 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/iommu/dma-iommu.c b/drivers/iommu/dma-iommu.c
+index c62745c1055d..ba70a1977acb 100644
+--- a/drivers/iommu/dma-iommu.c
++++ b/drivers/iommu/dma-iommu.c
+@@ -36,6 +36,7 @@ struct iommu_dma_msi_page {
+ enum iommu_dma_cookie_type {
+ 	IOMMU_DMA_IOVA_COOKIE,
+ 	IOMMU_DMA_MSI_COOKIE,
++	IOMMU_DMA_MSI_CB_COOKIE,
+ };
+ 
+ struct iommu_dma_cookie {
+@@ -45,6 +46,8 @@ struct iommu_dma_cookie {
+ 		struct iova_domain	iovad;
+ 		/* Trivial linear page allocator for IOMMU_DMA_MSI_COOKIE */
+ 		dma_addr_t		msi_iova;
++		/* Callback for prepare requests by the IRQ subsystem */
++		prepare_msi_cb_t		msi_cb;
+ 	};
+ 	struct list_head		msi_page_list;
+ 
+@@ -154,6 +157,33 @@ int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base)
+ }
+ EXPORT_SYMBOL(iommu_get_msi_cookie);
+ 
++/**
++ * iommu_get_msi_cb_cookie - Request to forward all MSI prepare requests
++ * @domain: IOMMU domain to prepare
++ * @cb: function to call when preparing the MSI desc.
++ *      At present the callback must not register a MSI cookie on the given
++ *      descriptor.
++ */
++int iommu_get_msi_cb_cookie(struct iommu_domain *domain, prepare_msi_cb_t cb)
++{
++	struct iommu_dma_cookie *cookie;
++
++	if (domain->type != IOMMU_DOMAIN_IDENTITY)
++		return -EINVAL;
++
++	if (domain->iova_cookie)
++		return -EEXIST;
++
++	cookie = cookie_alloc(IOMMU_DMA_MSI_CB_COOKIE);
++	if (!cookie)
++		return -ENOMEM;
++
++	cookie->msi_cb = cb;
++	domain->iova_cookie = cookie;
++	return 0;
++}
++EXPORT_SYMBOL(iommu_get_msi_cb_cookie);
++
+ /**
+  * iommu_put_dma_cookie - Release a domain's DMA mapping resources
+  * @domain: IOMMU domain previously prepared by iommu_get_dma_cookie() or
+@@ -1433,6 +1463,9 @@ int iommu_dma_prepare_msi(struct msi_desc *desc, phys_addr_t msi_addr)
+ 		return 0;
+ 	}
+ 
++	if (domain->iova_cookie->type == IOMMU_DMA_MSI_CB_COOKIE)
++		return domain->iova_cookie->msi_cb(desc, msi_addr);
++
+ 	/*
+ 	 * In fact the whole prepare operation should already be serialised by
+ 	 * irq_domain_mutex further up the callchain, but that's pretty subtle
+@@ -1458,7 +1491,7 @@ void iommu_dma_compose_msi_msg(struct msi_desc *desc,
+ 
+ 	msi_page = msi_desc_get_iommu_cookie(desc);
+ 
+-	if (!domain || !domain->iova_cookie || WARN_ON(!msi_page))
++	if (!domain || !domain->iova_cookie || !msi_page)
+ 		return;
+ 
+ 	msg->address_hi = upper_32_bits(msi_page->iova);
+diff --git a/include/linux/dma-iommu.h b/include/linux/dma-iommu.h
+index ee6eee9af9ed..3dc0c4bfb634 100644
+--- a/include/linux/dma-iommu.h
++++ b/include/linux/dma-iommu.h
+@@ -13,9 +13,12 @@
+ #include <linux/iommu.h>
+ #include <linux/msi.h>
+ 
++typedef int (*prepare_msi_cb_t)(struct msi_desc *desc, phys_addr_t msi_addr);
++
+ /* Domain management interface for IOMMU drivers */
+ int iommu_get_dma_cookie(struct iommu_domain *domain);
+ int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base);
++int iommu_get_msi_cb_cookie(struct iommu_domain *domain, prepare_msi_cb_t cb);
+ void iommu_put_dma_cookie(struct iommu_domain *domain);
+ 
+ /* Setup call for arch DMA mapping code */
+-- 
+2.34.1
+

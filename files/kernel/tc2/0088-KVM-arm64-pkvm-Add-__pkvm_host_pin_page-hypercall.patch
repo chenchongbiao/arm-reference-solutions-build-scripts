@@ -1,0 +1,118 @@
+From b409b856c9f34f5473e15c02e2f990ac80c4b558 Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Fri, 25 Feb 2022 16:00:34 +0000
+Subject: [PATCH 88/97] KVM: arm64: pkvm: Add __pkvm_host_pin_page hypercall
+
+To pin the MMIO regions that contain the MSI doorbells in the host
+stage-2, the host issues a __pkvm_host_pin_page hypercall that
+identity-maps the MMIO page and marks it pinned using software bit 2.
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ arch/arm64/include/asm/kvm_asm.h              |  1 +
+ arch/arm64/kvm/hyp/include/nvhe/mem_protect.h |  1 +
+ arch/arm64/kvm/hyp/nvhe/hyp-main.c            | 14 ++++++++
+ arch/arm64/kvm/hyp/nvhe/mem_protect.c         | 34 +++++++++++++++++++
+ 4 files changed, 50 insertions(+)
+
+diff --git a/arch/arm64/include/asm/kvm_asm.h b/arch/arm64/include/asm/kvm_asm.h
+index 0af1d076021d..1813487f1877 100644
+--- a/arch/arm64/include/asm/kvm_asm.h
++++ b/arch/arm64/include/asm/kvm_asm.h
+@@ -67,6 +67,7 @@ enum __kvm_host_smccc_func {
+ 	__KVM_HOST_SMCCC_FUNC___pkvm_host_reclaim_page,
+ 	__KVM_HOST_SMCCC_FUNC___pkvm_host_donate_guest,
+ 	__KVM_HOST_SMCCC_FUNC___kvm_adjust_pc,
++	__KVM_HOST_SMCCC_FUNC___pkvm_host_pin_page,
+ 	__KVM_HOST_SMCCC_FUNC___kvm_vcpu_run,
+ 	__KVM_HOST_SMCCC_FUNC___kvm_flush_vm_context,
+ 	__KVM_HOST_SMCCC_FUNC___kvm_tlb_flush_vmid_ipa,
+diff --git a/arch/arm64/kvm/hyp/include/nvhe/mem_protect.h b/arch/arm64/kvm/hyp/include/nvhe/mem_protect.h
+index e7d72a501f4c..a157b579394d 100644
+--- a/arch/arm64/kvm/hyp/include/nvhe/mem_protect.h
++++ b/arch/arm64/kvm/hyp/include/nvhe/mem_protect.h
+@@ -68,6 +68,7 @@ int __pkvm_prot_finalize(void);
+ int __pkvm_host_share_hyp(u64 pfn);
+ int __pkvm_host_unshare_hyp(u64 pfn);
+ int __pkvm_host_reclaim_page(u64 pfn);
++int __pkvm_host_pin_page(u64 pfn);
+ int __pkvm_host_donate_hyp(u64 pfn, u64 nr_pages);
+ int __pkvm_hyp_donate_host(u64 pfn, u64 nr_pages);
+ int __pkvm_host_share_guest(u64 pfn, u64 gfn, struct kvm_vcpu *vcpu);
+diff --git a/arch/arm64/kvm/hyp/nvhe/hyp-main.c b/arch/arm64/kvm/hyp/nvhe/hyp-main.c
+index eb5d81f1653e..abe3536dc1a9 100644
+--- a/arch/arm64/kvm/hyp/nvhe/hyp-main.c
++++ b/arch/arm64/kvm/hyp/nvhe/hyp-main.c
+@@ -801,6 +801,19 @@ static void handle___pkvm_host_donate_guest(struct kvm_cpu_context *host_ctxt)
+ 	cpu_reg(host_ctxt, 1) =  ret;
+ }
+ 
++static void handle___pkvm_host_pin_page(struct kvm_cpu_context *host_ctxt)
++{
++	DECLARE_REG(u64, pfn, host_ctxt, 1);
++	int ret = -EINVAL;
++
++	if (!is_protected_kvm_enabled())
++		goto out;
++
++	ret = __pkvm_host_pin_page(pfn);
++out:
++	cpu_reg(host_ctxt, 1) = ret;
++}
++
+ static void handle___kvm_adjust_pc(struct kvm_cpu_context *host_ctxt)
+ {
+ 	struct pkvm_loaded_state *shadow_state;
+@@ -1084,6 +1097,7 @@ static const hcall_t host_hcall[] = {
+ 	HANDLE_FUNC(__pkvm_host_unshare_hyp),
+ 	HANDLE_FUNC(__pkvm_host_reclaim_page),
+ 	HANDLE_FUNC(__pkvm_host_donate_guest),
++	HANDLE_FUNC(__pkvm_host_pin_page),
+ 	HANDLE_FUNC(__kvm_adjust_pc),
+ 	HANDLE_FUNC(__kvm_vcpu_run),
+ 	HANDLE_FUNC(__kvm_timer_set_cntvoff),
+diff --git a/arch/arm64/kvm/hyp/nvhe/mem_protect.c b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+index 3db27c81a31c..7e42a348fc8b 100644
+--- a/arch/arm64/kvm/hyp/nvhe/mem_protect.c
++++ b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+@@ -2127,3 +2127,37 @@ bool __pkvm_check_ioguard_page(struct kvm_vcpu *vcpu)
+ 
+ 	return ret;
+ }
++
++int __pkvm_host_pin_page(u64 pfn)
++{
++	int ret;
++	kvm_pte_t pte;
++	enum kvm_pgtable_prot prot;
++	enum pkvm_page_state state;
++	phys_addr_t addr = hyp_pfn_to_phys(pfn);
++
++	if (!host_kvm.pgt.pin_mask)
++		return -ENODEV;
++
++	if (addr_is_memory(addr))
++		/* We only support pinning MMIO at the moment */
++		return -ENOSYS;
++
++	host_lock_component();
++	ret = kvm_pgtable_get_leaf(&host_kvm.pgt, addr, &pte, NULL);
++	if (ret)
++		goto unlock;
++
++	state = host_get_page_state(pte);
++	if (state == PKVM_NOPAGE) {
++		ret = -EPERM;
++		goto unlock;
++	}
++
++	prot = pkvm_mkstate(PKVM_HOST_MMIO_PROT,
++			    state | PKVM_PAGE_PINNED);
++	ret = host_stage2_idmap_locked(addr, PAGE_SIZE, prot);
++unlock:
++	host_unlock_component();
++	return ret;
++}
+-- 
+2.34.1
+

@@ -1,0 +1,228 @@
+From bfc1dbd8c76fe5c45c033e9e7014965f907fc395 Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Wed, 9 Feb 2022 15:53:04 +0000
+Subject: [PATCH 59/97] iommu/arm-smmu-v3: Add host driver for pKVM
+
+Under protected KVM (pKVM), the host does not have access to guest or
+hypervisor memory. This means that devices owned by the host must be
+isolated by the SMMU, and the hypervisor is in charge of the SMMU.
+
+Introduce the host component that replaces the normal SMMUv3 driver when
+pKVM is enabled, and sends configuration and requests to the actual
+driver running in the hypervisor (EL2).
+
+Rather than rely on regular driver probe, pKVM directly calls
+kvm_arm_smmu_v3_init(), which synchronously finds all SMMUs and hands
+them to the hypervisor. If the regular driver is enabled, it will not
+find any free SMMU to drive once it gets probed.
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ arch/arm64/include/asm/kvm_host.h             |  1 +
+ arch/arm64/kvm/arm.c                          | 16 +++++
+ arch/arm64/kvm/hyp/nvhe/setup.c               |  2 +
+ drivers/iommu/Kconfig                         |  9 +++
+ drivers/iommu/arm/arm-smmu-v3/Makefile        |  5 ++
+ .../iommu/arm/arm-smmu-v3/arm-smmu-v3-kvm.c   | 63 +++++++++++++++++++
+ include/kvm/arm_smmu_v3.h                     | 22 +++++++
+ 7 files changed, 118 insertions(+)
+ create mode 100644 drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-kvm.c
+ create mode 100644 include/kvm/arm_smmu_v3.h
+
+diff --git a/arch/arm64/include/asm/kvm_host.h b/arch/arm64/include/asm/kvm_host.h
+index ffa4e7dee7c7..bfc4c12c4f2e 100644
+--- a/arch/arm64/include/asm/kvm_host.h
++++ b/arch/arm64/include/asm/kvm_host.h
+@@ -395,6 +395,7 @@ int pkvm_iommu_finalize(void);
+ 
+ enum kvm_iommu_driver {
+ 	KVM_IOMMU_DRIVER_NONE,
++	KVM_IOMMU_DRIVER_SMMUV3,
+ };
+ 
+ struct vcpu_reset_state {
+diff --git a/arch/arm64/kvm/arm.c b/arch/arm64/kvm/arm.c
+index 2b7b9fb4fcaa..4eee9bdaaa01 100644
+--- a/arch/arm64/kvm/arm.c
++++ b/arch/arm64/kvm/arm.c
+@@ -44,6 +44,7 @@
+ #include <kvm/arm_hypercalls.h>
+ #include <kvm/arm_pmu.h>
+ #include <kvm/arm_psci.h>
++#include <kvm/arm_smmu_v3.h>
+ 
+ static enum kvm_mode kvm_mode = KVM_MODE_DEFAULT;
+ DEFINE_STATIC_KEY_FALSE(kvm_protected_mode_initialized);
+@@ -1878,11 +1879,26 @@ static bool init_psci_relay(void)
+ 
+ static int init_stage2_iommu(void)
+ {
++	int ret;
++
++	ret = kvm_arm_smmu_v3_init();
++	if (!ret)
++		return KVM_IOMMU_DRIVER_SMMUV3;
++	else if (ret != -ENODEV)
++		return ret;
++
+ 	return KVM_IOMMU_DRIVER_NONE;
+ }
+ 
+ static void remove_stage2_iommu(enum kvm_iommu_driver iommu)
+ {
++	switch (iommu) {
++	case KVM_IOMMU_DRIVER_SMMUV3:
++		kvm_arm_smmu_v3_remove();
++		break;
++	default:
++		break;
++	}
+ }
+ 
+ static int init_subsystems(void)
+diff --git a/arch/arm64/kvm/hyp/nvhe/setup.c b/arch/arm64/kvm/hyp/nvhe/setup.c
+index 68c2cc207ea5..955eb1b37097 100644
+--- a/arch/arm64/kvm/hyp/nvhe/setup.c
++++ b/arch/arm64/kvm/hyp/nvhe/setup.c
+@@ -345,6 +345,8 @@ static int select_iommu_ops(enum kvm_iommu_driver driver)
+ 	switch (driver) {
+ 	case KVM_IOMMU_DRIVER_NONE:
+ 		return 0;
++	case KVM_IOMMU_DRIVER_SMMUV3:
++		return -ENOSYS;
+ 	}
+ 
+ 	return -EINVAL;
+diff --git a/drivers/iommu/Kconfig b/drivers/iommu/Kconfig
+index 3eb68fa1b8cc..813b673e1b79 100644
+--- a/drivers/iommu/Kconfig
++++ b/drivers/iommu/Kconfig
+@@ -388,6 +388,15 @@ config ARM_SMMU_V3_SVA
+ 	  Say Y here if your system supports SVA extensions such as PCIe PASID
+ 	  and PRI.
+ 
++config ARM_SMMU_V3_PKVM
++	bool "ARM SMMUv3 support for protected Virtual Machines"
++	depends on KVM && ARM64
++	help
++	  Enable a SMMUv3 driver in the KVM hypervisor, to isolate VMs against
++	  memory accesses from devices owned by the host.
++
++	  Say Y here if you intend to enable pKVM.
++
+ config S390_IOMMU
+ 	def_bool y if S390 && PCI
+ 	depends on S390 && PCI
+diff --git a/drivers/iommu/arm/arm-smmu-v3/Makefile b/drivers/iommu/arm/arm-smmu-v3/Makefile
+index c4fcc796213c..a90b97d8bae3 100644
+--- a/drivers/iommu/arm/arm-smmu-v3/Makefile
++++ b/drivers/iommu/arm/arm-smmu-v3/Makefile
+@@ -4,3 +4,8 @@ arm_smmu_v3-objs-y += arm-smmu-v3.o
+ arm_smmu_v3-objs-y += arm-smmu-v3-common.o
+ arm_smmu_v3-objs-$(CONFIG_ARM_SMMU_V3_SVA) += arm-smmu-v3-sva.o
+ arm_smmu_v3-objs := $(arm_smmu_v3-objs-y)
++
++obj-$(CONFIG_ARM_SMMU_V3_PKVM) += arm_smmu_v3_kvm.o
++arm_smmu_v3_kvm-objs-y += arm-smmu-v3-kvm.o
++arm_smmu_v3_kvm-objs-y += arm-smmu-v3-common.o
++arm_smmu_v3_kvm-objs := $(arm_smmu_v3_kvm-objs-y)
+diff --git a/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-kvm.c b/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-kvm.c
+new file mode 100644
+index 000000000000..b670e4a02501
+--- /dev/null
++++ b/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-kvm.c
+@@ -0,0 +1,63 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * pKVM host driver for the Arm SMMUv3
++ *
++ * Copyright (C) 2022 Linaro Ltd.
++ */
++#include <linux/of_platform.h>
++
++#include <kvm/arm_smmu_v3.h>
++
++static bool kvm_arm_smmu_matched;
++
++static int kvm_arm_smmu_probe(struct platform_device *pdev)
++{
++	kvm_arm_smmu_matched = true;
++	return -ENOSYS;
++}
++
++static int kvm_arm_smmu_remove(struct platform_device *pdev)
++{
++	return 0;
++}
++
++static const struct of_device_id arm_smmu_of_match[] = {
++	{ .compatible = "arm,smmu-v3", },
++	{ },
++};
++
++static struct platform_driver kvm_arm_smmu_driver = {
++	.driver = {
++		.name = "kvm-arm-smmu-v3",
++		.of_match_table = arm_smmu_of_match,
++	},
++	.remove = kvm_arm_smmu_remove,
++};
++
++/**
++ * kvm_arm_smmu_v3_init() - Reserve the SMMUv3 for KVM
++ *
++ * Returns 0 if SMMUv3 were probbed succesfully,
++ *         -ENODEV if no SMMUv3 was found,
++ *         an error if probe of SMMUv3 failed.
++ */
++int kvm_arm_smmu_v3_init(void)
++{
++	int ret;
++
++	ret = platform_driver_probe(&kvm_arm_smmu_driver, kvm_arm_smmu_probe);
++	if (ret == -ENODEV && kvm_arm_smmu_matched) {
++		/*
++		 * A device exists but failed to probe. KVM ought to know that
++		 * DMA isolation is broken.
++		 */
++		return -EUNATCH;
++	}
++
++	return ret;
++}
++
++void kvm_arm_smmu_v3_remove(void)
++{
++	platform_driver_unregister(&kvm_arm_smmu_driver);
++}
+diff --git a/include/kvm/arm_smmu_v3.h b/include/kvm/arm_smmu_v3.h
+new file mode 100644
+index 000000000000..23132a6d13b3
+--- /dev/null
++++ b/include/kvm/arm_smmu_v3.h
+@@ -0,0 +1,22 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef __KVM_ARM_SMMU_V3_H
++#define __KVM_ARM_SMMU_V3_H
++
++/*
++ * Host interface
++ */
++#ifndef __KVM_NVHE_HYPERVISOR__
++# if IS_ENABLED(CONFIG_ARM_SMMU_V3_PKVM)
++int kvm_arm_smmu_v3_init(void);
++void kvm_arm_smmu_v3_remove(void);
++
++# else /* CONFIG_ARM_SMMU_V3_PKVM */
++static inline int kvm_arm_smmu_v3_init(void)
++{
++	return -ENODEV;
++}
++static void kvm_arm_smmu_v3_remove(void) {}
++# endif /* CONFIG_ARM_SMMU_V3_PKVM */
++#endif /* __KVM_NVHE_HYPERVISOR__ */
++
++#endif /* __KVM_ARM_SMMU_V3_H */
+-- 
+2.34.1
+

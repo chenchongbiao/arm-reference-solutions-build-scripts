@@ -1,0 +1,27 @@
+From 8949e91ca78cc0ccc4b8a39bd492d9321069bdbd Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Mon, 21 Feb 2022 12:03:50 +0000
+Subject: [PATCH 45/97] fixup! KVM: arm64: pkvm: Plug in cache invalidation for
+ non-protected guests
+
+TODO: check this
+---
+ arch/arm64/kvm/mmu.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm64/kvm/mmu.c b/arch/arm64/kvm/mmu.c
+index 6e1de374ac5b..24d05284279e 100644
+--- a/arch/arm64/kvm/mmu.c
++++ b/arch/arm64/kvm/mmu.c
+@@ -202,7 +202,7 @@ static void pkvm_stage2_flush(struct kvm *kvm)
+ 	 */
+ 	list_for_each_entry(ppage, &kvm->arch.pkvm.pinned_pages, link) {
+ 		__clean_dcache_guest_page(page_address(ppage->page), PAGE_SIZE);
+-		cond_resched_lock(&kvm->mmu_lock);
++		cond_resched_rwlock_write(&kvm->mmu_lock);
+ 	}
+ }
+ 
+-- 
+2.34.1
+
