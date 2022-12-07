@@ -6,7 +6,7 @@ apt install -y chrpath gawk texinfo diffstat wget git unzip libncurses5 \
  build-essential socat cpio python3 python3-pip python3-pexpect xz-utils debianutils \
  iputils-ping python3-git libegl1-mesa libsdl1.2-dev xterm git-lfs openssl curl \
  lib32ncurses5-dev libz-dev u-boot-tools m4 zip liblz4-tool zstd make dwarves ninja-build \
- libssl-dev srecord libelf-dev bison flex
+ libssl-dev srecord libelf-dev bison flex uuid-dev
 
 # Install ubuntu packages based on ubuntu versions - Refer to the user guide for more info
 U_VER_22_04=22.04
