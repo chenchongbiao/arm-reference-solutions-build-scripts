@@ -1,0 +1,145 @@
+From a6324cde5a9b094d6bdcf014d7f91b7a7fd00799 Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Tue, 22 Nov 2022 14:58:54 +0530
+Subject: [PATCH 97/97] KVM: fix build errors while porting kvm patches
+
+1. kvm_pgtable_stage2_unmap(&host_kvm.pgt, start, size, NULL);
+
+According to commit 60e51a8b0be8246e8720b326584b9ffef418ad39,
+
+    KVM: arm64: pgtable: Add memcache parameter to kvm_pgtable_stage2_unmap()
+
+    When unmapping portions of a pinned identity-mapped region, the page
+    table code will need to replace a block mapping with a table, in order
+    to keep the areas outside the unmapped region valid. Add a memcache
+    parameter to kvm_pgtable_stage2_unmap() to provide pages that will hold
+    those tables. Normally this will only be used by pkvm since other users
+    don't need pinning.
+
+Setting memcache to NULL
+
+2. host_stage2_idmap_locked(phys, granule, prot, true);
+
+According to commit b9029542bed3ea7de4de14b9ede94aadabdff01b,
+
+    ANDROID: KVM: arm64: Don't update IOMMUs unnecessarily
+
+    When handling host stage-2 faults the hypervisor currently updates the
+    CPU _and_ IOMMUs page-tables. However, since we currently proactively
+    map accessible PA ranges into IOMMUs, updating them during stage-2
+    faults is unnecessary -- it only needs to be done during ownership
+    transitions. Optimize this by skipping the IOMMU updates from the host
+    memory abort path, which also reduces contention on the host stage-2
+    lock during boot and saves up to 1.1 sec of boot time on Pixel 6.
+
+Setting it to true will ensure it updates iommu as well.
+
+3. vmid = mmu->vmid.vmid;
+
+According to commit 3248136b3637e1671e4fa46e32e2122f9ec4bc3d,
+
+    KVM: arm64: Align the VMID allocation with the arm64 ASID
+    At the moment, the VMID algorithm will send an SGI to all the
+    CPUs to force an exit and then broadcast a full TLB flush and
+    I-Cache invalidation.
+
+    This patch uses the new VMID allocator. The benefits are:
+       - Aligns with arm64 ASID algorithm.
+       - CPUs are not forced to exit at roll-over. Instead,
+         the VMID will be marked reserved and context invalidation
+         is broadcasted. This will reduce the IPIs traffic.
+       - More flexible to add support for pinned KVM VMIDs in
+         the future.
+
+The "atomic64_t id" is replaced with "u32 vmid"
+
+Commits 1 and 2 were not part of the kernel source where the pkvm/smmu
+drivers were developed but included in the latest ACK but commit 3 was
+part of the kernel source where the pkvm/smmu drivers were developed but
+not included in this latest ACK
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+Change-Id: Idaafa21ff8d3a1d6f42f9f1bd15939494e9d298f
+---
+ arch/arm64/kvm/hyp/nvhe/iommu/arm-smmu-v3.c | 6 +++---
+ arch/arm64/kvm/hyp/nvhe/mem_protect.c       | 6 +++---
+ arch/arm64/kvm/hyp/pgtable.c                | 1 -
+ 3 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/arch/arm64/kvm/hyp/nvhe/iommu/arm-smmu-v3.c b/arch/arm64/kvm/hyp/nvhe/iommu/arm-smmu-v3.c
+index 33b7df583542..fb9d5695a238 100644
+--- a/arch/arm64/kvm/hyp/nvhe/iommu/arm-smmu-v3.c
++++ b/arch/arm64/kvm/hyp/nvhe/iommu/arm-smmu-v3.c
+@@ -226,7 +226,7 @@ static int smmu_enable_ste(struct hyp_arm_smmu_v3_device *smmu, u32 sid,
+ 	       FIELD_PREP(STRTAB_STE_2_VTCR_S2PS, ps);
+ 
+ 	/* This VMID is pinned */
+-	vmid = atomic64_read(&mmu->vmid.id);
++	vmid = mmu->vmid.vmid;
+ 
+ 	ent[0] |= STRTAB_STE_0_V;
+ 	ent[0] |= FIELD_PREP(STRTAB_STE_0_CFG, STRTAB_STE_0_CFG_S2_TRANS);
+@@ -563,7 +563,7 @@ static int smmu_dev_set_owner(u64 smmu_base, u32 sid)
+ static int smmu_tlb_flush_vmid(struct kvm_s2_mmu *mmu)
+ {
+ 	struct hyp_arm_smmu_v3_device *smmu;
+-	u16 vmid = atomic64_read(&mmu->vmid.id);
++	u16 vmid = mmu->vmid.vmid;
+ 	struct arm_smmu_cmdq_ent cmd = {
+ 		.opcode = CMDQ_OP_TLBI_S12_VMALL,
+ 		.tlbi.vmid = vmid,
+@@ -583,7 +583,7 @@ static int smmu_tlb_flush_vmid_ipa(struct kvm_s2_mmu *mmu, phys_addr_t ipa,
+ 				   int level)
+ {
+ 	struct hyp_arm_smmu_v3_device *smmu;
+-	u16 vmid = atomic64_read(&mmu->vmid.id);
++	u16 vmid = mmu->vmid.vmid;
+ 	struct arm_smmu_cmdq_ent cmd = {
+ 		.opcode = CMDQ_OP_TLBI_S2_IPA,
+ 		.tlbi.vmid = vmid,
+diff --git a/arch/arm64/kvm/hyp/nvhe/mem_protect.c b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+index 0b290b55d6fa..d71602bce15a 100644
+--- a/arch/arm64/kvm/hyp/nvhe/mem_protect.c
++++ b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+@@ -409,7 +409,7 @@ int host_stage2_unmap_dev_locked(phys_addr_t start, u64 size)
+ 
+ 	hyp_assert_lock_held(&host_kvm.lock);
+ 
+-	ret = kvm_pgtable_stage2_unmap(&host_kvm.pgt, start, size);
++	ret = kvm_pgtable_stage2_unmap(&host_kvm.pgt, start, size, NULL);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -736,7 +736,7 @@ int host_stage2_finalize_idmap(u64 vaddr, u32 level)
+ 	prot = pkvm_mkstate(PKVM_HOST_MEM_PROT,
+ 			    PKVM_PAGE_OWNED | PKVM_PAGE_PINNED);
+ 	granule = kvm_granule_size(level);
+-	return host_stage2_idmap_locked(phys, granule, prot);
++	return host_stage2_idmap_locked(phys, granule, prot, true);
+ }
+ 
+ void handle_host_mem_abort(struct kvm_cpu_context *host_ctxt)
+@@ -2168,7 +2168,7 @@ int __pkvm_host_pin_page(u64 pfn)
+ 
+ 	prot = pkvm_mkstate(PKVM_HOST_MMIO_PROT,
+ 			    state | PKVM_PAGE_PINNED);
+-	ret = host_stage2_idmap_locked(addr, PAGE_SIZE, prot);
++	ret = host_stage2_idmap_locked(addr, PAGE_SIZE, prot, true);
+ unlock:
+ 	host_unlock_component();
+ 	return ret;
+diff --git a/arch/arm64/kvm/hyp/pgtable.c b/arch/arm64/kvm/hyp/pgtable.c
+index 20899bf293d4..71c058413f22 100644
+--- a/arch/arm64/kvm/hyp/pgtable.c
++++ b/arch/arm64/kvm/hyp/pgtable.c
+@@ -1155,7 +1155,6 @@ static int stage2_unmap_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
+ 			       enum kvm_pgtable_walk_flags flag,
+ 			       void * const arg)
+ {
+-	struct kvm_pgtable *pgt = arg;
+ 	struct stage2_map_data *data = arg;
+ 	struct kvm_pgtable *pgt = data->pgt;
+ 	struct kvm_pgtable_mm_ops *mm_ops = pgt->mm_ops;
+-- 
+2.34.1
+

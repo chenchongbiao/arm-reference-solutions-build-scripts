@@ -1,0 +1,394 @@
+From 4c7e9756ddcfc19a1413c51c2c1f644afdca3f20 Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Thu, 10 Feb 2022 12:27:50 +0000
+Subject: [PATCH 91/97] DEBUG: KVM: arm64: Add a pl011 driver for pKVM
+
+It might be useful at some point during development to display a
+message. Add a small half-baked driver for QEMU's pl011 with a printf.
+
+What I do is run QEMU with a virtio-serial device as the main console,
+and attach the pl011, that is always instantiated on the virt machine,
+to the muxed stdio:
+
+  -nodefaults
+  -chardev stdio,mux=on,id=char0,signal=off
+  -device virtio-serial-device
+  -device virtconsole,chardev=char0
+  -mon chardev=char0,mode=readline
+  # pl011
+  -serial chardev:char0
+  # kernel params
+  -append pl011.hyp_uart=0x9000000
+
+I still need to figure out why it breaks the monitor (can't come back
+from it).
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ arch/arm64/kvm/Makefile          |   2 +
+ arch/arm64/kvm/hyp/nvhe/Makefile |   1 +
+ arch/arm64/kvm/hyp/nvhe/pl011.c  | 133 +++++++++++++++++++++++++++++++
+ arch/arm64/kvm/hyp/nvhe/setup.c  |   7 ++
+ arch/arm64/kvm/pl011.c           | 104 ++++++++++++++++++++++++
+ include/kvm/pl011.h              |  41 ++++++++++
+ 6 files changed, 288 insertions(+)
+ create mode 100644 arch/arm64/kvm/hyp/nvhe/pl011.c
+ create mode 100644 arch/arm64/kvm/pl011.c
+ create mode 100644 include/kvm/pl011.h
+
+diff --git a/arch/arm64/kvm/Makefile b/arch/arm64/kvm/Makefile
+index 6ca31a44e324..53e1b8c0a7de 100644
+--- a/arch/arm64/kvm/Makefile
++++ b/arch/arm64/kvm/Makefile
+@@ -24,6 +24,8 @@ kvm-y := $(KVM)/kvm_main.o $(KVM)/coalesced_mmio.o $(KVM)/eventfd.o \
+ 	 vgic/vgic-mmio-v3.o vgic/vgic-kvm-device.o \
+ 	 vgic/vgic-its.o vgic/vgic-debug.o
+ 
++kvm-y += pl011.o
++
+ kvm-$(CONFIG_HW_PERF_EVENTS)  += pmu-emul.o
+ 
+ always-y := hyp_constants.h hyp-constants.s
+diff --git a/arch/arm64/kvm/hyp/nvhe/Makefile b/arch/arm64/kvm/hyp/nvhe/Makefile
+index c8fec2a221f5..a35e744d85a9 100644
+--- a/arch/arm64/kvm/hyp/nvhe/Makefile
++++ b/arch/arm64/kvm/hyp/nvhe/Makefile
+@@ -27,6 +27,7 @@ obj-y += $(lib-objs)
+ obj-$(CONFIG_KVM_S2MPU) += iommu/s2mpu.o
+ 
+ obj-$(CONFIG_ARM_SMMU_V3_PKVM) += iommu/arm-smmu-v3.o
++obj-y += pl011.o
+ 
+ # In order to access id_aa64mmfr2_el1, older GCC required declaring the arch as
+ # armv8.2: https://sourceware.org/bugzilla/show_bug.cgi?id=27139
+diff --git a/arch/arm64/kvm/hyp/nvhe/pl011.c b/arch/arm64/kvm/hyp/nvhe/pl011.c
+new file mode 100644
+index 000000000000..5aa1af85f7c4
+--- /dev/null
++++ b/arch/arm64/kvm/hyp/nvhe/pl011.c
+@@ -0,0 +1,133 @@
++// SPDX-License-Identifier: GPL-2.0
++#include <kvm/pl011.h>
++
++#include <nvhe/mm.h>
++
++#include <linux/stdarg.h>
++
++struct kvm_arm_pl011_device __ro_after_init *kvm_hyp_arm_pl011_device;
++
++static struct kvm_arm_pl011_device *pl011;
++
++static void __pkvm_pl011_write_char(char c)
++{
++	u32 flags;
++
++	if (!pl011)
++		return;
++
++	do
++		flags = readl_relaxed(pl011->base + PL011_FR);
++	while (flags & PL011_FIFO_BUSY);
++
++	writel_relaxed(c, pl011->base + PL011_DR);
++}
++
++static void pkvm_pl011_write_char(char c)
++{
++	if (c == '\n')
++		__pkvm_pl011_write_char('\r');
++	__pkvm_pl011_write_char(c);
++}
++
++static void pkvm_pl011_write_str(const char *str)
++{
++	while (*str)
++		pkvm_pl011_write_char(*str++);
++}
++
++static void pkvm_pl011_write_u64(u64 val)
++{
++	int i;
++	char digit;
++	char buf[] = "0000000000000000";
++	char *cur = &buf[15];
++
++	for (i = 0; i < 16; i++) {
++		digit = (val >> (i * 4)) & 0xf;
++		if (!digit)
++			continue;
++		cur = buf + 15 - i;
++		if (digit < 10)
++			*cur = '0' + digit;
++		else
++			*cur = 'a' + digit - 10;
++	}
++	pkvm_pl011_write_str(cur);
++}
++
++/*
++ * A very dumb printf
++ * Special formats supported:
++ * '%[l]*x': u64
++ * '%s': char *
++ */
++void pkvm_pl011_printf(const char *fmt, ...)
++{
++	u64 q;
++	char c;
++	char *s;
++	va_list ap;
++	bool formatting = false;
++
++	va_start(ap, fmt);
++	while ((c = *fmt++) != '\0') {
++		if (c == '%') {
++			formatting = true;
++			continue;
++		}
++
++		if (!formatting) {
++			pkvm_pl011_write_char(c);
++			continue;
++		}
++
++		switch (c) {
++		case 'l':
++			continue;
++		case 'x':
++			q = va_arg(ap, u64);
++			pkvm_pl011_write_u64(q);
++			break;
++		case 's':
++			s = va_arg(ap, char *);
++			pkvm_pl011_write_str(s);
++			break;
++		default:
++			pkvm_pl011_write_char('%');
++			pkvm_pl011_write_char(c);
++		}
++		formatting = false;
++	}
++	va_end(ap);
++}
++
++int pkvm_pl011_init(void)
++{
++	int ret;
++	void __iomem *base;
++
++	if (!kvm_hyp_arm_pl011_device)
++		return 0;
++
++	ret = pkvm_create_mappings(kvm_hyp_arm_pl011_device,
++				   (void *)kvm_hyp_arm_pl011_device + PAGE_SIZE,
++				   PAGE_HYP);
++	if (ret)
++		return ret;
++
++	// FIXME!!
++	//base = pkvm_create_hyp_device_mapping(kvm_hyp_arm_pl011_device->mmio_addr,
++	//				      kvm_hyp_arm_pl011_device->mmio_size);
++	base = (void __iomem *)
++		__pkvm_create_private_mapping(kvm_hyp_arm_pl011_device->mmio_addr,
++					      kvm_hyp_arm_pl011_device->mmio_size,
++					      PAGE_HYP_DEVICE);
++	if (IS_ERR(base))
++		return PTR_ERR(base);
++
++	kvm_hyp_arm_pl011_device->base = base;
++	pl011 = (void *)kvm_hyp_arm_pl011_device;
++
++	return 0;
++}
+diff --git a/arch/arm64/kvm/hyp/nvhe/setup.c b/arch/arm64/kvm/hyp/nvhe/setup.c
+index b111775f9eee..8d8253bd5415 100644
+--- a/arch/arm64/kvm/hyp/nvhe/setup.c
++++ b/arch/arm64/kvm/hyp/nvhe/setup.c
+@@ -20,6 +20,7 @@
+ #include <nvhe/pkvm.h>
+ #include <nvhe/trap_handler.h>
+ #include <kvm/arm_smmu_v3.h>
++#include <kvm/pl011.h>
+ 
+ unsigned long hyp_nr_cpus;
+ 
+@@ -333,6 +334,10 @@ void __noreturn __pkvm_init_finalise(void)
+ 	if (ret)
+ 		goto out;
+ 
++	ret = pkvm_pl011_init();
++	if (ret)
++		goto out;
++
+ 	if (kvm_iommu_ops.init) {
+ 		ret = kvm_iommu_ops.init();
+ 		if (ret)
+@@ -358,6 +363,8 @@ void __noreturn __pkvm_init_finalise(void)
+ 		goto out;
+ #endif
+ 	hyp_shadow_table_init(shadow_table_base);
++	pkvm_debug("finalized\n");
++
+ out:
+ 	/*
+ 	 * We tail-called to here from handle___pkvm_init() and will not return,
+diff --git a/arch/arm64/kvm/pl011.c b/arch/arm64/kvm/pl011.c
+new file mode 100644
+index 000000000000..b0a142529cdb
+--- /dev/null
++++ b/arch/arm64/kvm/pl011.c
+@@ -0,0 +1,104 @@
++// SPDX-License-Identifier: GPL-2.0
++#include <asm/io.h>
++#include <asm/kvm_mmu.h>
++
++#include <linux/clk.h>
++#include <linux/amba/bus.h>
++
++#include <kvm/pl011.h>
++
++/*
++ * Base address of the UART to commandeer
++ * For example pl011.hyp_uart=0x9000000
++ */
++static u64 cmdline_uart_base;
++
++static int __init kvm_arm_pl011_cmdline(char *str)
++{
++	int ret = kstrtou64(str, 0, &cmdline_uart_base);
++
++        return ret;
++}
++early_param("pl011.hyp_uart", kvm_arm_pl011_cmdline);
++
++static int kvm_arm_pl011_probe(struct amba_device *adev,
++			       const struct amba_id *id)
++{
++	int ret;
++	int brd;
++	struct clk *clk;
++	void __iomem *base;
++	struct resource *res;
++	unsigned long uartclk;
++	struct kvm_arm_pl011_device *hyp_dev;
++	unsigned long baud = 115200; /* probably */
++
++	res = &adev->res;
++	if (!cmdline_uart_base || cmdline_uart_base != res->start)
++		return -ENODEV;
++
++	clk = devm_clk_get(&adev->dev, NULL);
++	if (IS_ERR(clk))
++		return PTR_ERR(clk);
++
++	base = devm_ioremap_resource(&adev->dev, res);
++	if (IS_ERR(base))
++		return PTR_ERR(base);
++
++	hyp_dev = (void *)__get_free_page(GFP_KERNEL);
++	if (!hyp_dev)
++		return -ENOMEM;
++
++	ret = clk_enable(clk);
++	if (ret)
++		return ret;
++
++	uartclk = clk_get_rate(clk);
++
++	brd = uartclk * 4 / baud;
++	writel(brd & 0x3f, base + PL011_FBRD);
++	writel(brd >> 6, base + PL011_IBRD);
++
++	/* Clear errors */
++	writel(0xf, base + PL011_ECR);
++
++	/* 8-bit, no parity, 1 stop bit, FIFO enabled */
++	writel((3 << 5) | (1 << 4), base + PL011_LCR_H);
++	/* UARTEN, TXE */
++	writel((1 << 8) | (1 << 0), base + PL011_CR);
++
++	hyp_dev->mmio_addr = res->start;
++	hyp_dev->mmio_size = resource_size(res);
++	kvm_hyp_arm_pl011_device = kern_hyp_va(hyp_dev);
++
++	dev_info(&adev->dev, "probed\n");
++	return 0;
++}
++
++static const struct of_device_id pl011_of_match[] = {
++	{ .compatible = "arm,pl011", },
++	{ },
++};
++
++static const struct amba_id pl011_ids[] = {
++	{
++		.id	= 0x00041011,
++		.mask	= 0x000fffff,
++	},
++};
++
++static struct amba_driver kvm_arm_pl011_driver = {
++	.drv = {
++		.name = "kvm-pl011",
++		.of_match_table = pl011_of_match,
++	},
++	.id_table	= pl011_ids,
++	.probe		= kvm_arm_pl011_probe,
++};
++
++static int __init kvm_arm_pl011_init(void)
++{
++	return amba_driver_register(&kvm_arm_pl011_driver);
++}
++
++arch_initcall(kvm_arm_pl011_init);
+diff --git a/include/kvm/pl011.h b/include/kvm/pl011.h
+new file mode 100644
+index 000000000000..a46bfc810723
+--- /dev/null
++++ b/include/kvm/pl011.h
+@@ -0,0 +1,41 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef __KVM_PL011_H
++#define __KVM_PL011_H
++
++#include <asm/kvm_asm.h>
++
++#define PL011_DR		0x00
++#define PL011_RSR		0x04
++#define PL011_ECR		0x04
++#define PL011_FR		0x18
++#define PL011_IBRD		0x24
++#define PL011_FBRD		0x28
++#define PL011_LCR_H		0x2c
++#define PL011_CR		0x30
++
++#define PL011_FIFO_BUSY		(1 << 3)
++#define PL011_FIFO_FULL		(1 << 5)
++
++
++struct kvm_arm_pl011_device {
++	phys_addr_t		mmio_addr;
++	size_t			mmio_size;
++	void __iomem		*base;
++};
++
++extern struct kvm_arm_pl011_device *kvm_nvhe_sym(kvm_hyp_arm_pl011_device);
++#define kvm_hyp_arm_pl011_device kvm_nvhe_sym(kvm_hyp_arm_pl011_device)
++
++#ifdef __KVM_NVHE_HYPERVISOR__
++int pkvm_pl011_init(void);
++__attribute__((format(printf, 1, 2)))
++void pkvm_pl011_printf(const char *fmt, ...);
++
++#define pkvm_debug(fmt, ...) pkvm_pl011_printf("pKVM: "fmt, ##__VA_ARGS__)
++
++#else
++#define pkvm_debug(...)
++
++#endif
++
++#endif /* __KVM_PL011_H */
+-- 
+2.34.1
+

@@ -1,0 +1,118 @@
+From 60e51a8b0be8246e8720b326584b9ffef418ad39 Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Mon, 28 Feb 2022 10:18:12 +0000
+Subject: [PATCH 74/97] KVM: arm64: pgtable: Add memcache parameter to
+ kvm_pgtable_stage2_unmap()
+
+When unmapping portions of a pinned identity-mapped region, the page
+table code will need to replace a block mapping with a table, in order
+to keep the areas outside the unmapped region valid. Add a memcache
+parameter to kvm_pgtable_stage2_unmap() to provide pages that will hold
+those tables. Normally this will only be used by pkvm since other users
+don't need pinning.
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ arch/arm64/include/asm/kvm_pgtable.h  | 5 ++++-
+ arch/arm64/kvm/hyp/nvhe/mem_protect.c | 9 ++++++---
+ arch/arm64/kvm/hyp/pgtable.c          | 3 ++-
+ arch/arm64/kvm/mmu.c                  | 9 +++++++--
+ 4 files changed, 19 insertions(+), 7 deletions(-)
+
+diff --git a/arch/arm64/include/asm/kvm_pgtable.h b/arch/arm64/include/asm/kvm_pgtable.h
+index 190df60f3aaa..742479a4d13a 100644
+--- a/arch/arm64/include/asm/kvm_pgtable.h
++++ b/arch/arm64/include/asm/kvm_pgtable.h
+@@ -383,6 +383,8 @@ int kvm_pgtable_stage2_annotate(struct kvm_pgtable *pgt, u64 addr, u64 size,
+  * @pgt:	Page-table structure initialised by kvm_pgtable_stage2_init*().
+  * @addr:	Intermediate physical address from which to remove the mapping.
+  * @size:	Size of the mapping.
++ * @mc:		Cache of pre-allocated and zeroed memory from which to allocate
++ *	        page-table pages.
+  *
+  * The offset of @addr within a page is ignored and @size is rounded-up to
+  * the next page boundary.
+@@ -395,7 +397,8 @@ int kvm_pgtable_stage2_annotate(struct kvm_pgtable *pgt, u64 addr, u64 size,
+  *
+  * Return: 0 on success, negative error code on failure.
+  */
+-int kvm_pgtable_stage2_unmap(struct kvm_pgtable *pgt, u64 addr, u64 size);
++int kvm_pgtable_stage2_unmap(struct kvm_pgtable *pgt, u64 addr, u64 size,
++			     void *mc);
+ 
+ /**
+  * kvm_pgtable_stage2_wrprotect() - Write-protect guest stage-2 address range
+diff --git a/arch/arm64/kvm/hyp/nvhe/mem_protect.c b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+index 97bbe08c5365..69c933a72f72 100644
+--- a/arch/arm64/kvm/hyp/nvhe/mem_protect.c
++++ b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+@@ -396,11 +396,13 @@ static int host_stage2_unmap_dev_all(void)
+ 	/* Unmap all non-memory regions to recycle the pages */
+ 	for (i = 0; i < hyp_memblock_nr; i++, addr = reg->base + reg->size) {
+ 		reg = &hyp_memory[i];
+-		ret = host_stage2_unmap_dev_locked(addr, reg->base - addr);
++		ret = host_stage2_unmap_dev_locked(addr, reg->base - addr,
++							&host_s2_pool);
+ 		if (ret)
+ 			return ret;
+ 	}
+-	return host_stage2_unmap_dev_locked(addr, BIT(pgt->ia_bits) - addr);
++	return host_stage2_unmap_dev_locked(addr, BIT(pgt->ia_bits) - addr,
++						&host_s2_pool);
+ }
+ 
+ struct kvm_mem_range {
+@@ -2040,7 +2042,8 @@ int __pkvm_remove_ioguard_page(struct kvm_vcpu *vcpu, u64 ipa)
+ 		struct kvm_shadow_vm *vm = vcpu->arch.pkvm.shadow_vm;
+ 
+ 		kvm_pgtable_stage2_unmap(&vm->pgt,
+-					 ALIGN_DOWN(ipa, PAGE_SIZE), PAGE_SIZE);
++					 ALIGN_DOWN(ipa, PAGE_SIZE), PAGE_SIZE,
++					 &vcpu->arch.pkvm_memcache);
+ 	}
+ 
+ 	guest_unlock_component(vcpu);
+diff --git a/arch/arm64/kvm/hyp/pgtable.c b/arch/arm64/kvm/hyp/pgtable.c
+index e98bb3725dbd..8ccd093c6e60 100644
+--- a/arch/arm64/kvm/hyp/pgtable.c
++++ b/arch/arm64/kvm/hyp/pgtable.c
+@@ -993,7 +993,8 @@ static int stage2_unmap_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
+ 	return 0;
+ }
+ 
+-int kvm_pgtable_stage2_unmap(struct kvm_pgtable *pgt, u64 addr, u64 size)
++int kvm_pgtable_stage2_unmap(struct kvm_pgtable *pgt, u64 addr, u64 size,
++				void *mc)
+ {
+ 	struct kvm_pgtable_walker walker = {
+ 		.cb	= stage2_unmap_walker,
+diff --git a/arch/arm64/kvm/mmu.c b/arch/arm64/kvm/mmu.c
+index dbbedc950948..67eb63bb1881 100644
+--- a/arch/arm64/kvm/mmu.c
++++ b/arch/arm64/kvm/mmu.c
+@@ -137,6 +137,11 @@ static void invalidate_icache_guest_page(void *va, size_t size)
+ 	__invalidate_icache_guest_page(va, size);
+ }
+ 
++static int kvm_pgtable_stage2_unmap_no_mc(struct kvm_pgtable *pgt, u64 start, u64 size)
++{
++	return kvm_pgtable_stage2_unmap(pgt, start, size, NULL);
++}
++
+ /*
+  * Unmapping vs dcache management:
+  *
+@@ -181,8 +186,8 @@ static void __unmap_stage2_range(struct kvm_s2_mmu *mmu, phys_addr_t start, u64
+ 
+ 	assert_spin_locked(&kvm->mmu_lock);
+ 	WARN_ON(size & ~PAGE_MASK);
+-	WARN_ON(stage2_apply_range(kvm, start, end, kvm_pgtable_stage2_unmap,
+-				   may_block));
++	WARN_ON(stage2_apply_range(kvm, start, end,
++				   kvm_pgtable_stage2_unmap_no_mc, may_block));
+ }
+ 
+ static void unmap_stage2_range(struct kvm_s2_mmu *mmu, phys_addr_t start, u64 size)
+-- 
+2.34.1
+

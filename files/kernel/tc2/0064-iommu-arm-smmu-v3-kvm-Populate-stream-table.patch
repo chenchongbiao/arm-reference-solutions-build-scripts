@@ -1,0 +1,109 @@
+From d2ff3709bb3e5a656de5b851cef261996f465686 Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Thu, 24 Feb 2022 17:37:04 +0000
+Subject: [PATCH 64/97] iommu/arm-smmu-v3-kvm: Populate stream table
+
+Read the device tree to find all endpoints managed by the SMMU. This
+allows to pre-allocate all stream tables so the hypervisor doesn't have
+to do it at runtime. It may also allow, later, to annotate the device
+tree with ownership information, and pass that to the hypervisor while
+the host is still trusted.
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ .../iommu/arm/arm-smmu-v3/arm-smmu-v3-kvm.c   | 77 ++++++++++++++++++-
+ 1 file changed, 76 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-kvm.c b/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-kvm.c
+index ce5f7da127a1..b89de58a8f1d 100644
+--- a/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-kvm.c
++++ b/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-kvm.c
+@@ -93,9 +93,84 @@ static bool kvm_arm_smmu_validate_features(struct arm_smmu_device *smmu)
+ 	return true;
+ }
+ 
++static int kvm_arm_smmu_init_l2_strtab(struct arm_smmu_device *smmu)
++{
++	int len;
++	u32 sid;
++	u32 phandle;
++	struct device_node *phandle_node, *np;
++	struct device_node *smmu_node = smmu->dev->of_node;
++
++	/*
++	 * Lookup in the device tree all endpoints managed by this SMMU, in
++	 * order to pre-allocate level-2 stream tables.
++	 */
++	for_each_node_with_property(np, "iommu-map") {
++		const __be32 *map;
++
++		map = of_get_property(np, "iommu-map", &len);
++		if (WARN_ON(!map || !len || len % (4 * sizeof(*map))))
++			continue;
++
++		for ( ; len > 0; len -= 4 * sizeof(*map), map += 4) {
++			struct device_node *phandle_node;
++			u32 phandle = be32_to_cpup(map + 1);
++			u32 sid_base = be32_to_cpup(map + 2);
++			u32 id_len = be32_to_cpup(map + 3);
++
++			phandle_node = of_find_node_by_phandle(phandle);
++			if (!phandle_node || phandle_node != smmu_node)
++				continue;
++
++			for (sid = sid_base; sid < sid_base + id_len; sid++)
++				arm_smmu_init_l2_strtab(smmu, sid);
++		}
++	}
++
++	for_each_node_with_property(np, "iommus") {
++		u32 cells;
++		const __be32 *iommus;
++
++		iommus = of_get_property(np, "iommus", &len);
++		if (WARN_ON(!iommus || !len))
++			continue;
++
++		while (len > 0) {
++			phandle = be32_to_cpup(iommus);
++			phandle_node = of_find_node_by_phandle(phandle);
++			if (!phandle_node)
++				break;
++
++			if (of_property_read_u32(phandle_node, "#iommu-cells",
++						 &cells))
++				break;
++
++			iommus += 1 + cells;
++			len -= (1 + cells) * sizeof(*iommus);
++
++			if (phandle_node != smmu_node)
++				continue;
++
++			sid = be32_to_cpup(iommus - 1);
++			arm_smmu_init_l2_strtab(smmu, sid);
++		}
++	}
++
++	return 0;
++}
++
+ static int kvm_arm_smmu_init_strtab(struct arm_smmu_device *smmu)
+ {
+-	return arm_smmu_init_strtab(smmu);
++	int ret;
++
++	ret = arm_smmu_init_strtab(smmu);
++	if (ret)
++		return ret;
++
++	if (smmu->features & ARM_SMMU_FEAT_2_LVL_STRTAB)
++		return kvm_arm_smmu_init_l2_strtab(smmu);
++
++	return 0;
+ }
+ 
+ static int kvm_arm_smmu_device_reset(struct host_arm_smmu_device *host_smmu)
+-- 
+2.34.1
+

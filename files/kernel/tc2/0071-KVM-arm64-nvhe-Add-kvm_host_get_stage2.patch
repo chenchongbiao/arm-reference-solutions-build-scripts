@@ -1,0 +1,46 @@
+From 4426568be75811020c81106e65085895549308b4 Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Fri, 18 Feb 2022 12:13:59 +0000
+Subject: [PATCH 71/97] KVM: arm64: nvhe: Add kvm_host_get_stage2()
+
+Let the IOMMU driver fetch the stage2 config of the host, so it can be
+mirrored for DMA.
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ arch/arm64/kvm/hyp/include/nvhe/mem_protect.h | 1 +
+ arch/arm64/kvm/hyp/nvhe/mem_protect.c         | 6 ++++++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/arch/arm64/kvm/hyp/include/nvhe/mem_protect.h b/arch/arm64/kvm/hyp/include/nvhe/mem_protect.h
+index f9ce8841f8a1..fe37fa811583 100644
+--- a/arch/arm64/kvm/hyp/include/nvhe/mem_protect.h
++++ b/arch/arm64/kvm/hyp/include/nvhe/mem_protect.h
+@@ -84,6 +84,7 @@ int host_stage2_set_owner_locked(phys_addr_t addr, u64 size, pkvm_id owner_id);
+ int host_stage2_unmap_dev_locked(phys_addr_t start, u64 size);
+ int kvm_host_prepare_stage2(void *pgt_pool_base);
+ int kvm_guest_prepare_stage2(struct kvm_shadow_vm *vm, void *pgd);
++struct kvm_s2_mmu *kvm_host_get_stage2(void);
+ void handle_host_mem_abort(struct kvm_cpu_context *host_ctxt);
+ 
+ int hyp_pin_shared_mem(void *from, void *to);
+diff --git a/arch/arm64/kvm/hyp/nvhe/mem_protect.c b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+index 6ca172ac3445..97bbe08c5365 100644
+--- a/arch/arm64/kvm/hyp/nvhe/mem_protect.c
++++ b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+@@ -176,6 +176,12 @@ int kvm_host_prepare_stage2(void *pgt_pool_base)
+ 	return 0;
+ }
+ 
++/* The VMID, TTB and TCR must not change while the IOMMU is using them */
++struct kvm_s2_mmu *kvm_host_get_stage2(void)
++{
++	return &host_kvm.arch.mmu;
++}
++
+ static bool guest_stage2_force_pte_cb(u64 addr, u64 end, enum kvm_pgtable_prot prot)
+ {
+ 	return true;
+-- 
+2.34.1
+

@@ -1,0 +1,52 @@
+From 9eade98fdde2771c02589d7c45940ae031c484f5 Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Fri, 25 Feb 2022 19:05:24 +0000
+Subject: [PATCH 90/97] iommu/arm-smmu-v3-kvm: Pin MSI doorbell pages
+
+The hypervisor pins all host memory, but does not know about MMIO
+regions - they are mapped on fault and unmapped if the hypervisor needs
+more memory internally. Issue an hypercall to pin the MSI doorbells.
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-kvm.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-kvm.c b/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-kvm.c
+index 8ce3e9c44fdf..a181824a7035 100644
+--- a/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-kvm.c
++++ b/drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3-kvm.c
+@@ -5,6 +5,7 @@
+  * Copyright (C) 2022 Linaro Ltd.
+  */
+ #include <asm/kvm_mmu.h>
++#include <linux/dma-iommu.h>
+ #include <linux/of_platform.h>
+ #include <linux/pci.h>
+ 
+@@ -102,6 +103,11 @@ static void kvm_arm_smmu_domain_free(struct iommu_domain *domain)
+ 	kfree(domain);
+ }
+ 
++static int kvm_arm_smmu_prepare_msi(struct msi_desc *desc, phys_addr_t msi_addr)
++{
++	return kvm_call_hyp_nvhe(__pkvm_host_pin_page, msi_addr >> PAGE_SHIFT);
++}
++
+ static int kvm_arm_smmu_attach_dev(struct iommu_domain *domain,
+ 				   struct device *dev)
+ {
+@@ -117,6 +123,10 @@ static int kvm_arm_smmu_attach_dev(struct iommu_domain *domain,
+ 	smmu = master->smmu;
+ 	host_smmu = container_of(smmu, struct host_arm_smmu_device, smmu);
+ 
++	ret = iommu_get_msi_cb_cookie(domain, kvm_arm_smmu_prepare_msi);
++	if (ret)
++		return ret;
++
+ 	/*
+ 	 * Request enablement of stage-2 translation to the hypervisor
+ 	 */
+-- 
+2.34.1
+

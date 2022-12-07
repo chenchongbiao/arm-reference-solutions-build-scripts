@@ -1,0 +1,25 @@
+From 9e206557f88096710802298c7e3836fd88ea6f1f Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Mon, 21 Feb 2022 12:18:22 +0000
+Subject: [PATCH 47/97] fixup! KVM: arm64: Prepare EL2 guest stage-2 page-table
+
+FIXME: does any of this still work with the VMID alloc update?
+---
+ arch/arm64/kvm/hyp/nvhe/pkvm.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/arch/arm64/kvm/hyp/nvhe/pkvm.c b/arch/arm64/kvm/hyp/nvhe/pkvm.c
+index 3660541e3622..452a787b43e8 100644
+--- a/arch/arm64/kvm/hyp/nvhe/pkvm.c
++++ b/arch/arm64/kvm/hyp/nvhe/pkvm.c
+@@ -562,7 +562,6 @@ static int insert_shadow_table(struct kvm *kvm, struct kvm_shadow_vm *vm,
+ 		return -ENOMEM;
+ 
+ 	mmu->vmid.vmid = vmid;
+-	mmu->vmid.vmid_gen = 0;
+ 	mmu->arch = &vm->arch;
+ 	mmu->pgt = &vm->pgt;
+ 
+-- 
+2.34.1
+

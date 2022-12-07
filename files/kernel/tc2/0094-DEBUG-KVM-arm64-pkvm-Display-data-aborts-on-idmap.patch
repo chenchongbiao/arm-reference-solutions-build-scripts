@@ -1,0 +1,46 @@
+From 7ef25cf314f15ee92907800e48a9ff29bd4bf2fe Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Wed, 23 Feb 2022 18:36:18 +0000
+Subject: [PATCH 94/97] DEBUG: KVM: arm64: pkvm: Display data aborts on idmap
+
+This means the stage-2 has lazy mappings, which is not great if devices
+can access the stage-2.
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ arch/arm64/kvm/hyp/nvhe/mem_protect.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/arch/arm64/kvm/hyp/nvhe/mem_protect.c b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+index 7e42a348fc8b..cc83bf4d0d37 100644
+--- a/arch/arm64/kvm/hyp/nvhe/mem_protect.c
++++ b/arch/arm64/kvm/hyp/nvhe/mem_protect.c
+@@ -22,6 +22,8 @@
+ #include <nvhe/mm.h>
+ #include <nvhe/pkvm.h>
+ 
++#include <kvm/pl011.h>
++
+ #define KVM_HOST_S2_FLAGS (KVM_PGTABLE_S2_NOFWB | KVM_PGTABLE_S2_IDMAP)
+ 
+ extern unsigned long hyp_nr_cpus;
+@@ -641,6 +643,16 @@ static int host_stage2_idmap(u64 addr)
+ 
+ 	prot = is_memory ? PKVM_HOST_MEM_PROT : PKVM_HOST_MMIO_PROT;
+ 
++	if (is_memory && pkvm_host_stage2_is_pinned()) {
++		/* Not good! We should have pinned the whole stage 2 */
++		kvm_pte_t pte = 0;
++		u32 level = 0;
++
++		ret = kvm_pgtable_get_leaf(&host_kvm.pgt, addr, &pte, &level);
++		pkvm_debug("%s %llx %x pte=%llx lvl=%x unexpected!\n", __func__,
++			   addr, ret, pte, level);
++	}
++
+ 	/*
+ 	 * Adjust against IOMMU devices first. host_stage2_adjust_range() should
+ 	 * be called last for proper alignment.
+-- 
+2.34.1
+

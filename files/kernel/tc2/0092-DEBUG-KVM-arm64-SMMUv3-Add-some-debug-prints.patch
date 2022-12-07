@@ -1,0 +1,66 @@
+From 03ec1ca2248f6d680486a1f70731e0a9bf94516e Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Wed, 16 Feb 2022 20:11:41 +0000
+Subject: [PATCH 92/97] DEBUG: KVM: arm64: SMMUv3: Add some debug prints
+
+Depends on the pl011 driver which won't go upstream
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ arch/arm64/kvm/hyp/nvhe/iommu/arm-smmu-v3.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/arch/arm64/kvm/hyp/nvhe/iommu/arm-smmu-v3.c b/arch/arm64/kvm/hyp/nvhe/iommu/arm-smmu-v3.c
+index 13f471516368..33b7df583542 100644
+--- a/arch/arm64/kvm/hyp/nvhe/iommu/arm-smmu-v3.c
++++ b/arch/arm64/kvm/hyp/nvhe/iommu/arm-smmu-v3.c
+@@ -8,6 +8,7 @@
+ #include <asm/kvm_hyp.h>
+ #include <asm/kvm_pkvm.h>
+ #include <kvm/arm_smmu_v3.h>
++#include <kvm/pl011.h>
+ #include <linux/arm_smmu_v3_regs.h>
+ #include <nvhe/mem_protect.h>
+ #include <nvhe/mm.h>
+@@ -396,11 +397,18 @@ static int smmu_init_strtab(struct hyp_arm_smmu_v3_device *smmu)
+ 	case STRTAB_BASE_CFG_FMT_LINEAR:
+ 		/* Disable all STEs */
+ 		memset(smmu->strtab_base, 0, strtab_size);
++
++		pkvm_debug("STRTAB @0x%llx 0x%llx sz=0x%lx\n",
++			   strtab_base, (u64)smmu->strtab_base, strtab_size);
+ 		break;
+ 	case STRTAB_BASE_CFG_FMT_2LVL:
+ 		ret = smmu_init_strtab_l2(smmu);
+ 		if (ret)
+ 			return ret;
++
++                pkvm_debug("STRTAB @0x%llx 0x%llx sz=0x%lx split=%x\n",
++                           strtab_base, (u64)smmu->strtab_base, strtab_size,
++                           smmu->strtab_split);
+ 		break;
+ 	}
+ 	return 0;
+@@ -428,6 +436,9 @@ static int smmu_init_cmdq(struct hyp_arm_smmu_v3_device *smmu)
+ 	writel_relaxed(0, smmu->base + ARM_SMMU_CMDQ_PROD);
+ 	writel_relaxed(0, smmu->base + ARM_SMMU_CMDQ_CONS);
+ 
++	pkvm_debug("CMDQ @0x%llx 0x%llx sz=0x%lx\n", cmdq_base,
++		   (u64)smmu->cmdq_base, cmdq_size);
++
+ 	return 0;
+ }
+ 
+@@ -477,6 +488,9 @@ static int smmu_init_device(struct hyp_arm_smmu_v3_device *smmu)
+ 	if (IS_ERR(smmu->base))
+ 		return PTR_ERR(smmu->base);
+ 
++	pkvm_debug("MMIO @0x%llx-0x%llx\n", smmu->mmio_addr,
++		   smmu->mmio_addr + smmu->mmio_size - 1);
++
+ 	ret = smmu_init_registers(smmu);
+ 	if (ret)
+ 		return ret;
+-- 
+2.34.1
+

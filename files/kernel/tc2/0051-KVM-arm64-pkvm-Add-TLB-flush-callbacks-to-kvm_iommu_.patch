@@ -1,0 +1,56 @@
+From 063191d1a2cd8a7472f7a70ffea7cd2b12071764 Mon Sep 17 00:00:00 2001
+From: Jean-Philippe Brucker <jean-philippe@linaro.org>
+Date: Tue, 22 Feb 2022 17:52:48 +0000
+Subject: [PATCH 51/97] KVM: arm64: pkvm: Add TLB flush callbacks to
+ kvm_iommu_ops
+
+Call the IOMMU driver upon removing a table or leaf entry from the page
+tables, so it can invalidate the IOTLB entries.
+
+Signed-off-by: Jean-Philippe Brucker <jean-philippe@linaro.org>
+---
+ arch/arm64/include/asm/kvm_hyp.h | 3 +++
+ arch/arm64/kvm/hyp/nvhe/tlb.c    | 6 ++++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/arch/arm64/include/asm/kvm_hyp.h b/arch/arm64/include/asm/kvm_hyp.h
+index 0c0dd6485407..cc251c5e356b 100644
+--- a/arch/arm64/include/asm/kvm_hyp.h
++++ b/arch/arm64/include/asm/kvm_hyp.h
+@@ -128,6 +128,9 @@ extern unsigned long kvm_nvhe_sym(__icache_flags);
+ extern bool kvm_nvhe_sym(smccc_trng_available);
+ struct kvm_iommu_ops {
+ 	int (*init)(void);
++	int (*tlb_flush_vmid)(struct kvm_s2_mmu *mmu);
++	int (*tlb_flush_vmid_ipa)(struct kvm_s2_mmu *mmu, phys_addr_t ipa,
++								int level);
+ };
+ 
+ extern struct kvm_iommu_ops kvm_iommu_ops;
+diff --git a/arch/arm64/kvm/hyp/nvhe/tlb.c b/arch/arm64/kvm/hyp/nvhe/tlb.c
+index 3f5601176fab..fe789b36e4d6 100644
+--- a/arch/arm64/kvm/hyp/nvhe/tlb.c
++++ b/arch/arm64/kvm/hyp/nvhe/tlb.c
+@@ -167,6 +167,9 @@ void __kvm_tlb_flush_vmid_ipa(struct kvm_s2_mmu *mmu,
+ 		icache_inval_all_pou();
+ 
+ 	exit_vmid_context(&cxt);
++
++	if (kvm_iommu_ops.tlb_flush_vmid_ipa)
++		kvm_iommu_ops.tlb_flush_vmid_ipa(mmu, ipa << 12, level);
+ }
+ 
+ void __kvm_tlb_flush_vmid(struct kvm_s2_mmu *mmu)
+@@ -183,6 +186,9 @@ void __kvm_tlb_flush_vmid(struct kvm_s2_mmu *mmu)
+ 	isb();
+ 
+ 	exit_vmid_context(&cxt);
++
++	if (kvm_iommu_ops.tlb_flush_vmid)
++		kvm_iommu_ops.tlb_flush_vmid(mmu);
+ }
+ 
+ void __kvm_flush_cpu_context(struct kvm_s2_mmu *mmu)
+-- 
+2.34.1
+
