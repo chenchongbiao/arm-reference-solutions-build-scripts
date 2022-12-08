@@ -53,12 +53,13 @@ do_patch() {
     PATCHES_DIR="$FILES_DIR/trusty/${PLATFORM}"
 
     FILES=(
-    	    "$TRUSTY_DEV_FILES"
-	    "$TRUSTY_LK_FILES"
-	    "$TRUSTY_KERNEL_FILES"
-	    "$TRUSTY_BASE_FILES"
-	    "$TRUSTY_APP_FILES"
-	    )
+            "$TRUSTY_DEV_FILES"
+            "$TRUSTY_LK_FILES"
+            "$TRUSTY_KERNEL_FILES"
+            "$TRUSTY_BASE_FILES"
+            "$TRUSTY_APP_SAMPLE_FILES"
+            "$TRUSTY_APP_STORAGE_FILES"
+            )
 
     for file in "${FILES[@]}"
         do
