@@ -36,7 +36,7 @@
             arch = "arm64";
             load = <0x88000000>;
             os = "linux";
-            compression = "gzip";
+            compression = "none";
             hash-1 {
                 algo = "sha1";
             };
@@ -48,7 +48,7 @@
             description = "TC2: fitImage Boot: kernel with FDT blob and ramdisk";
             kernel = "kernel";
             fdt = "fdt-1";
-	    ramdisk = "ramdisk";
+            ramdisk = "ramdisk";
             hash-1 {
                 algo = "sha1";
             };
