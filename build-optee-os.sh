@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2022, Arm Limited. All rights reserved.
+# Copyright (c) 2022-2023, Arm Limited. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -30,21 +30,9 @@
 
 do_build() {
     info_echo "Building OPTEE-OS"
-    local makeopts=(
-        CROSS_COMPILE_core=$OPTEE_COMPILER-
-        CROSS_COMPILE_ta_arm64=$OPTEE_COMPILER-
-        PLATFORM=$OPTEE_PLATFORM
-        CFG_USER_TA_TARGETS=ta_arm64
-        CFG_ARM64_core=y
-        CFG_TEE_CORE_LOG_LEVEL=3
-        CFG_TEE_BENCHMARK=n
-        CFG_WITH_STATS=y
-        CFG_CORE_SEL2_SPMC=y
-        O=$OPTEE_OUT
-    )
     mkdir -p $OPTEE_OUT
     pushd $OPTEE_SRC
-    make -j $PARALLELISM ${makeopts[@]} all
+    make -j $PARALLELISM ${make_opts_optee[@]} all
     popd
     mkdir -p $TFA_SP_DIR
     cp $OPTEE_SRC/core/arch/arm/plat-totalcompute/fdts/optee_sp_manifest.dts $TFA_SP_DIR
