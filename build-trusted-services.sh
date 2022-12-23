@@ -39,7 +39,7 @@ do_build() {
     mkdir -p $TFA_SP_DIR
     for sp in $SECURE_PARTITIONS; do
         pushd $TS_SRC/deployments/$sp/$TS_ENVIRONMENT
-        $CMAKE -S . -B $TS_OUTDIR/$sp -DCROSS_COMPILE=$TS_COMPILER-
+        $CMAKE -S . -B $TS_OUTDIR/$sp -DCROSS_COMPILE=$TS_COMPILER- -DTS_PLATFORM:STRING="arm/total_compute"
         $CMAKE --build $TS_OUTDIR/$sp --parallel "$PARALLELISM"
         cp $TS_SRC/deployments/$sp/$TS_ENVIRONMENT/*.dts $TFA_SP_DIR/$sp.dts
         cp $TS_OUTDIR/$sp/*.bin $TFA_SP_DIR/$sp.bin
