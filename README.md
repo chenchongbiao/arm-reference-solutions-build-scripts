@@ -5,6 +5,14 @@ This README is simply a quick-start guide on the build scripts themselves. For m
 information on how to obtain and run the Total Compute stack, please refer to
 the user guide.
 
+Build Docker image
+------------------
+
+To build docker image locally, run:
+```sh
+./run_docker.sh build_image
+```
+
 Setup
 -----
 
@@ -14,14 +22,14 @@ For Buildroot:
 ```sh
 export PLATFORM=tc2
 export FILESYSTEM=buildroot
-./setup.sh
+./run_docker.sh ./setup.sh
 ```
 
 For Android:
 ```sh
 export PLATFORM=tc2
 export FILESYSTEM=android-swr
-./setup.sh
+./run_docker.sh ./setup.sh
 ```
 
 For Android with AVB (Android Verified Boot):
@@ -29,7 +37,7 @@ For Android with AVB (Android Verified Boot):
 export PLATFORM=tc2
 export FILESYSTEM=android-swr
 export AVB=true
-./setup.sh
+./run_docker.sh ./setup.sh
 ```
 
 Build the stack
@@ -37,14 +45,12 @@ Build the stack
 
 To build the whole stack:
 ```sh
-./build-all.sh build
+./run_docker.sh ./build-all.sh build
 ```
 
-The platform and filesystem should already have been defined, but if not they
-can be defined on the command line using:
-
+The platform and filesystem should already have been defined, but if not they can be defined on the command line using:
 ```sh
-./build-all.sh -p $PLATFORM -f $FILESYSTEM -a $AVB build
+./run_docker.sh ./build-all.sh -p $PLATFORM -f $FILESYSTEM -a $AVB build
 ```
 
 To build each component separately, run the corresponding script with the exact
@@ -65,5 +71,5 @@ A new dependency to a component can be added in the form of $component=$dependen
 
 To build a component and rebuild those components that depend on it
 ```sh
-./$filename build with_reqs
+./run_docker.sh ./$filename build with_reqs
 ```
