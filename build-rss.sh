@@ -81,7 +81,6 @@ do_build() {
         -DCROSS_COMPILE=$RSS_COMPILER
         -DTFM_TOOLCHAIN_FILE=$RSS_TOOLCHAIN_FILE
         -DCMAKE_BUILD_TYPE=$RSS_BUILD_TYPE
-        -DTFM_TEST_REPO_PATH=$RSS_TEST_REPO_PATH
         -DMCUBOOT_IMAGE_NUMBER=$RSS_IMAGE_NUMBER
     )
 
@@ -123,13 +122,13 @@ do_deploy() {
 
     srec_cat \
     $RSS_BINDIR/bl2_signed.bin -Binary -offset 0x0 \
-    $RSS_BINDIR/bl2_signed.bin -Binary -offset 0x20000 \
-    $RSS_BINDIR/tfm_s_ns_signed.bin -Binary -offset 0x40000 \
-    $RSS_BINDIR/tfm_s_ns_signed.bin -Binary -offset 0x140000 \
-    $RSS_BINDIR/signed_${RSS_SIGN_AP_BL1_NAME} -Binary -offset 0x240000 \
-    $RSS_BINDIR/signed_${RSS_SIGN_SCP_BL1_NAME} -Binary -offset 0x2C0000 \
-    $RSS_BINDIR/signed_${RSS_SIGN_AP_BL1_NAME} -Binary -offset 0x340000 \
-    $RSS_BINDIR/signed_${RSS_SIGN_SCP_BL1_NAME} -Binary -offset 0x3C0000 \
+    $RSS_BINDIR/bl2_signed.bin -Binary -offset 0x10000 \
+    $RSS_BINDIR/tfm_s_ns_signed.bin -Binary -offset 0x20000 \
+    $RSS_BINDIR/tfm_s_ns_signed.bin -Binary -offset 0xE0000 \
+    $RSS_BINDIR/signed_${RSS_SIGN_AP_BL1_NAME} -Binary -offset 0x1A0000 \
+    $RSS_BINDIR/signed_${RSS_SIGN_SCP_BL1_NAME} -Binary -offset 0x220000 \
+    $RSS_BINDIR/signed_${RSS_SIGN_AP_BL1_NAME} -Binary -offset 0x2A0000 \
+    $RSS_BINDIR/signed_${RSS_SIGN_SCP_BL1_NAME} -Binary -offset 0x320000 \
     -o $DEPLOY_DIR/$PLATFORM/rss_flash.bin -Binary
 
     info_echo "Created rss_flash.bin"
