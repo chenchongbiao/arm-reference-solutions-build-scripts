@@ -78,11 +78,14 @@ do_build() {
         -S $RSS_SRC
         -B $RSS_OUTDIR/build
         -DTFM_PLATFORM=$RSS_PLATFORM
-        -DCROSS_COMPILE=$RSS_COMPILER
         -DTFM_TOOLCHAIN_FILE=$RSS_TOOLCHAIN_FILE
         -DCMAKE_BUILD_TYPE=$RSS_BUILD_TYPE
         -DMCUBOOT_IMAGE_NUMBER=$RSS_IMAGE_NUMBER
     )
+
+    if [[ $RSS_TOOLCHAIN_FILE == *"GNUARM"* ]]; then
+    makeopts+=( "-DCROSS_COMPILE=$RSS_COMPILER" )
+    fi
 
     $CMAKE "${makeopts[@]}"
     $CMAKE --build "$RSS_OUTDIR/build" -- install
