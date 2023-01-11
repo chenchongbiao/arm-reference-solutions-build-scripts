@@ -39,13 +39,13 @@ do_build() {
     cp $TRUSTY_BIN/lk.bin $TRUSTY_SP_DIR/lk.bin
 
     pushd $TFA_SRC
-    make "${make_opts[@]}" "${make_opts_trusty[@]}" all fip
+    make "${make_opts_tfa[@]}" "${make_opts_tfa_trusty[@]}" all fip
     popd
 }
 
 do_clean() {
     pushd $TFA_SRC
-    make "${make_opts[@]}" "${make_opts_trusty[@]}" clean
+    make "${make_opts_tfa[@]}" "${make_opts_tfa_trusty[@]}" clean
     popd
     rm -rf $TRUSTY_SP_DIR
 }

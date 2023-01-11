@@ -36,11 +36,11 @@ do_build() {
     cp $TFA_FILES/$PLATFORM/sp_layout.json $TFA_SP_DIR
 
     pushd $TFA_SRC
-    make "${make_opts[@]}" "${make_opts_tfa[@]}" all fip
+    make "${make_opts_tfa[@]}" "${make_opts_tfa_optee[@]}" all fip
 
     # Build additional tools
-    make -j $PARALLELISM certtool
-    make -j $PARALLELISM fiptool
+    make -j $PARALLELISM "${make_opts_tfa_tools[@]}" certtool
+    make -j $PARALLELISM "${make_opts_tfa_tools[@]}" fiptool
 
     popd
 
@@ -150,7 +150,7 @@ do_generate_gpt() {
 do_clean() {
     info_echo "Cleaning TF-A"
     pushd $TFA_SRC
-    make "${make_opts[@]}" "${make_opts_tfa[@]}" clean
+    make "${make_opts_tfa[@]}" "${make_opts_tfa_optee[@]}" clean
     popd
     rm -rf $TFA_SP_DIR
 }
