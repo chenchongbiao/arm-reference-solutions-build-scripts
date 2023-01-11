@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2022, Arm Limited. All rights reserved.
+# Copyright (c) 2022-2023, Arm Limited. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -45,6 +45,9 @@ do_build() {
     make O=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- olddefconfig
     make O=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- -j $PARALLELISM $LINUX_IMAGE_TYPE
     make O=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- -j $PARALLELISM $LINUX_IMAGE_TYPE modules
+
+    info_echo "Building kernel selftest"
+    make ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- -C $KSELFTEST_SRC TARGETS=arm64 ARM64_SUBTARGETS="$KSELFTEST_LIST" INSTALL_PATH=$KSELFTEST_INSTALL_DIR install
     popd
 
     pushd $ARM_FFA_TEE_SRC
@@ -59,11 +62,14 @@ do_clean() {
     info_echo "Cleaning Linux kernel"
     rm -rf $LINUX_OUTDIR
     rm -rf $ARM_FFA_TEE_OUTDIR
+    rm -rf $KSELFTEST_ROOTFS_OVERLAY
 }
 
 do_deploy() {
     # Copy final image to deploy directory
     ln -s $LINUX_OUTDIR/arch/arm64/boot/Image $DEPLOY_DIR/$PLATFORM/Image 2>/dev/null || :
+    mkdir -p $KSELFTEST_ROOTFS_OVERLAY
+    cp -r $KSELFTEST_INSTALL_DIR* $KSELFTEST_ROOTFS_OVERLAY/
 }
 
 do_patch() {
