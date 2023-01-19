@@ -73,3 +73,13 @@ To build a component and rebuild those components that depend on it
 ```sh
 ./run_docker.sh ./$filename build with_reqs
 ```
+
+Kernel Selftest
+-------------------------------------
+
+Test are located at /usr/bin/selftest on device
+
+To run all the tests in one go, use run_selftest.sh script. Tests can be run individually also.
+```sh
+./run_kselftest --summary
+```
