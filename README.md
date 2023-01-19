@@ -5,31 +5,26 @@ This README is simply a quick-start guide on the build scripts themselves. For m
 information on how to obtain and run the Total Compute stack, please refer to
 the user guide.
 
-Build Docker image
-------------------
-
-To build docker image locally, run:
-```sh
-./run_docker.sh build_image
-```
-
 Setup
 -----
+Setup includes two parts:
+1. Build a Docker image
+2. Setup the environmet to build TC images
 
-To patch the components and install the toolchains and build tools, run:
+To build a docker image, patch the components and install the toolchains and build tools, run:
 
 For Buildroot:
 ```sh
 export PLATFORM=tc2
 export FILESYSTEM=buildroot
-./run_docker.sh ./setup.sh
+./setup.sh
 ```
 
 For Android:
 ```sh
 export PLATFORM=tc2
 export FILESYSTEM=android-swr
-./run_docker.sh ./setup.sh
+./setup.sh
 ```
 
 For Android with AVB (Android Verified Boot):
@@ -37,7 +32,7 @@ For Android with AVB (Android Verified Boot):
 export PLATFORM=tc2
 export FILESYSTEM=android-swr
 export AVB=true
-./run_docker.sh ./setup.sh
+./setup.sh
 ```
 
 Build the stack

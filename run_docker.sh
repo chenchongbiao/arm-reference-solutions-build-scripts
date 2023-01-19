@@ -34,6 +34,6 @@ else
     docker run --rm --mount type=bind,source=$WORK_DIR,target=$WORK_DIR \
     $env_opts \
     --workdir /$SCRIPT_DIR \
-    --user $(id -u):$(id -g) -it $DOCKER_IMAGE:$TAG $@
+    --user $(id -u):$(id -g) -it $DOCKER_IMAGE:$TAG $PWD/$@
     echo -e "${BLUE}INFO: EXITING DOCKER CONTAINER ${NC}"
 fi
