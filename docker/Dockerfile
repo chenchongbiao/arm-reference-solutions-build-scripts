@@ -57,3 +57,5 @@ RUN chmod -R 777 /home /etc/passwd /etc/group
 
 COPY entrypoint.sh /usr/bin/local/entrypoint.sh
 RUN chmod 555 /usr/bin/local/entrypoint.sh
+
+RUN chmod 777 /tmp/

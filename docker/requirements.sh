@@ -24,8 +24,11 @@ apt-get -y install bc \
                    glibc-source \
                    iputils-ping \
                    lib32ncurses5-dev \
+                   libatomic1 \
+                   libdbus-1-3 \
                    libegl1-mesa \
                    libelf-dev \
+                   libgl1-mesa-glx \
                    libgnutls28-dev \
                    liblz4-tool \
                    libncurses5 \
@@ -49,6 +52,7 @@ apt-get -y install bc \
                    rsync \
                    socat \
                    srecord \
+                   telnet \
                    texinfo \
                    u-boot-tools \
                    udev \

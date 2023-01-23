@@ -85,3 +85,16 @@ To run all the tests in one go, use run_selftest.sh script. Tests can be run ind
 ```sh
 ./run_kselftest --summary
 ```
+
+Run FVP model from docker container
+-----------------------------------
+
+To run FVP model in docker container , either of the steps can be followed
+
+Option1- Copy the model directory into your tc-workspace directory where build-scripts, run-scripts, src are present
+Option2- Mount the model directory to container by adding "-v path_to_model_in_host:path_in_container" in run_docker.sh
+
+To run FVP in docker container export required licenses and run:
+```sh
+./run_docker.sh run_model -m path_to_model_in_container -d distro_opts
+```
