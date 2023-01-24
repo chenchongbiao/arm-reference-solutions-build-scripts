@@ -1,0 +1,130 @@
+From 75bfabe1d00978a27485b21441d649b87e20d94a Mon Sep 17 00:00:00 2001
+From: Valentin Schneider <valentin.schneider@arm.com>
+Date: Wed, 2 Mar 2022 14:08:27 +0000
+Subject: [PATCH 7/7] ANDROID: mpam_arch: Hide the actual implementation of
+ CMAX bits
+
+Section 9.3.2 of the TRM clearly points out the implemented bits are the
+most significant ones:
+
+"""
+As an example, the 3% value previously mentioned is 0x07AE. If only 8 bits
+of fraction are implemented, when software stores 0x07AE into a resource
+control setting, the value is shortened to the most significant bits and
+stored as 0x07--.
+"""
+
+Keep the interface in accordance with the spec, but handle internally
+potential differences in the actual implementation.
+
+Change-Id: Ia10cd22b0dd17f7b99a421e8e62e996062c2c61f
+Signed-off-by: Valentin Schneider <valentin.schneider@arm.com>
+Co-developed-by: Beata Michalska <beata.michalska@arm.com>
+Signed-off-by: Beata Michalska <beata.michalska@arm.com>
+Reviewed-by: Lukasz Luba <lukasz.luba@arm.com>
+---
+ drivers/android/mpam_arch.c | 46 ++++++++++++++++++++++++++++---------
+ 1 file changed, 35 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/android/mpam_arch.c b/drivers/android/mpam_arch.c
+index e11eb77d8e97..6178a1fc9a52 100644
+--- a/drivers/android/mpam_arch.c
++++ b/drivers/android/mpam_arch.c
+@@ -51,6 +51,7 @@ struct mpam_msc {
+ 	unsigned int partid_count;
+ 	unsigned int cpbm_nbits;
+ 	unsigned int cmax_nbits;
++	unsigned int cmax_shift;
+ 
+ 	int has_ris;
+ 	union {
+@@ -201,7 +202,7 @@ static u16 mpam_msc_get_cmax(struct mpam_msc *msc, unsigned int id)
+ 
+ 	reg = readl_relaxed(msc->base + MPAMCFG_CMAX);
+ 	res = FIELD_GET(MPAMCFG_CMAX_CMAX, reg);
+-	return res;
++	return res << msc->cmax_shift;
+ }
+ 
+ static void mpam_msc_set_cmax(struct mpam_msc *msc, unsigned int id, u16 val)
+@@ -209,7 +210,8 @@ static void mpam_msc_set_cmax(struct mpam_msc *msc, unsigned int id, u16 val)
+ 	lockdep_assert_held(&msc->lock);
+ 
+ 	mpam_msc_sel_partid(msc, id);
+-	writel_relaxed(FIELD_PREP(MPAMCFG_CMAX_CMAX, val), msc->base + MPAMCFG_CMAX);
++	writel_relaxed(FIELD_PREP(MPAMCFG_CMAX_CMAX, val >> msc->cmax_shift),
++		       msc->base + MPAMCFG_CMAX);
+ }
+ 
+ struct mpam_validation_masks {
+@@ -355,14 +357,6 @@ static ssize_t mpam_msc_cmax_store(struct kobject *kobj, struct kobj_attribute *
+ 	if (ret)
+ 		return ret;
+ 
+-	/*
+-	 * Note: The TRM says the implemented bits are the most significant ones,
+-	 * but the model doesn't seem to agree with it...
+-	 */
+-	if (mpk->msc->cmax_nbits < 16 &&
+-	    val & GENMASK(15, mpk->msc->cmax_nbits))
+-		return -ERANGE;
+-
+ 	spin_lock_irqsave(&mpk->msc->lock, flags);
+ 	mpam_msc_set_cmax(mpk->msc, mpk->partid, val);
+ 	spin_unlock_irqrestore(&mpk->msc->lock, flags);
+@@ -540,6 +534,34 @@ static int mpam_msc_create_sysfs(struct mpam_msc *msc)
+ 	return ret;
+ }
+ 
++static void mpam_msc_cmax_shift_set(struct mpam_msc *msc)
++{
++	u16 val;
++	/*
++	 * Note: The TRM says the implemented bits are the most significant ones,
++	 * but the model doesn't seem to agree with it...
++	 * Handle that in the background, dropping a warning case needed
++	 */
++	lockdep_assert_held(&msc->lock);
++
++	if (!(msc->cmax_nbits < 16))
++		return;
++	/*
++	 * Unimplemented bits within the field are RAZ/WI
++	 * At this point the MPAM_CMAX.CMAX will not be adjusted with the shift
++	 * so this operates on an unmodified reg content.
++	 * Also, the default value for CMAX will be set further down the init
++	 * so there is no need for reset here.
++	 */
++	mpam_msc_set_cmax(msc, MPAM_PARTID_DEFAULT, GENMASK(15, 0));
++	val = mpam_msc_get_cmax(msc, MPAM_PARTID_DEFAULT);
++
++	if (val & GENMASK(15 - msc->cmax_nbits, 0)) {
++		msc->cmax_shift = 16 - msc->cmax_nbits;
++		pr_warn("MPAM_CMAX: implemented bits are the least-significant ones!");
++	}
++}
++
+ static int mpam_msc_initialize(struct mpam_msc *msc)
+ {
+ 	static unsigned long *bitmap;
+@@ -591,6 +613,7 @@ static int mpam_msc_initialize(struct mpam_msc *msc)
+ 
+ 	reg = readl_relaxed(msc->base + MPAMF_CCAP_IDR);
+ 	msc->cmax_nbits = FIELD_GET(MPAMF_CCAP_IDR_CMAX_WD, reg);
++	mpam_msc_cmax_shift_set(msc);
+ 
+ 	bitmap = bitmap_alloc(mpam_partid_count, GFP_KERNEL);
+ 	if (!bitmap)
+@@ -603,7 +626,8 @@ static int mpam_msc_initialize(struct mpam_msc *msc)
+ 	bitmap_fill(bitmap, mpam_partid_count);
+ 	for (partid = 0; partid < mpam_partid_count; partid++) {
+ 		mpam_msc_set_cpbm(msc, partid, bitmap);
+-		mpam_msc_set_cmax(msc, partid, GENMASK(msc->cmax_nbits - 1, 0));
++		mpam_msc_set_cmax(msc, partid,
++				  GENMASK(15, 15 - (msc->cmax_nbits -1)));
+ 	}
+ 	bitmap_free(bitmap);
+ 
+-- 
+2.34.1
+

@@ -1,0 +1,28 @@
+From 32d03db1122083d70502eeb7707938967dab336e Mon Sep 17 00:00:00 2001
+From: Valentin Schneider <valentin.schneider@arm.com>
+Date: Fri, 25 Feb 2022 18:10:48 +0000
+Subject: [PATCH 3/7] ANDROID: sched: gki: Add padding to task_struct for MPAM
+ partids
+
+Change-Id: Ia145d5c808b1da806be5047eaec43583f07c9224
+Signed-off-by: Valentin Schneider <Valentin.Schneider@arm.com>
+Reviewed-by: Lukasz Luba <lukasz.luba@arm.com>
+---
+ include/linux/sched.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 1fae20593f08..cef8c485e135 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1497,6 +1497,7 @@ struct task_struct {
+ #endif
+ 	ANDROID_VENDOR_DATA_ARRAY(1, 64);
+ 	ANDROID_OEM_DATA_ARRAY(1, 6);
++	ANDROID_VENDOR_DATA(2);
+ 
+ #ifdef CONFIG_KRETPROBES
+ 	struct llist_head               kretprobe_instances;
+-- 
+2.34.1
+

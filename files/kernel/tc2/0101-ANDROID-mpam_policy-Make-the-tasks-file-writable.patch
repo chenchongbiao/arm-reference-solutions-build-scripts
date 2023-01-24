@@ -1,0 +1,272 @@
+From ea1c11e9d7bf90222b21ba75d8647bba35ee63cb Mon Sep 17 00:00:00 2001
+From: Valentin Schneider <valentin.schneider@arm.com>
+Date: Mon, 28 Feb 2022 02:30:30 +0000
+Subject: [PATCH 4/7] ANDROID: mpam_policy: Make the tasks file writable
+
+This means tasks can now be assigned to a non-default partition, which
+requires syncing the CPU partition value (MPAM0_EL1.PARTID_D) with the next
+task at context_switch time.
+
+trace_android_vh_is_fpsimd_save() is just in the right place for this
+operation, so that's what is being used.
+
+Change-Id: Id6196c446311df466f5fda5863a820375ae56e10
+Signed-off-by: Valentin Schneider <Valentin.Schneider@arm.com>
+Reviewed-by: Lukasz Luba <lukasz.luba@arm.com>
+---
+ drivers/android/Kconfig    |   2 +-
+ kernel/sched/mpam_policy.c | 161 +++++++++++++++++++++++++++++++++++--
+ 2 files changed, 157 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/android/Kconfig b/drivers/android/Kconfig
+index 8cde1468259d..9bcc564e4279 100644
+--- a/drivers/android/Kconfig
++++ b/drivers/android/Kconfig
+@@ -114,7 +114,7 @@ config ANDROID_MPAM_ARCH
+ 
+ config ANDROID_MPAM_POLICY
+        tristate "MPAM policy module"
+-       depends on ANDROID_MPAM_ARCH
++       depends on ANDROID_MPAM_ARCH && ANDROID_VENDOR_HOOKS
+ 
+ endif # if ANDROID
+ 
+diff --git a/kernel/sched/mpam_policy.c b/kernel/sched/mpam_policy.c
+index d5effef83ce2..5806b77dac4a 100644
+--- a/kernel/sched/mpam_policy.c
++++ b/kernel/sched/mpam_policy.c
+@@ -48,14 +48,21 @@ struct mpam_partition {
+ 
+ static struct {
+ 	struct mpam_partition *partitions;
++	struct mutex lock;
+ 	unsigned int partitions_count;
+-} mpam_fs;
++} mpam_fs = {
++	.lock = __MUTEX_INITIALIZER(mpam_fs.lock),
++};
+ 
+ static int mpam_init_fs_context(struct fs_context *fc);
+ static void mpam_kill_sb(struct super_block *sb);
+ static int mpam_get_tree(struct fs_context *fc);
+ 
+ static int mpam_policy_tasks_open(struct inode *inode, struct file *file);
++static ssize_t mpam_policy_tasks_write(struct file *filp, const char __user *ubuf,
++				       size_t cnt, loff_t *ppos);
++
++static void mpam_kick_task(struct task_struct *p);
+ 
+ static const struct fs_context_operations mpam_fs_context_ops = {
+ 	.get_tree = mpam_get_tree,
+@@ -71,6 +78,7 @@ static struct file_system_type mpam_fs_type = {
+ static const struct file_operations mpam_fs_tasks_ops = {
+ 	.owner   = THIS_MODULE,
+ 	.open    = mpam_policy_tasks_open,
++	.write   = mpam_policy_tasks_write,
+ 	.read	 = seq_read,
+ 	.llseek  = seq_lseek,
+ 	.release = single_release,
+@@ -78,7 +86,13 @@ static const struct file_operations mpam_fs_tasks_ops = {
+ 
+ static inline unsigned int mpam_get_task_partid(struct task_struct *p)
+ {
+-	return MPAM_PARTID_DEFAULT;
++	return READ_ONCE(p->android_vendor_data2);
++}
++
++static inline void mpam_set_task_partid(struct task_struct *p, unsigned int partid)
++{
++	WRITE_ONCE(p->android_vendor_data2, partid);
++	mpam_kick_task(p);
+ }
+ 
+ static int mpam_init_fs_context(struct fs_context *fc)
+@@ -96,17 +110,66 @@ static void mpam_kill_sb(struct super_block *sb)
+ 	kill_litter_super(sb);
+ }
+ 
++static ssize_t mpam_policy_tasks_write(struct file *filp, const char __user *ubuf,
++				       size_t cnt, loff_t *ppos)
++{
++	struct mpam_partition *part;
++	struct task_struct *p;
++	struct inode *inode;
++	/* PID limit is the millions, 7 chars + newline + \0 */
++	char buf[9];
++	int ret = 0;
++	pid_t pid;
++
++	if (cnt > ARRAY_SIZE(buf))
++		cnt = ARRAY_SIZE(buf);
++
++	if (copy_from_user(&buf, ubuf, cnt))
++		return -EFAULT;
++
++	buf[cnt] = 0;
++
++	if (kstrtoint(strstrip(buf), 0, &pid) || pid < 0)
++		return -EINVAL;
++
++	inode = file_inode(filp);
++	part = (struct mpam_partition *)inode->i_private;
++
++	rcu_read_lock();
++	p = find_task_by_vpid(pid);
++	if (!p) {
++		ret = -EINVAL;
++		rcu_read_unlock();
++		goto out;
++	}
++
++	get_task_struct(p);
++	rcu_read_unlock();
++
++	mutex_lock(&mpam_fs.lock);
++	mpam_set_task_partid(p, part->partid);
++	mutex_unlock(&mpam_fs.lock);
++
++	put_task_struct(p);
++
++	*ppos += cnt;
++out:
++	return ret ?: cnt;
++}
++
+ static int mpam_policy_tasks_show(struct seq_file *s, void *v)
+ {
+ 	struct mpam_partition *part = s->private;
+ 	struct task_struct *p, *t;
+ 
++	mutex_lock(&mpam_fs.lock);
+ 	rcu_read_lock();
+ 	for_each_process_thread(p, t) {
+ 		if (mpam_get_task_partid(t) == part->partid)
+ 			seq_printf(s, "%d\n", t->pid);
+ 	}
+ 	rcu_read_unlock();
++	mutex_unlock(&mpam_fs.lock);
+ 
+ 	return 0;
+ }
+@@ -209,7 +272,7 @@ static int mpam_fs_create_files(struct super_block *sb)
+ 		dir = mpam_fs_create_dir(parts_dir, dirname);
+ 		if (IS_ERR(dir))
+ 			return PTR_ERR(dir);
+-		file = mpam_fs_create_file(dir, "tasks", &mpam_fs_tasks_ops, part, 0444);
++		file = mpam_fs_create_file(dir, "tasks", &mpam_fs_tasks_ops, part, 0644);
+ 		if (IS_ERR(file))
+ 			return PTR_ERR(file);
+ 	}
+@@ -245,7 +308,7 @@ static int mpam_get_tree(struct fs_context *fc)
+ 	return get_tree_single(fc, mpam_fill_super);
+ }
+ 
+-static int __init mpam_policy_init(void)
++static int __init mpam_policy_fs_init(void)
+ {
+ 	int ret = 0;
+ 
+@@ -265,11 +328,99 @@ static int __init mpam_policy_init(void)
+ 	return ret;
+ }
+ 
+-static void mpam_policy_exit(void)
++static void mpam_policy_fs_exit(void)
+ {
+ 	unregister_filesystem(&mpam_fs_type);
+ 	sysfs_remove_mount_point(fs_kobj, "mpam");
+ }
+ 
++/*
++ * Sync @p's associated PARTID with this CPU's register.
++ */
++static void mpam_sync_task(struct task_struct *p)
++{
++	mpam_write_partid(mpam_get_task_partid(p));
++}
++
++/*
++ * Same as mpam_sync_task(), with a pre-filter for the current task.
++ */
++static void mpam_sync_current(void *task)
++{
++	if (task && task != current)
++		return;
++
++	mpam_sync_task(current);
++}
++
++static bool __task_curr(struct task_struct *p)
++{
++	return cpu_curr(task_cpu(p)) == p;
++}
++
++static void mpam_kick_task(struct task_struct *p)
++{
++	/*
++	 * If @p is no longer on the task_cpu(p) we see here when the smp_call
++	 * actually runs, then it had a context switch, so it doesn't need the
++	 * explicit update - no need to chase after it.
++	 */
++	if (__task_curr(p))
++		smp_call_function_single(task_cpu(p), mpam_sync_current, p, 1);
++}
++
++static void mpam_reset_partid(void __always_unused *info)
++{
++	mpam_write_partid(MPAM_PARTID_DEFAULT);
++}
++
++static void mpam_hook_switch(void __always_unused *data,
++			     struct task_struct *prev, struct task_struct *next)
++{
++	mpam_sync_task(next);
++}
++
++/*
++ * Default-0 is a sensible thing, and it avoids us having to do anything
++ * to setup the task_struct vendor data field that serves as partid.
++ * If it becomes different than zero, we need the following after registering
++ * the sched_switch hook:
++ * - a for_each_process_thread() loop, to initialize existing tasks
++ * - a trace_task_newtask hook, to initialize tasks that are being
++ *   forked and may not be covered by the above loop
++ */
++static_assert(MPAM_PARTID_DEFAULT == 0);
++static int mpam_policy_hooks_init(void)
++{
++	return register_trace_android_vh_is_fpsimd_save(mpam_hook_switch, NULL);
++}
++
++static void mpam_policy_hooks_exit(void)
++{
++	unregister_trace_android_vh_is_fpsimd_save(mpam_hook_switch, NULL);
++	on_each_cpu_cond_mask(NULL, mpam_reset_partid, NULL, true, cpu_present_mask);
++}
++
++static int __init mpam_policy_init(void)
++{
++	int ret;
++
++	ret = mpam_policy_fs_init();
++	if (ret)
++		return ret;
++
++	ret = mpam_policy_hooks_init();
++	if (ret)
++		mpam_policy_fs_exit();
++
++	return ret;
++}
++
++static void __exit mpam_policy_exit(void)
++{
++	mpam_policy_hooks_exit();
++	mpam_policy_fs_exit();
++}
++
+ module_init(mpam_policy_init);
+ module_exit(mpam_policy_exit);
+-- 
+2.34.1
+

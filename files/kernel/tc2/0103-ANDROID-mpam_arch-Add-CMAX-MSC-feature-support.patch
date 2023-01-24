@@ -1,0 +1,242 @@
+From 7e2cf2bccaf3c8f20ff059d495ddb2b5d816f817 Mon Sep 17 00:00:00 2001
+From: Valentin Schneider <valentin.schneider@arm.com>
+Date: Mon, 28 Feb 2022 01:57:57 +0000
+Subject: [PATCH 6/7] ANDROID: mpam_arch: Add CMAX MSC feature support
+
+This serves as nicely segmented example as to what it takes to add support
+for a given partitioning feature.
+
+Note that CMAX is supposed to be a fixed point fraction but the exposed
+interface is just the "raw" value.
+
+Change-Id: I8274dcd7f2ba8941f4e9b1d6376bf0a4e89ad831
+Signed-off-by: Valentin Schneider <Valentin.Schneider@arm.com>
+Reviewed-by: Lukasz Luba <lukasz.luba@arm.com>
+---
+ drivers/android/mpam_arch.c          | 96 +++++++++++++++++++++++++++-
+ drivers/android/mpam_arch_internal.h |  8 +++
+ 2 files changed, 103 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/android/mpam_arch.c b/drivers/android/mpam_arch.c
+index 2777e99f1174..e11eb77d8e97 100644
+--- a/drivers/android/mpam_arch.c
++++ b/drivers/android/mpam_arch.c
+@@ -50,11 +50,13 @@ struct mpam_msc {
+ 
+ 	unsigned int partid_count;
+ 	unsigned int cpbm_nbits;
++	unsigned int cmax_nbits;
+ 
+ 	int has_ris;
+ 	union {
+ 		struct {
+ 			bool has_cpor;
++			bool has_ccap;
+ 		};
+ 		u8 part_feats;
+ 	};
+@@ -188,6 +190,28 @@ static void mpam_msc_get_cpbm(struct mpam_msc *msc,
+ 	}
+ }
+ 
++static u16 mpam_msc_get_cmax(struct mpam_msc *msc, unsigned int id)
++{
++	u32 reg;
++	u16 res;
++
++	lockdep_assert_held(&msc->lock);
++
++	mpam_msc_sel_partid(msc, id);
++
++	reg = readl_relaxed(msc->base + MPAMCFG_CMAX);
++	res = FIELD_GET(MPAMCFG_CMAX_CMAX, reg);
++	return res;
++}
++
++static void mpam_msc_set_cmax(struct mpam_msc *msc, unsigned int id, u16 val)
++{
++	lockdep_assert_held(&msc->lock);
++
++	mpam_msc_sel_partid(msc, id);
++	writel_relaxed(FIELD_PREP(MPAMCFG_CMAX_CMAX, val), msc->base + MPAMCFG_CMAX);
++}
++
+ struct mpam_validation_masks {
+ 	cpumask_var_t visited_cpus;
+ 	cpumask_var_t supported_cpus;
+@@ -305,11 +329,56 @@ static ssize_t mpam_msc_cpbm_store(struct kobject *kobj, struct kobj_attribute *
+ 	return ret ?: size;
+ }
+ 
++static ssize_t mpam_msc_cmax_show(struct kobject *kobj, struct kobj_attribute *attr,
++				  char *buf)
++{
++	struct msc_part_kobj *mpk = container_of(kobj, struct msc_part_kobj, kobj);
++	unsigned long flags;
++	u16 val;
++
++	spin_lock_irqsave(&mpk->msc->lock, flags);
++	val = mpam_msc_get_cmax(mpk->msc, mpk->partid);
++	spin_unlock_irqrestore(&mpk->msc->lock, flags);
++
++	return sprintf(buf, "0x%04x\n", val);
++}
++
++static ssize_t mpam_msc_cmax_store(struct kobject *kobj, struct kobj_attribute *attr,
++				    const char *buf, size_t size)
++{
++	struct msc_part_kobj *mpk = container_of(kobj, struct msc_part_kobj, kobj);
++	unsigned long flags;
++	u16 val;
++	int ret;
++
++	ret = kstrtou16(buf, 0, &val);
++	if (ret)
++		return ret;
++
++	/*
++	 * Note: The TRM says the implemented bits are the most significant ones,
++	 * but the model doesn't seem to agree with it...
++	 */
++	if (mpk->msc->cmax_nbits < 16 &&
++	    val & GENMASK(15, mpk->msc->cmax_nbits))
++		return -ERANGE;
++
++	spin_lock_irqsave(&mpk->msc->lock, flags);
++	mpam_msc_set_cmax(mpk->msc, mpk->partid, val);
++	spin_unlock_irqrestore(&mpk->msc->lock, flags);
++
++	return size;
++}
++
+ static struct kobj_attribute mpam_msc_cpbm_attr =
+ 	__ATTR(cpbm, 0644, mpam_msc_cpbm_show, mpam_msc_cpbm_store);
+ 
++static struct kobj_attribute mpam_msc_cmax_attr =
++	__ATTR(cmax, 0644, mpam_msc_cmax_show, mpam_msc_cmax_store);
++
+ static struct attribute *mpam_msc_ctrl_attrs[] = {
+ 	&mpam_msc_cpbm_attr.attr,
++	&mpam_msc_cmax_attr.attr,
+ 	NULL,
+ };
+ 
+@@ -325,6 +394,10 @@ static umode_t mpam_msc_ctrl_attr_visible(struct kobject *kobj,
+ 	    mpk->msc->has_cpor)
+ 		goto visible;
+ 
++	if (attr == &mpam_msc_cmax_attr.attr &&
++	    mpk->msc->has_ccap)
++		goto visible;
++
+ 	return 0;
+ 
+ visible:
+@@ -345,11 +418,22 @@ static ssize_t mpam_msc_cpbm_nbits_show(struct kobject *kobj, struct kobj_attrib
+ 	return sprintf(buf, "%u\n", msc->cpbm_nbits);
+ }
+ 
++static ssize_t mpam_msc_cmax_nbits_show(struct kobject *kobj, struct kobj_attribute *attr,
++				       char *buf)
++{
++	struct mpam_msc *msc = container_of(kobj, struct mpam_msc, ko_root);
++
++	return sprintf(buf, "%u\n", msc->cmax_nbits);
++}
++
+ static struct kobj_attribute mpam_msc_cpbm_nbits_attr =
+ 	__ATTR(cpbm_nbits, 0444, mpam_msc_cpbm_nbits_show, NULL);
++static struct kobj_attribute mpam_msc_cmax_nbits_attr =
++	__ATTR(cmax_nbits, 0444, mpam_msc_cmax_nbits_show, NULL);
+ 
+ static struct attribute *mpam_msc_info_attrs[] = {
+ 	&mpam_msc_cpbm_nbits_attr.attr,
++	&mpam_msc_cmax_nbits_attr.attr,
+ 	NULL,
+ };
+ 
+@@ -363,6 +447,10 @@ static umode_t mpam_msc_info_attr_visible(struct kobject *kobj,
+ 	    msc->has_cpor)
+ 		goto visible;
+ 
++	if (attr == &mpam_msc_cmax_nbits_attr.attr &&
++	    msc->has_ccap)
++		goto visible;
++
+ 	return 0;
+ 
+ visible:
+@@ -469,6 +557,7 @@ static int mpam_msc_initialize(struct mpam_msc *msc)
+ 	reg = readq_relaxed(msc->base + MPAMF_IDR);
+ 
+ 	msc->has_cpor = FIELD_GET(MPAMF_IDR_HAS_CPOR_PART, reg);
++	msc->has_ccap = FIELD_GET(MPAMF_IDR_HAS_CCAP_PART, reg);
+ 	/* Detect more features here */
+ 
+ 	if (!msc->part_feats) {
+@@ -500,6 +589,9 @@ static int mpam_msc_initialize(struct mpam_msc *msc)
+ 	msc->cpbm_nbits = FIELD_GET(MPAMF_CPOR_IDR_CPBM_WD, reg);
+ 	pr_debug("%d portions supported\n", msc->cpbm_nbits);
+ 
++	reg = readl_relaxed(msc->base + MPAMF_CCAP_IDR);
++	msc->cmax_nbits = FIELD_GET(MPAMF_CCAP_IDR_CMAX_WD, reg);
++
+ 	bitmap = bitmap_alloc(mpam_partid_count, GFP_KERNEL);
+ 	if (!bitmap)
+ 		return -ENOMEM;
+@@ -509,8 +601,10 @@ static int mpam_msc_initialize(struct mpam_msc *msc)
+ 	 * "suggests" sane defaults, be paranoid.
+ 	 */
+ 	bitmap_fill(bitmap, mpam_partid_count);
+-	for (partid = 0; partid < mpam_partid_count; partid++)
++	for (partid = 0; partid < mpam_partid_count; partid++) {
+ 		mpam_msc_set_cpbm(msc, partid, bitmap);
++		mpam_msc_set_cmax(msc, partid, GENMASK(msc->cmax_nbits - 1, 0));
++	}
+ 	bitmap_free(bitmap);
+ 
+ 	spin_release(&msc->lock.dep_map, _THIS_IP_);
+diff --git a/drivers/android/mpam_arch_internal.h b/drivers/android/mpam_arch_internal.h
+index c440a62849ff..860f7f9fd470 100644
+--- a/drivers/android/mpam_arch_internal.h
++++ b/drivers/android/mpam_arch_internal.h
+@@ -6,9 +6,11 @@
+ 
+ #define MPAMF_IDR        0x0000
+ #define MPAMF_CPOR_IDR   0x0030
++#define MPAMF_CCAP_IDR   0x0038
+ #define MPAMF_ECR        0x00F0
+ 
+ #define MPAMCFG_PART_SEL 0x0100
++#define MPAMCFG_CMAX     0x0108
+ #define MPAMCFG_CPBM_n   0x1000
+ 
+ /* Sysregs */
+@@ -29,6 +31,7 @@
+ 
+ /* MPAMF_IDR */
+ #define MPAMF_IDR_PARTID_MAX    GENMASK(15, 0)
++#define MPAMF_IDR_HAS_CCAP_PART BIT(24)
+ #define MPAMF_IDR_HAS_CPOR_PART BIT(25)
+ #define MPAMF_IDR_HAS_PRI_PART  BIT(27)
+ #define MPAMF_IDR_HAS_RIS       GENMASK(32, 31)
+@@ -36,6 +39,9 @@
+ /* MPAMF_CPOR_IDR */
+ #define MPAMF_CPOR_IDR_CPBM_WD GENMASK(15, 0)
+ 
++/* MPMAMF_CCAP_IDR */
++#define MPAMF_CCAP_IDR_CMAX_WD GENMASK(5, 0)
++
+ /* MPAMF_ECR */
+ #define MPAMF_ECR_INTEN BIT(0)
+ 
+@@ -43,4 +49,6 @@
+ #define MPAMCFG_PART_SEL_PARTID_SEL GENMASK(15, 0)
+ #define MPAMCFG_PART_SEL_RIS        GENMASK(27, 24)
+ 
++#define MPAMCFG_CMAX_CMAX GENMASK(15, 0)
++
+ #endif
+-- 
+2.34.1
+
