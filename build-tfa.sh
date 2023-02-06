@@ -37,11 +37,6 @@ do_build() {
 
     pushd $TFA_SRC
     make "${make_opts_tfa[@]}" "${make_opts_tfa_optee[@]}" all fip
-
-    # Build additional tools
-    make -j $PARALLELISM "${make_opts_tfa_tools[@]}" certtool
-    make -j $PARALLELISM "${make_opts_tfa_tools[@]}" fiptool
-
     popd
 
     if [[ $TC_FWU_SUPPORT -eq 1 ]]; then
