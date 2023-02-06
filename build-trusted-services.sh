@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2022, Arm Limited. All rights reserved.
+# Copyright (c) 2022-2023, Arm Limited. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -63,6 +63,9 @@ do_clean() {
     for sp in $SECURE_PARTITIONS; do
         rm -f $TFA_SP_DIR/$sp.dts
         rm -f $TFA_SP_DIR/$sp.bin
+    done
+    for test_app in $TS_TEST_APPS; do
+        rm -f $BUILDROOT_ROOTFS_OVERLAY/bin/$test_app
     done
 }
 

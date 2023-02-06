@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2022, Arm Limited. All rights reserved.
+# Copyright (c) 2022-2023, Arm Limited. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -44,6 +44,8 @@ do_clean() {
     pushd $BUILDROOT_SRC
     rm -rf $BUILDROOT_OUT
     popd
+    rm -f $BUILDROOT_ROOTFS_OVERLAY/etc/init.d/S09modload
+    rm -f $BUILDROOT_ROOTFS_OVERLAY/etc/fstab
 }
 
 do_deploy() {

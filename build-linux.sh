@@ -63,6 +63,7 @@ do_clean() {
     rm -rf $LINUX_OUTDIR
     rm -rf $ARM_FFA_TEE_OUTDIR
     rm -rf $KSELFTEST_ROOTFS_OVERLAY
+    rm -f $BUILDROOT_ROOTFS_OVERLAY/root/arm-ffa-tee.ko
 }
 
 do_deploy() {

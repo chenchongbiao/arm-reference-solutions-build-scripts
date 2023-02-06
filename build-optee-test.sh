@@ -62,6 +62,11 @@ do_clean() {
     info_echo "Cleaning optee-test"
     rm -rf $OPTEE_CLIENT_OUT
     rm -rf $OPTEE_TEST_OUT
+    rm -f $BUILDROOT_ROOTFS_OVERLAY/bin/tee-supplicant
+    rm -f $BUILDROOT_ROOTFS_OVERLAY/lib/libteec.so.1
+    rm -f $BUILDROOT_ROOTFS_OVERLAY/bin/xtest
+    rm -rf $BUILDROOT_ROOTFS_OVERLAY/lib/optee_armtz
+    rm -rf $BUILDROOT_ROOTFS_OVERLAY/usr/lib/tee-supplicant/plugins
 }
 
 do_deploy() {
