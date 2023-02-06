@@ -54,6 +54,8 @@ do_build() {
 do_clean() {
     info_echo "Cleaning OPTEE-OS"
     rm -rf $OPTEE_OUT
+    rm -f $TFA_SP_DIR/optee_sp_manifest.dts
+    rm -f $TFA_SP_DIR/tee-pager_v2.bin
 }
 
 do_deploy() {

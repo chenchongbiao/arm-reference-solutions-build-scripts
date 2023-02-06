@@ -60,6 +60,10 @@ do_build() {
 do_clean() {
     info_echo "Cleaning Trusted Services"
     rm -rf $TS_OUTDIR
+    for sp in $SECURE_PARTITIONS; do
+        rm -f $TFA_SP_DIR/$sp.dts
+        rm -f $TFA_SP_DIR/$sp.bin
+    done
 }
 
 do_deploy() {

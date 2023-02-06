@@ -147,7 +147,7 @@ do_clean() {
     pushd $TFA_SRC
     make "${make_opts_tfa[@]}" "${make_opts_tfa_optee[@]}" clean
     popd
-    rm -rf $TFA_SP_DIR
+    rm -f $TFA_SP_DIR/sp_layout.json
 }
 
 do_deploy() {
