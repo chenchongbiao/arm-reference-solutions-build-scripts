@@ -5,6 +5,13 @@ This README is simply a quick-start guide on the build scripts themselves. For m
 information on how to obtain and run the Total Compute stack, please refer to
 the user guide.
 
+Pre-requisites
+--------------
+Install and allow access to docker
+```sh
+sudo apt install docker.io
+sudo chmod 777 /var/run/docker.sock
+```
 Setup
 -----
 Setup includes two parts:
