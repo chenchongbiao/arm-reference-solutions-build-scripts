@@ -1,0 +1,3 @@
+PermitEmptyPasswords yes
+PermitRootLogin yes
+PasswordAuthentication yes

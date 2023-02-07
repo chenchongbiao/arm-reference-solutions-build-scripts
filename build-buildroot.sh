@@ -32,6 +32,7 @@ do_build() {
     info_echo "Building Buildroot"
     install -D $BUILDROOT_CFG/S09modload $BUILDROOT_ROOTFS_OVERLAY/etc/init.d/S09modload
     install -D $BUILDROOT_CFG/fstab $BUILDROOT_ROOTFS_OVERLAY/etc/fstab
+    install -D $BUILDROOT_CFG/sshd_config $BUILDROOT_ROOTFS_OVERLAY/etc/ssh/sshd_config
     mkdir -p $BUILDROOT_OUT
     pushd $BUILDROOT_SRC
     make O=$BUILDROOT_OUT defconfig BR2_DEFCONFIG=$BUILDROOT_CFG/defconfig
@@ -41,10 +42,9 @@ do_build() {
 
 do_clean() {
     info_echo "Cleaning Buildroot"
-    pushd $BUILDROOT_SRC
     rm -rf $BUILDROOT_OUT
-    popd
     rm -f $BUILDROOT_ROOTFS_OVERLAY/etc/init.d/S09modload
+    rm -f $BUILDROOT_ROOTFS_OVERLAY/etc/ssh/sshd_config
     rm -f $BUILDROOT_ROOTFS_OVERLAY/etc/fstab
 }
 
