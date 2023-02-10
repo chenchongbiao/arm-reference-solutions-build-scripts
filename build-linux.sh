@@ -45,6 +45,7 @@ do_build() {
     make O=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- olddefconfig
     make O=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- -j $PARALLELISM $LINUX_IMAGE_TYPE
     make O=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- -j $PARALLELISM $LINUX_IMAGE_TYPE modules
+    make O=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- -j $PARALLELISM tools/perf
 
     info_echo "Building kernel selftest"
     make O=$LINUX_OUTDIR ARCH=arm64 KBUILD_OUTPUT=$LINUX_OUTDIR CROSS_COMPILE=$LINUX_COMPILER- -C $KSELFTEST_SRC TARGETS=arm64 ARM64_SUBTARGETS="$KSELFTEST_LIST" INSTALL_PATH=$KSELFTEST_INSTALL_DIR install
@@ -64,6 +65,7 @@ do_clean() {
     rm -rf $ARM_FFA_TEE_OUTDIR
     rm -rf $KSELFTEST_ROOTFS_OVERLAY
     rm -f $BUILDROOT_ROOTFS_OVERLAY/root/arm-ffa-tee.ko
+    rm -f $BUILDROOT_ROOTFS_OVERLAY/bin/perf
 }
 
 do_deploy() {
@@ -71,6 +73,7 @@ do_deploy() {
     ln -s $LINUX_OUTDIR/arch/arm64/boot/Image $DEPLOY_DIR/$PLATFORM/Image 2>/dev/null || :
     mkdir -p $KSELFTEST_ROOTFS_OVERLAY
     cp -r $KSELFTEST_INSTALL_DIR* $KSELFTEST_ROOTFS_OVERLAY/
+    install -D $LINUX_OUTDIR/tools/perf/perf $BUILDROOT_ROOTFS_OVERLAY/bin/perf
 }
 
 do_patch() {
