@@ -31,6 +31,7 @@
 do_build() {
     info_echo "Building Buildroot"
     install -D $BUILDROOT_CFG/S09modload $BUILDROOT_ROOTFS_OVERLAY/etc/init.d/S09modload
+    install -D $BUILDROOT_CFG/fstab $BUILDROOT_ROOTFS_OVERLAY/etc/fstab
     mkdir -p $BUILDROOT_OUT
     pushd $BUILDROOT_SRC
     make O=$BUILDROOT_OUT defconfig BR2_DEFCONFIG=$BUILDROOT_CFG/defconfig
