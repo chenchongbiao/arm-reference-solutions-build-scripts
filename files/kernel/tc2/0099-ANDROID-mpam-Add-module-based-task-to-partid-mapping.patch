@@ -1,0 +1,358 @@
+From 3052065b3c4ade758c98b538e02964e343ff9597 Mon Sep 17 00:00:00 2001
+From: Valentin Schneider <valentin.schneider@arm.com>
+Date: Fri, 25 Feb 2022 15:42:12 +0000
+Subject: [PATCH 2/7] ANDROID: mpam: Add module-based task to partid mapping
+ interface
+
+Create a mountpoint at /sys/fs/mpam and present a VFS to examine the
+PID:PARTID mapping. This is only a read-only interface, the writable part
+comes in a subsequent commit.
+
+Change-Id: I49bd49082e2e9b38598ad9a6abae4fb1f2559281
+Signed-off-by: Valentin Schneider <Valentin.Schneider@arm.com>
+[bm: added mpamfs magic to uapi, fixed buffer size for sysfs dentires
+     and switched to snprintf, fixed softdep]
+Signed-off-by: Beata Michalska <beata.michalska@arm.com>
+Reviewed-by: Lukasz Luba <lukasz.luba@arm.com>
+---
+ drivers/android/Kconfig     |   4 +
+ drivers/android/mpam_arch.c |   2 +
+ include/uapi/linux/magic.h  |   1 +
+ kernel/sched/Makefile       |   1 +
+ kernel/sched/mpam_policy.c  | 275 ++++++++++++++++++++++++++++++++++++
+ 5 files changed, 283 insertions(+)
+ create mode 100644 kernel/sched/mpam_policy.c
+
+diff --git a/drivers/android/Kconfig b/drivers/android/Kconfig
+index 508f05021f54..8cde1468259d 100644
+--- a/drivers/android/Kconfig
++++ b/drivers/android/Kconfig
+@@ -112,6 +112,10 @@ config ANDROID_VENDOR_OEM_DATA
+ config ANDROID_MPAM_ARCH
+        tristate "MPAM module based architecture driver"
+ 
++config ANDROID_MPAM_POLICY
++       tristate "MPAM policy module"
++       depends on ANDROID_MPAM_ARCH
++
+ endif # if ANDROID
+ 
+ endmenu
+diff --git a/drivers/android/mpam_arch.c b/drivers/android/mpam_arch.c
+index 45d7cf2e48a5..2777e99f1174 100644
+--- a/drivers/android/mpam_arch.c
++++ b/drivers/android/mpam_arch.c
+@@ -441,6 +441,8 @@ static int mpam_msc_create_sysfs(struct mpam_msc *msc)
+ 	for (tmp = 0; tmp < part; tmp++)
+ 		kobject_put(&msc->ko_parts[tmp].kobj);
+ 
++	sysfs_remove_group(&msc->ko_root, &mpam_msc_info_attr_group);
++
+ err_info_grp:
+ 	devm_kfree(&msc->pdev->dev, msc->ko_parts);
+ err_part_dir:
+diff --git a/include/uapi/linux/magic.h b/include/uapi/linux/magic.h
+index 35687dcb1a42..aafa6b527378 100644
+--- a/include/uapi/linux/magic.h
++++ b/include/uapi/linux/magic.h
+@@ -63,6 +63,7 @@
+ #define CGROUP2_SUPER_MAGIC	0x63677270
+ 
+ #define RDTGROUP_SUPER_MAGIC	0x7655821
++#define MPAM_POLICY_SUPER_MAGIC 0xBADC0FFEE
+ 
+ #define STACK_END_MAGIC		0x57AC6E9D
+ 
+diff --git a/kernel/sched/Makefile b/kernel/sched/Makefile
+index 660d6d6d0837..0015cc1b6a4f 100644
+--- a/kernel/sched/Makefile
++++ b/kernel/sched/Makefile
+@@ -38,3 +38,4 @@ obj-$(CONFIG_CPU_ISOLATION) += isolation.o
+ obj-$(CONFIG_PSI) += psi.o
+ obj-$(CONFIG_SCHED_CORE) += core_sched.o
+ obj-$(CONFIG_ANDROID_VENDOR_HOOKS) += vendor_hooks.o
++obj-$(CONFIG_ANDROID_MPAM_POLICY) += mpam_policy.o
+diff --git a/kernel/sched/mpam_policy.c b/kernel/sched/mpam_policy.c
+new file mode 100644
+index 000000000000..d5effef83ce2
+--- /dev/null
++++ b/kernel/sched/mpam_policy.c
+@@ -0,0 +1,275 @@
++// SPDX-License-Identifier: GPL-2.0+
++/*
++ * Module interface to map PIDs to  MPAM PARTIDs
++ *
++ * Copyright (C) 2021 Arm Ltd.
++ */
++
++#define DEBUG
++
++#define pr_fmt(fmt) "MPAM_policy: " fmt
++
++#include <linux/fs.h>
++#include <linux/fs_context.h>
++#include <linux/kernfs.h>
++#include <linux/module.h>
++#include <linux/mutex.h>
++#include <linux/seq_file.h>
++#include <linux/slab.h>
++#include <linux/sysfs.h>
++#include <linux/user_namespace.h>
++
++#include <trace/hooks/fpsimd.h>
++
++#include "sched.h"
++#include "../../drivers/android/mpam_arch.h"
++
++MODULE_LICENSE("GPL");
++MODULE_AUTHOR("Valentin Schneider <valentin.schneider@arm.com>");
++MODULE_SOFTDEP("mpam_policy pre: mpam_arch");
++
++/*
++ * This presents a virtual fs that looks something like:
++ *
++ * /sys/fs/mpam
++ *   partitions/
++ *     0/
++ *       tasks
++ *     1/
++ *       tasks
++ *    ...
++ *     $(PARTID_COUNT-1)/
++ *       tasks
++ */
++
++struct mpam_partition {
++	unsigned int partid;
++};
++
++static struct {
++	struct mpam_partition *partitions;
++	unsigned int partitions_count;
++} mpam_fs;
++
++static int mpam_init_fs_context(struct fs_context *fc);
++static void mpam_kill_sb(struct super_block *sb);
++static int mpam_get_tree(struct fs_context *fc);
++
++static int mpam_policy_tasks_open(struct inode *inode, struct file *file);
++
++static const struct fs_context_operations mpam_fs_context_ops = {
++	.get_tree = mpam_get_tree,
++};
++
++static struct file_system_type mpam_fs_type = {
++	.owner           = THIS_MODULE,
++	.name            = "mpam",
++	.init_fs_context = mpam_init_fs_context,
++	.kill_sb         = mpam_kill_sb,
++};
++
++static const struct file_operations mpam_fs_tasks_ops = {
++	.owner   = THIS_MODULE,
++	.open    = mpam_policy_tasks_open,
++	.read	 = seq_read,
++	.llseek  = seq_lseek,
++	.release = single_release,
++};
++
++static inline unsigned int mpam_get_task_partid(struct task_struct *p)
++{
++	return MPAM_PARTID_DEFAULT;
++}
++
++static int mpam_init_fs_context(struct fs_context *fc)
++{
++	fc->ops = &mpam_fs_context_ops;
++	put_user_ns(fc->user_ns);
++	fc->user_ns = get_user_ns(&init_user_ns);
++	fc->global = true;
++	return 0;
++}
++
++static void mpam_kill_sb(struct super_block *sb)
++{
++	kfree(mpam_fs.partitions);
++	kill_litter_super(sb);
++}
++
++static int mpam_policy_tasks_show(struct seq_file *s, void *v)
++{
++	struct mpam_partition *part = s->private;
++	struct task_struct *p, *t;
++
++	rcu_read_lock();
++	for_each_process_thread(p, t) {
++		if (mpam_get_task_partid(t) == part->partid)
++			seq_printf(s, "%d\n", t->pid);
++	}
++	rcu_read_unlock();
++
++	return 0;
++}
++
++static int mpam_policy_tasks_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, mpam_policy_tasks_show, inode->i_private);
++}
++
++static const struct super_operations mpam_fs_super_ops = {
++	.statfs		= simple_statfs,
++};
++
++static struct inode *mpam_fs_create_inode(struct super_block *sb, int mode)
++{
++	struct inode *ret = new_inode(sb);
++
++	if (ret) {
++		ret->i_ino = get_next_ino();
++		ret->i_mode = mode;
++		ret->i_atime = ret->i_mtime = ret->i_ctime = current_time(ret);
++	}
++	return ret;
++}
++
++static struct dentry *mpam_fs_create_dir(struct dentry *parent, const char *name)
++{
++	struct dentry *dentry;
++	struct inode *inode;
++
++	dentry = d_alloc_name(parent, name);
++	if (!dentry)
++		return ERR_PTR(-ENOMEM);
++
++	inode = mpam_fs_create_inode(parent->d_sb, S_IFDIR | 0444);
++	if (!inode) {
++		dput(dentry);
++		return ERR_PTR(-ENOMEM);
++	}
++
++	inode->i_op = &simple_dir_inode_operations;
++	inode->i_fop = &simple_dir_operations;
++
++	d_add(dentry, inode);
++	return dentry;
++}
++
++static struct dentry *mpam_fs_create_file(struct dentry *parent,
++			const char *name,
++			const struct file_operations *fops,
++			void *data,
++			int mode)
++{
++	struct dentry *dentry;
++	struct inode *inode;
++
++	dentry = d_alloc_name(parent, name);
++	if (!dentry)
++		return ERR_PTR(-ENOMEM);
++
++	inode = mpam_fs_create_inode(parent->d_sb, S_IFREG | mode);
++	if (!inode) {
++		dput(dentry);
++		return ERR_PTR(-ENOMEM);
++	}
++
++	inode->i_fop = fops;
++	inode->i_private = data;
++
++	d_add(dentry, inode);
++	return dentry;
++}
++
++static int mpam_fs_create_files(struct super_block *sb)
++{
++	struct dentry *parts_dir;
++	/* Max PARTID is 16 bits aka 65535 */
++	char dirname[6];
++	int i;
++
++	mpam_fs.partitions_count = mpam_get_partid_count();
++
++	mpam_fs.partitions = kmalloc_array(
++		mpam_fs.partitions_count, sizeof(*mpam_fs.partitions), GFP_KERNEL);
++	if (!mpam_fs.partitions)
++		return -ENOMEM;
++
++	parts_dir = mpam_fs_create_dir(sb->s_root, "partitions");
++	if (IS_ERR(parts_dir))
++		return PTR_ERR(parts_dir);
++
++	for (i = 0; i < mpam_get_partid_count(); i++) {
++		struct mpam_partition *part = &mpam_fs.partitions[i];
++		struct dentry *dir;
++		struct dentry *file;
++
++		part->partid = i;
++
++		snprintf(dirname, sizeof(dirname),  "%d", i);
++		dir = mpam_fs_create_dir(parts_dir, dirname);
++		if (IS_ERR(dir))
++			return PTR_ERR(dir);
++		file = mpam_fs_create_file(dir, "tasks", &mpam_fs_tasks_ops, part, 0444);
++		if (IS_ERR(file))
++			return PTR_ERR(file);
++	}
++	return 0;
++}
++
++static int mpam_fill_super(struct super_block *sb, struct fs_context *fc)
++{
++	struct inode *root;
++
++	sb->s_maxbytes = MAX_LFS_FILESIZE;
++	sb->s_blocksize = PAGE_SIZE;
++	sb->s_blocksize_bits = PAGE_SHIFT;
++	sb->s_magic = MPAM_POLICY_SUPER_MAGIC;
++	sb->s_op = &mpam_fs_super_ops;
++
++	root = mpam_fs_create_inode(sb, S_IFDIR | 0444);
++	if (!root)
++		return -ENOMEM;
++
++	root->i_op = &simple_dir_inode_operations;
++	root->i_fop = &simple_dir_operations;
++
++	sb->s_root = d_make_root(root);
++	if (!sb->s_root)
++		return -ENOMEM;
++
++	return mpam_fs_create_files(sb);
++}
++
++static int mpam_get_tree(struct fs_context *fc)
++{
++	return get_tree_single(fc, mpam_fill_super);
++}
++
++static int __init mpam_policy_init(void)
++{
++	int ret = 0;
++
++	ret = sysfs_create_mount_point(fs_kobj, "mpam");
++	if (ret)
++		goto err;
++
++	ret = register_filesystem(&mpam_fs_type);
++	if (ret)
++		goto err_mount;
++
++	return ret;
++
++err_mount:
++	sysfs_remove_mount_point(fs_kobj, "mpam");
++err:
++	return ret;
++}
++
++static void mpam_policy_exit(void)
++{
++	unregister_filesystem(&mpam_fs_type);
++	sysfs_remove_mount_point(fs_kobj, "mpam");
++}
++
++module_init(mpam_policy_init);
++module_exit(mpam_policy_exit);
+-- 
+2.34.1
+
