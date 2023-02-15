@@ -17,7 +17,7 @@ if [[ "$1" == "$BUILD_CMD" ]]; then
 
     #To build docker image locally
     echo -e "${BLUE}INFO: BUILDING DOCKER IMAGE ${NC}"
-    docker build --build-arg version=$TAG --no-cache -t $DOCKER_IMAGE:$TAG docker/
+    docker build --build-arg version=$TAG -t $DOCKER_IMAGE:$TAG docker/
 
 elif [[ "$1" == "$RUN_MODEL" ]];then
 
