@@ -189,6 +189,7 @@ do_deploy() {
         RSS_SIGN_AP_BL1_NAME=$RSS_SIGN_AP_BL1_NAME_ANDROID
     fi
 
+    export LD_LIBRARY_PATH=$TFA_OPENSSL_DIR/lib:$LD_LIBRARY_PATH
     assemble_fip $TFA_OUTDIR/build/$TFA_PLATFORM/$BUILD_TYPE/fip.bin \
                  ${OUTDIR}/fip_combined.bin
 
