@@ -1,0 +1,30 @@
+From 235ff8b60d3cd588c9307203be41f48061e7d167 Mon Sep 17 00:00:00 2001
+From: annsai01 <annam.saimanisha@arm.com>
+Date: Tue, 21 Feb 2023 14:09:29 +0000
+Subject: [PATCH] refactor(tc): remap console logs
+
+Remapping console logs from soc uart2 (s1 terminal)
+to css secure (uart1_ap terminal)
+
+Change-Id: I65f3604eab247405def2e9261292f25ba0fde7fb
+Signed-off-by: Annam Sai Manisha <annam.saimanisha@arm.com>
+---
+ BUILD.gn | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/BUILD.gn b/BUILD.gn
+index 08259d9..d672c81 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -192,7 +192,7 @@ aarch64_toolchains("secure_tc") {
+     plat_psci = "//src/arch/aarch64/plat/psci:spmc"
+     plat_interrupts = "//src/arch/aarch64/plat/interrupts:gicv3"
+     secure_world = "1"
+-    pl011_base_address = "0x7ff80000"
++    pl011_base_address = "0x2A410000"
+     enable_mte = "1"
+     plat_log_level = "LOG_LEVEL_INFO"
+     plat_num_virtual_interrupts_ids = 1024
+-- 
+2.25.1
+
