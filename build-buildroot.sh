@@ -31,7 +31,6 @@
 do_build() {
     info_echo "Building Buildroot"
     install -D $BUILDROOT_CFG/S09modload $BUILDROOT_ROOTFS_OVERLAY/etc/init.d/S09modload
-    install -D $BUILDROOT_CFG/fstab $BUILDROOT_ROOTFS_OVERLAY/etc/fstab
     install -D $BUILDROOT_CFG/sshd_config $BUILDROOT_ROOTFS_OVERLAY/etc/ssh/sshd_config
     mkdir -p $BUILDROOT_OUT
     pushd $BUILDROOT_SRC
@@ -46,7 +45,6 @@ do_clean() {
     rm -rf $BUILDROOT_OUT
     rm -f $BUILDROOT_ROOTFS_OVERLAY/etc/init.d/S09modload
     rm -f $BUILDROOT_ROOTFS_OVERLAY/etc/ssh/sshd_config
-    rm -f $BUILDROOT_ROOTFS_OVERLAY/etc/fstab
 }
 
 do_deploy() {
