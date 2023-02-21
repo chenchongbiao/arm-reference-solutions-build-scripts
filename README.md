@@ -91,10 +91,15 @@ Run FVP model from docker container
 
 To run FVP model in docker container , either of the steps can be followed
 
-Option1- Copy the model directory into your tc-workspace directory where build-scripts, run-scripts, src are present
-Option2- Mount the model directory to container by adding "-v path_to_model_in_host:path_in_container" in run_docker.sh
+Option1:
+        - Copy the parent model directory into your tc-workspace directory where build-scripts, run-scripts, src are present.
+        - Please provide absolute path to the model binary, relative path doesn't work.
+
+Option2:
+        - Mount the model directory to container by adding "-v <Absolute path to model top directory>:<Absolute path to model top directory> in run_docker.sh
+        - Ex: -v 11.19/:11.19/
 
 To run FVP in docker container export required licenses and run:
 ```sh
-./run_docker.sh run_model -m path_to_model_in_container -d distro_opts
+./run_docker.sh run_model -m Absolute_path_to_model -d distro_opts
 ```
