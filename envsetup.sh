@@ -132,6 +132,8 @@ pip3 install pyelftools
 # RSS requirements
 pushd $SCRIPT_DIR/../src/rss
 pip3 install -r tools/requirements.txt
+# Add missing python dependencies here
+pip3 install jsonschema
 popd
 
 # The minimum jinja2 version supported by RSS doesn't work with the latest markupsafe,

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright (c) 2021-2022 Arm Limited. All rights reserved.
+# Copyright (c) 2021-2023 Arm Limited. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
@@ -99,6 +99,10 @@ fi
 readonly BOLD NORMAL RED GREEN YELLOW BLUE CYAN
 
 trap handle_error ERR
+
+warn_echo() {
+    echo -e "$BOLD${YELLOW}WARN:$NORMAL$YELLOW $*$NORMAL" >&2
+}
 
 error_echo() {
     echo -e "$BOLD${RED}ERROR:$NORMAL$RED $*$NORMAL" >&2
