@@ -12,13 +12,19 @@ Install and allow access to docker
 sudo apt install docker.io
 sudo chmod 777 /var/run/docker.sock
 ```
+
+Login to docker container registry to push an image to the registry
+```sh
+docker login registry.gitlab.arm.com
+```
+
 Setup
 -----
 Setup includes two parts:
-1. Build a Docker image
+1. Pull/Build a Docker image from Container registry
 2. Setup the environmet to build TC images
 
-To build a docker image, patch the components and install the toolchains and build tools, run:
+To pull/build a docker image, patch the components and install the toolchains and build tools, run:
 
 For Buildroot:
 ```sh

@@ -31,8 +31,12 @@
 # setup.sh is wrapper script. Use it for anything required prior to building the TC images
 SCRIPT_DIR="$(realpath --no-symlinks "$(dirname "${BASH_SOURCE[0]}")")"
 
-# Build a Docker image
-$SCRIPT_DIR/run_docker.sh build_image
+# Pull a Docker image from Container registry
+$SCRIPT_DIR/run_docker.sh pull_image
+if [ $? -ne 0 ]; then
+
+    $SCRIPT_DIR/run_docker.sh build_image # Build a Docker image
+fi
 
 # Setup the environmet to build TC stack
 $SCRIPT_DIR/run_docker.sh envsetup.sh
