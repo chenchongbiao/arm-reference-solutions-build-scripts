@@ -20,6 +20,7 @@ if [ -d "$SRC_DIR/trusty" ]; then
 	scripts+=(
 	    "build-trusty.sh"
             "build-tfa-trusty.sh"
+            "build-rss-trusty.sh"
     )
 fi
 

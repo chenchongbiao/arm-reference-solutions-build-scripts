@@ -153,18 +153,23 @@ assemble_fip() {
 
     FIPTOOL=$TFA_SRC/tools/fiptool/fiptool
 
-    $FIPTOOL update --align 8192 --rss-bl2 $RSS_BINDIR/bl2_signed.bin $2
+    BINDIR=$RSS_BINDIR
+    if [[ $2 == *"trusty"* ]]; then
+	    BINDIR=$RSS_BINDIR_TRUSTY
+    fi
+
+    $FIPTOOL update --align 8192 --rss-bl2 $BINDIR/bl2_signed.bin $2
     $FIPTOOL update --align 8192 --rss-scp-bl1 $RSS_BINDIR/signed_$RSS_SIGN_SCP_BL1_NAME $2
     $FIPTOOL update --align 8192 --rss-ap-bl1 $RSS_BINDIR/signed_$RSS_SIGN_AP_BL1_NAME $2
 
-    if [[ -e ${RSS_BINDIR}/tfm_s_sic_tables_signed.bin ]]; then
-        $FIPTOOL update --align 8192 --rss-ns $RSS_BINDIR/tfm_ns.bin $2
-        $FIPTOOL update --align 8192 --rss-s $RSS_BINDIR/tfm_s.bin $2
-        $FIPTOOL update --align 8192 --rss-sic-tables-ns $RSS_BINDIR/tfm_ns_sic_tables_signed.bin $2
-        $FIPTOOL update --align 8192 --rss-sic-tables-s $RSS_BINDIR/tfm_s_sic_tables_signed.bin $2
+    if [[ -e ${BINDIR}/tfm_s_sic_tables_signed.bin ]]; then
+        $FIPTOOL update --align 8192 --rss-ns $BINDIR/tfm_ns.bin $2
+        $FIPTOOL update --align 8192 --rss-s $BINDIR/tfm_s.bin $2
+        $FIPTOOL update --align 8192 --rss-sic-tables-ns $BINDIR/tfm_ns_sic_tables_signed.bin $2
+        $FIPTOOL update --align 8192 --rss-sic-tables-s $BINDIR/tfm_s_sic_tables_signed.bin $2
     else
-        $FIPTOOL update --align 8192 --rss-ns $RSS_BINDIR/tfm_ns_signed.bin $2
-        $FIPTOOL update --align 8192 --rss-s $RSS_BINDIR/tfm_s_signed.bin $2
+        $FIPTOOL update --align 8192 --rss-ns $BINDIR/tfm_ns_signed.bin $2
+        $FIPTOOL update --align 8192 --rss-s $BINDIR/tfm_s_signed.bin $2
     fi
 
     info_echo "Built $2"
@@ -204,10 +209,11 @@ do_deploy() {
                      ${OUTDIR}/fip_combined_trusty.bin
 
         ln -sf $OUTDIR/fip_combined_trusty.bin $DEPLOY_DIR/$PLATFORM/fip-trusty-tc.bin 2>/dev/null || :
-        if [[ $TC_FWU_SUPPORT -eq 1 ]]; then
-            do_generate_gpt $OUTDIR/fip_combined.bin $OUTDIR/fip_gpt_trusty.bin
-            ln -sf $OUTDIR/fip_gpt_trusty.bin $DEPLOY_DIR/$PLATFORM/fip_gpt-trusty-tc.bin 2>/dev/null || :
-        fi
+# Currently not supporting FWU for trusty
+#        if [[ $TC_FWU_SUPPORT -eq 1 ]]; then
+#            do_generate_gpt $OUTDIR/fip_combined_trusty.bin $OUTDIR/fip_gpt_trusty.bin
+#            ln -sf $OUTDIR/fip_gpt_trusty.bin $DEPLOY_DIR/$PLATFORM/fip_gpt-trusty-tc.bin 2>/dev/null || :
+#        fi
     fi
 }
 
