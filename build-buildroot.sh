@@ -36,7 +36,8 @@ do_build() {
     mkdir -p $BUILDROOT_OUT
     pushd $BUILDROOT_SRC
     make O=$BUILDROOT_OUT defconfig BR2_DEFCONFIG=$BUILDROOT_CFG/defconfig
-    make O=$BUILDROOT_OUT all
+    # The environment variable AARCH64_LINUX is used in the defconfig to locate the compiler
+    AARCH64_LINUX="$AARCH64_LINUX" make O=$BUILDROOT_OUT all
     popd
 }
 
