@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2022 Arm Limited. All rights reserved.
+# Copyright (c) 2022-2023 Arm Limited. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
@@ -26,6 +26,7 @@ fi
     scripts+=(
         "build-tfa.sh"
         "build-rss.sh"
+        "build-flash-image.sh"
     )
 
     case "$FILESYSTEM" in

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2022, Arm Limited. All rights reserved.
+# Copyright (c) 2022-2023, Arm Limited. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -52,7 +52,6 @@ do_clean() {
 
 do_deploy() {
     # Copy binaries to deploy directory
-    cp $TRUSTY_OUTDIR/build/tc/debug/fip.bin $DEPLOY_DIR/$PLATFORM/fip-trusty-tc.bin
     cp $TRUSTY_OUTDIR/build/tc/debug/bl1.bin $DEPLOY_DIR/$PLATFORM/bl1-trusty-tc.bin
 }
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2022, Arm Limited. All rights reserved.
+# Copyright (c) 2022-2023, Arm Limited. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -111,30 +111,17 @@ do_deploy() {
         RSS_SIGN_AP_BL1_NAME=$RSS_SIGN_AP_BL1_NAME_ANDROID
     fi
     sign_image $RSS_SIGN_AP_BL1_NAME \
-	    $RSS_SIGN_AP_BL1_LOAD_ADDRESS $RSS_SIGN_AP_BL1_BIN_SIZE
+        $RSS_SIGN_AP_BL1_LOAD_ADDRESS $RSS_SIGN_AP_BL1_BIN_SIZE
     sign_image $RSS_SIGN_SCP_BL1_NAME \
-	    $RSS_SIGN_SCP_BL1_LOAD_ADDRESS $RSS_SIGN_SCP_BL1_BIN_SIZE
+        $RSS_SIGN_SCP_BL1_LOAD_ADDRESS $RSS_SIGN_SCP_BL1_BIN_SIZE
 
-    #create rom.bin and flash.bin
+    #create rss_rom.bin
     srec_cat \
     $RSS_BINDIR/bl1_1.bin -Binary -offset 0x0 \
     $RSS_BINDIR/bl1_provisioning_bundle.bin -Binary -offset 0xE000 \
     -o $DEPLOY_DIR/$PLATFORM/rss_rom.bin -Binary
 
     info_echo "Created rss_rom.bin"
-
-    srec_cat \
-    $RSS_BINDIR/bl2_signed.bin -Binary -offset 0x0 \
-    $RSS_BINDIR/bl2_signed.bin -Binary -offset 0x10000 \
-    $RSS_BINDIR/tfm_s_ns_signed.bin -Binary -offset 0x20000 \
-    $RSS_BINDIR/tfm_s_ns_signed.bin -Binary -offset 0xE0000 \
-    $RSS_BINDIR/signed_${RSS_SIGN_AP_BL1_NAME} -Binary -offset 0x1A0000 \
-    $RSS_BINDIR/signed_${RSS_SIGN_SCP_BL1_NAME} -Binary -offset 0x220000 \
-    $RSS_BINDIR/signed_${RSS_SIGN_AP_BL1_NAME} -Binary -offset 0x2A0000 \
-    $RSS_BINDIR/signed_${RSS_SIGN_SCP_BL1_NAME} -Binary -offset 0x320000 \
-    -o $DEPLOY_DIR/$PLATFORM/rss_flash.bin -Binary
-
-    info_echo "Created rss_flash.bin"
 }
 
 source "$(dirname ${BASH_SOURCE[0]})/framework.sh"
