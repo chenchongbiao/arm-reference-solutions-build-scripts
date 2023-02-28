@@ -31,14 +31,14 @@ export FILESYSTEM=buildroot
 For Android:
 ```sh
 export PLATFORM=tc2
-export FILESYSTEM=android-swr
+export FILESYSTEM=android-fvp
 ./setup.sh
 ```
 
 For Android with AVB (Android Verified Boot):
 ```sh
 export PLATFORM=tc2
-export FILESYSTEM=android-swr
+export FILESYSTEM=android-fvp
 export AVB=true
 ./setup.sh
 ```

@@ -30,27 +30,44 @@
 
 clone_gpu_ddk() {
             info_echo "Clone GPU DDK source"
-            pushd $ANDROID_SRC
-            if [ ! -d "$ANDROID_SRC/vendor/arm" ]; then
+	    if [[ -z $GPU_DDK_REPO || -z $GPU_DDK_VERSION || -z $ANDROID_TEST_EXAMPLES ]] ; then
+		    info_echo "Please export GPU_DDK_REPO, GPU_DDK_VERSION and ANDROID_TEST_EXAMPLES variables to sync"
+		    exit 1
+	    fi
+
+	    pushd $ANDROID_SRC
+	    pushd system/memory/libion
+            mkdir -p include/ion
+            cp kernel-headers/linux/ion_4.12.h include/ion
+            popd
+
+            if [ ! -d "$ANDROID_SRC/vendor/arm/mali" ]; then
                     mkdir -p vendor/arm
                     pushd vendor/arm/
-                    git clone ssh://eu-gerrit-1.euhpc.arm.com:29418/GPU-SW/midgard_sw/driver mali
+                    git clone $GPU_DDK_REPO mali
                     pushd mali
-                    git checkout r40p0_01eac0
+                    git checkout $GPU_DDK_VERSION
                     git submodule update --init --recursive
                     popd
-                    git clone ssh://gerrit.oss.arm.com/android/vendor/arm/examples
+                    git clone $ANDROID_TEST_EXAMPLES
                     popd
+            else
+		    info_echo "Mali source already exists, cloning skipped!"
+		    info_echo "For fresh source, clean it first."
             fi
             popd
 }
 
 build_gpu_ddk() {
             info_echo "Build GPU DDK source"
+	    if [[ -z $ARM_PRODUCT_DEF || -z $LM_LICENSE_FILE || -z $ARMLMD_LICENSE_FILE ]]; then
+		    info_echo "Please export ARM_PRODUCT_DEF, LM_LICENSE_FILE and ARMLMD_LICENSE_FILE variabless to build GPU DDK"
+		    exit 1
+	    fi
             export PATH=$SCRIPT_DIR/../tools/armclang/bin:$PATH
-	    export ARM_PRODUCT_DEF=$SCRIPT_DIR/../tools/armclang/sw/mappings/platinum.elmap
-            export LM_LICENSE_FILE=1661@euhpc-lic05.euhpc.arm.com
-            export ARMLMD_LICENSE_FILE=7010@euhpc-lic03.euhpc.arm.com:7010@euhpc-lic04.euhpc.arm.com:7010@euhpc-lic05.euhpc.arm.com:7010@euhpc-lic07.euhpc.arm.com:8224@blr-lic03.blr.arm.com:8224@blr-lic04.blr.arm.com:8224@blr-lic05.blr.arm.com:7010@nahpc-lic06.nahpc.arm.com:7010@nahpc-lic09.nahpc.arm.com:7010@cam-lic3.cambridge.arm.com:7010@cam-lic4.cambridge.arm.com:7010@euhpc-lic-armlmd.euhpc.arm.com
+	    export ARM_PRODUCT_DEF=$ARM_PRODUCT_DEF
+            export LM_LICENSE_FILE=$LM_LICENSE_FILE
+            export ARMLMD_LICENSE_FILE=$ARMLMD_LICENSE_FILE
             pushd $ANDROID_SRC/vendor/arm/mali/product
             mkdir -p build_cfw
 	    export BUILDDIR=$PWD/build_cfw
@@ -127,6 +144,7 @@ do_build() {
     echo "AVB=$AVB"
     echo "PLATFORM=$PLATFORM"
     echo "TC_TARGET_FLAVOR=$TC_TARGET_FLAVOR"
+    echo "TC_GPU=$TC_GPU"
 
     KERNEL_IMAGE=$LINUX_OUTDIR/arch/arm64/boot/Image
     . build/envsetup.sh || true
@@ -193,6 +211,10 @@ do_deploy() {
 do_clean() {
     info_echo "Cleaning Android"
     rm -rf $ANDROID_SRC/out
+     if [ -d $ANDROID_SRC/vendor/arm/mali/product/build_cfw ]; then
+         info_echo "Cleaning mali DDK build"
+         rm -rf $ANDROID_SRC/vendor/arm/mali/product/build_cfw
+    fi
 }
 
 source "$(dirname ${BASH_SOURCE[0]})/framework.sh"

@@ -90,12 +90,45 @@ fi
 popd
 
 # armclang (A copy of armclang after install Arm DS)
-pushd $SCRIPT_DIR/../tools/
-TC_ARMCLANG=$SCRIPT_DIR/../tools/armclang/bin/armclang
-if [ ! -f $TC_ARMCLANG ]; then
-	git clone ssh://gerrit.oss.arm.com/tc/armclang.git
+if [ $TC_GPU == true ]; then
+    export ARMCLANG_TOOL=$ARMCLANG_TOOL
+    pushd $SCRIPT_DIR/../tools/
+    TC_ARMCLANG_BIN=$SCRIPT_DIR/../tools/armclang/bin/armclang
+    if [ ! -f $TC_ARMCLANG_BIN ]; then
+	    if [ -z $ARMCLANG_TOOL ]; then
+		echo " "
+		echo "export ARMCLANG_TOOL git URL or an *absolute* path of installed directory"
+		echo "eg: export ARMCLANG_TOOL=ssh://<URL>.git for git URL path"
+		echo "eg: export ARMCLANG_TOOL=<Absolute path to TC workspace>/tools/armclang/bin/armclang"
+		exit 1
+	    else
+		# Clone it in case of git path
+		git clone $ARMCLANG_TOOL
+		# export the installed tool path for non-git cases
+		if [ ! -d $ARMCLANG_TOOL/armclang ]; then
+		    mkdir -p $ARMCLANG_TOOL/armclang
+		    export ARMCLANG_TOOL=$ARMCLANG_TOOL
+		    if [ ! -f $TC_ARMCLANG_BIN ]; then
+			    echo "armclang bin at installed path $ARMCLANG_TOOL/armclang/bin/armclang is missing."
+			    exit 1
+		    fi
+		fi
+	    fi
+    fi
+    popd
 fi
-popd
+
+# if building android
+if [[ $FILESYSTEM == android-fvp || $FILESYSTEM == android-fpga ]]; then
+    TC_DEVICE_PROFILE_PATH=$SCRIPT_DIR/../src/android/device
+    TC_DEVICE_PROFILE_VERSION=master
+    pushd $TC_DEVICE_PROFILE_PATH
+        if [ ! -d arm ]; then
+            git clone git@git.gitlab.arm.com:arm-reference-solutions/device-profile.git arm
+	    cd arm && git checkout $TC_DEVICE_PROFILE_VERSION
+        fi
+    popd
+fi
 
 # OpenSSL 3.0 (needed by TF-A)
 OPENSSL_DIR=$SCRIPT_DIR/../tools/openssl
