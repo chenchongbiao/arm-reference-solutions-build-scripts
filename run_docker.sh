@@ -73,7 +73,8 @@ else
     env_opts=" -e TERM=$TERM \
                -e PLATFORM=$PLATFORM \
                -e FILESYSTEM=$FILESYSTEM \
-               -e AVB=$AVB"
+               -e AVB=$AVB \
+	       -e TC_TARGET_FLAVOR=$TC_TARGET_FLAVOR"
 
     if [ $PARALLELISM ];then
         env_opts+=" -e PARALLELISM=$PARALLELISM"

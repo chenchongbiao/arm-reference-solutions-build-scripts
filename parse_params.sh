@@ -1,19 +1,27 @@
 #!/usr/bin/env bash
 
-# Copyright (c) 2021 Arm Limited. All rights reserved.
+# Copyright (c) 2021-2023 Arm Limited. All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
 readonly FILESYSTEM_OPTIONS=(
     "buildroot"
     "android-swr"
+    "android-hwr"
 )
 
 readonly PLATFORM_OPTIONS=(
     "tc2"
 )
 
+readonly TC_TARGET_FLAVOR_OPTIONS=(
+    "fvp"
+    "fpga"
+)
+
 AVB_DEFAULT=false
+TC_GPU_DEFAULT=false
+TC_TARGET_FLAVOR_DEFAULT=fvp
 
 readonly CMD_DEFAULT=( "build" )
 CMD_OPTIONS=("build" "patch" "clean" "deploy" "with_reqs")
@@ -23,11 +31,17 @@ fi
 
 print_usage() {
     echo -e "${BOLD}Usage:"
-    echo -e "    $0 ${CYAN}-f FILESYSTEM [-p PLATFORM] [CMD...]$NORMAL"
+    echo -e "    $0 ${CYAN}-f FILESYSTEM [-p PLATFORM] [-t TC_TARGET_FLAVOR] [CMD...]$NORMAL"
     echo
     echo "FILESYSTEM:"
     local s
     for s in "${FILESYSTEM_OPTIONS[@]}" ; do
+        echo "    $s"
+    done
+    echo
+    echo "TC_TARGET_FLAVOR:"
+    local s
+    for s in "${TC_TARGET_FLAVOR_OPTIONS[@]}" ; do
         echo "    $s"
     done
     echo
@@ -50,8 +64,16 @@ print_usage() {
     done
 }
 
+if [[ -z "${TC_GPU:-}" ]] ; then
+    TC_GPU=$TC_GPU_DEFAULT
+fi
+
+if [[ -z "${TC_TARGET_FLAVOR:-}" ]] ; then
+    TC_TARGET_FLAVOR=$TC_TARGET_FLAVOR_DEFAULT
+fi
+
 CMD=( "${CMD_DEFAULT[@]}" )
-while getopts "p:f:a:h" opt; do
+while getopts "p:f:a:t:h" opt; do
     case $opt in
     ("p")
         PLATFORM="$OPTARG"
@@ -62,6 +84,9 @@ while getopts "p:f:a:h" opt; do
     ("a")
         AVB=true
         ;;
+    ("t")
+        TC_TARGET_FLAVOR="$OPTARG"
+	;;
     ("?")
         print_usage >&2
         exit 1
@@ -92,6 +117,16 @@ fi
 in_haystack "$FILESYSTEM" "${FILESYSTEM_OPTIONS[@]}" ||
     die "invalid FILESYSTEM: $FILESYSTEM"
 readonly FILESYSTEM
+
+if [[ -z "${TC_TARGET_FLAVOR:-}" ]] ; then
+    echo "ERROR: Mandatory -t TC_TARGET_FLAVOR not given!" >&2
+    echo "" >&2
+    print_usage >&2
+    exit 1
+fi
+in_haystack "$TC_TARGET_FLAVOR" "${TC_TARGET_FLAVOR_OPTIONS[@]}" ||
+    die "invalid TC_TARGET_FLAVOR: $TC_TARGET_FLAVOR"
+readonly TC_TARGET_FLAVOR
 
 if [[ -z "${AVB:-}" ]] ; then
     AVB=$AVB_DEFAULT

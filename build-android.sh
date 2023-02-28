@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright (c) 2022, Arm Limited. All rights reserved.
+# Copyright (c) 2022-2023, Arm Limited. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -72,6 +72,8 @@ do_build() {
 
     [ -z "$DISTRO" ] && incorrect_script_use || echo "DISTRO=$DISTRO"
     echo "AVB=$AVB"
+    echo "PLATFORM=$PLATFORM"
+    echo "TC_TARGET_FLAVOR=$TC_TARGET_FLAVOR"
 
     KERNEL_IMAGE=$LINUX_OUTDIR/arch/arm64/boot/Image
     . build/envsetup.sh || true
@@ -85,6 +87,17 @@ do_build() {
                 lunch tc_swr-userdebug;
             else
                 lunch tc_swr-eng;
+            fi
+            ;;
+        android-hwr)
+            if [ "$AVB" == true ]
+            then
+                check_file_exists_and_exit $KERNEL_IMAGE
+                info_echo "Using $KERNEL_IMAGE for kernel"
+                cp $KERNEL_IMAGE device/arm/tc
+                lunch tc_hwr-userdebug;
+            else
+                lunch tc_hwr-eng;
             fi
             ;;
         *) error_echo "bad option for distro $3"; incorrect_script_use
@@ -110,16 +123,27 @@ do_build() {
 }
 
 do_deploy() {
-    ln -s $ANDROID_SRC/out/target/product/tc_swr/android.img $DEPLOY_DIR/$PLATFORM
-    ln -s $ANDROID_SRC/out/target/product/tc_swr/ramdisk_uboot.img $DEPLOY_DIR/$PLATFORM
-    ln -s $ANDROID_SRC/out/target/product/tc_swr/system.img $DEPLOY_DIR/$PLATFORM
-    ln -s $ANDROID_SRC/out/target/product/tc_swr/userdata.img $DEPLOY_DIR/$PLATFORM
+    if [ $FILESYSTEM == "android-swr" ]; then
+      ln -sf $ANDROID_SRC/out/target/product/tc_swr/android.img $DEPLOY_DIR/$PLATFORM
+      ln -sf $ANDROID_SRC/out/target/product/tc_swr/ramdisk_uboot.img $DEPLOY_DIR/$PLATFORM
+      ln -sf $ANDROID_SRC/out/target/product/tc_swr/system.img $DEPLOY_DIR/$PLATFORM
+      ln -sf $ANDROID_SRC/out/target/product/tc_swr/userdata.img $DEPLOY_DIR/$PLATFORM
 
-    if [[ $AVB == "true" ]]; then
-        ln -s $ANDROID_SRC/out/target/product/tc_swr/boot.img $DEPLOY_DIR/$PLATFORM
-        ln -s $ANDROID_SRC/out/target/product/tc_swr/vbmeta.img $DEPLOY_DIR/$PLATFORM
+      if [[ $AVB == "true" ]]; then
+          ln -sf $ANDROID_SRC/out/target/product/tc_swr/boot.img $DEPLOY_DIR/$PLATFORM
+          ln -sf $ANDROID_SRC/out/target/product/tc_swr/vbmeta.img $DEPLOY_DIR/$PLATFORM
+      fi
+    else #android-hwr
+      ln -sf $ANDROID_SRC/out/target/product/tc_hwr/android.img $DEPLOY_DIR/$PLATFORM
+      ln -sf $ANDROID_SRC/out/target/product/tc_hwr/ramdisk_uboot.img $DEPLOY_DIR/$PLATFORM
+      ln -sf $ANDROID_SRC/out/target/product/tc_hwr/system.img $DEPLOY_DIR/$PLATFORM
+      ln -sf $ANDROID_SRC/out/target/product/tc_hwr/userdata.img $DEPLOY_DIR/$PLATFORM
+
+      if [[ $AVB == "true" ]]; then
+          ln -sf $ANDROID_SRC/out/target/product/tc_hwr/boot.img $DEPLOY_DIR/$PLATFORM
+          ln -sf $ANDROID_SRC/out/target/product/tc_hwr/vbmeta.img $DEPLOY_DIR/$PLATFORM
+      fi
     fi
-
 }
 
 do_clean() {
