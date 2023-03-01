@@ -1,1 +1,0 @@
-/assign_reviewer @Vishnu.Banavath @Ben.Horgan @Tintu.Thomas @Davidson.Kumaresan @Rupinderjit.Singh @QuocKhanh.Le @Annam.SaiManisha @Waleed.Elmelegy
