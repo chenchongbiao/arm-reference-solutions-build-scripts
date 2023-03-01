@@ -49,11 +49,12 @@ do_build() {
     $CMAKE "${makeopts[@]}"
     # Check for any missing dependencies with external components.
     # These are only available after the build command downloads external components.
-    pip3 freeze -r $RSS_OUTDIR/build/lib/ext/mbedcrypto-src/scripts/driver.requirements.txt > $RSS_OUTDIR/pip_freeze.txt 2>&1
-    if [[ $(grep "not installed" $RSS_OUTDIR/pip_freeze.txt) ]]; then
-	    warn_echo $(grep "not installed" $RSS_OUTDIR/pip_freeze.txt)
+    pip3 freeze -r $RSS_OUTDIR_TRUSTY/build/lib/ext/mbedcrypto-src/scripts/driver.requirements.txt > $RSS_OUTDIR_TRUSTY/pip_freeze.txt 2>&1
+    if [[ $(grep "not installed" $RSS_OUTDIR_TRUSTY/pip_freeze.txt) ]]; then
+	    warn_echo $(grep "not installed" $RSS_OUTDIR_TRUSTY/pip_freeze.txt)
 	    die "Python dependencies are not installed. Add missing dependencies to the setup file"
     fi
+    $CMAKE --build "$RSS_OUTDIR_TRUSTY/build" -- install
 }
 
 do_clean() {
