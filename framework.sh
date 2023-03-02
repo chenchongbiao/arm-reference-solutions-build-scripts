@@ -149,7 +149,7 @@ for cmd in "${CMD[@]}" ; do
         if [[ "$1" == "build" || "$1" == "with_reqs" ]];then
             info_echo "Building Dependencies"
             export SRC="$(basename $0)"
-            "$(dirname ${BASH_SOURCE[0]})/build-scripts/requisites.sh"
+            "$SCRIPT_DIR/requisites.sh"
         fi
     fi
     deactivate

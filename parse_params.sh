@@ -17,7 +17,7 @@ AVB_DEFAULT=false
 
 readonly CMD_DEFAULT=( "build" )
 CMD_OPTIONS=("build" "patch" "clean" "deploy" "with_reqs")
-if [[ $0 == "./build-all.sh" ]]; then
+if [[ $(basename $0) == "build-all.sh" ]]; then
     CMD_OPTIONS=("build" "package" "clean" "all" "deploy")
 fi
 
