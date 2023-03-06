@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-# Copyright (c) 2022-2023, Arm Limited. All rights reserved.
+# Copyright (c) 2023, Arm Limited. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -28,30 +28,44 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-do_build() {
-    info_echo "Building Buildroot"
-    install -D $BUILDROOT_CFG/S09modload $BUILDROOT_ROOTFS_OVERLAY/etc/init.d/S09modload
-    install -D $BUILDROOT_CFG/sshd_config $BUILDROOT_ROOTFS_OVERLAY/etc/ssh/sshd_config
-    install -D $BUILDROOT_CFG/testing_mpam.sh $BUILDROOT_ROOTFS_OVERLAY/bin/testing_mpam.sh
-    mkdir -p $BUILDROOT_OUT
-    pushd $BUILDROOT_SRC
-    make O=$BUILDROOT_OUT defconfig BR2_DEFCONFIG=$BUILDROOT_CFG/defconfig
-    # The environment variable AARCH64_LINUX is used in the defconfig to locate the compiler
-    AARCH64_LINUX="$AARCH64_LINUX" make O=$BUILDROOT_OUT all
-    popd
-}
+echo "Testing the number of partitions supported.  It should be 0-63"
+if [ -d "/sys/fs/mpam/partitions/63" ] && ! [ -d "/sys/fs/mpam/partitions/64" ];
+then
+	echo -e "Pass\n"
+else
+	echo -e "Fail\n"
+fi
 
-do_clean() {
-    info_echo "Cleaning Buildroot"
-    rm -rf $BUILDROOT_OUT
-    rm -f $BUILDROOT_ROOTFS_OVERLAY/etc/init.d/S09modload
-    rm -f $BUILDROOT_ROOTFS_OVERLAY/etc/ssh/sshd_config
-    rm -f $BUILDROOT_ROOTFS_OVERLAY/bin/testing_mpam.sh
-}
+echo "Partition 0 is the default partition to which all tasks will be assigned.  Checking if task 5 is assigned to partition 0"
+if grep -Fxq "5" /sys/fs/mpam/partitions/0/tasks
+then
+    echo -e "Pass\n"
+else
+    echo -e "Fail\n"
+fi
 
-do_deploy() {
-    # Create FIT Image
-    $UBOOT_OUTDIR/tools/mkimage -f $BUILDROOT_CFG/fit-image.its $DEPLOY_DIR/$PLATFORM/tc-fitImage.bin
-}
+echo "Testing the number of bits required to set the cache portion bitmap. It should be 8"
+if grep -Fxq "8" /sys/devices/platform/100010000.msc0/mpam/cpbm_nbits
+then
+    echo -e "Pass\n"
+else
+    echo -e "Fail\n"
+fi
 
-source "$(dirname ${BASH_SOURCE[0]})/framework.sh"
+echo "Testing the default cpbm configured in the DSU for all the partitions.  It should be 0-7 for all the partitions"
+if grep -Fxq "0-7" /sys/devices/platform/100010000.msc0/mpam/partitions/0/cpbm
+then
+    echo -e "Pass\n"
+else
+    echo -e "Fail\n"
+fi
+
+echo "Setting the cpbm 4-5 (00110000) in DSU for partition 45 and reading it back"
+echo 4-5 > /sys/devices/platform/100010000.msc0/mpam/partitions/45/cpbm
+
+if grep -Fxq "4-5" /sys/devices/platform/100010000.msc0/mpam/partitions/45/cpbm
+then
+    echo -e "Pass\n"
+else
+    echo -e "Fail\n"
+fi
