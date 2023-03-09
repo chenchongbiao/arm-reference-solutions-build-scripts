@@ -63,7 +63,7 @@ else
     #Start docker container
     echo -e "${BLUE}INFO: ENTERING DOCKER CONTAINER ${NC}"
 
-    docker run --rm --mount type=bind,source=$WORK_DIR,target=$WORK_DIR \
+    docker run --rm --net=host --mount type=bind,source=$WORK_DIR,target=$WORK_DIR \
     $env_opts \
     --workdir /$SCRIPT_DIR \
     --user $(id -u):$(id -g) -it $DOCKER_REGISTRY/$DOCKER_IMAGE:$TAG $PWD/$@
