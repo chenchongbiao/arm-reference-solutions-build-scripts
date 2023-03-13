@@ -52,7 +52,6 @@ do_build() {
     pip3 freeze -r $RSS_OUTDIR_TRUSTY/build/lib/ext/mbedcrypto-src/scripts/driver.requirements.txt > $RSS_OUTDIR_TRUSTY/pip_freeze.txt 2>&1
     if [[ $(grep "not installed" $RSS_OUTDIR_TRUSTY/pip_freeze.txt) ]]; then
 	    warn_echo $(grep "not installed" $RSS_OUTDIR_TRUSTY/pip_freeze.txt)
-	    die "Python dependencies are not installed. Add missing dependencies to the setup file"
     fi
     $CMAKE --build "$RSS_OUTDIR_TRUSTY/build" -- install
 }

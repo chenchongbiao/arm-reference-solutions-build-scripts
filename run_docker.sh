@@ -74,6 +74,7 @@ else
                -e PLATFORM=$PLATFORM \
                -e FILESYSTEM=$FILESYSTEM \
                -e AVB=$AVB \
+               -e TC_GPU=$TC_GPU \
 	       -e TC_TARGET_FLAVOR=$TC_TARGET_FLAVOR"
 
     if [ $PARALLELISM ];then

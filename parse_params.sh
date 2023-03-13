@@ -6,8 +6,8 @@
 
 readonly FILESYSTEM_OPTIONS=(
     "buildroot"
-    "android-swr"
-    "android-hwr"
+    "android-fvp"
+    "android-fpga"
 )
 
 readonly PLATFORM_OPTIONS=(
@@ -17,6 +17,11 @@ readonly PLATFORM_OPTIONS=(
 readonly TC_TARGET_FLAVOR_OPTIONS=(
     "fvp"
     "fpga"
+)
+
+readonly TC_GPU_OPTIONS=(
+    "true"
+    "false"
 )
 
 AVB_DEFAULT=false
@@ -31,11 +36,17 @@ fi
 
 print_usage() {
     echo -e "${BOLD}Usage:"
-    echo -e "    $0 ${CYAN}-f FILESYSTEM [-p PLATFORM] [-t TC_TARGET_FLAVOR] [CMD...]$NORMAL"
+    echo -e "    $0 ${CYAN}-f FILESYSTEM [-p PLATFORM] [-t TC_TARGET_FLAVOR] -g [TC_GPU] [CMD...]$NORMAL"
     echo
     echo "FILESYSTEM:"
     local s
     for s in "${FILESYSTEM_OPTIONS[@]}" ; do
+        echo "    $s"
+    done
+    echo
+    echo "TC_GPU:"
+    local s
+    for s in "${TC_GPU_OPTIONS[@]}" ; do
         echo "    $s"
     done
     echo
@@ -73,7 +84,7 @@ if [[ -z "${TC_TARGET_FLAVOR:-}" ]] ; then
 fi
 
 CMD=( "${CMD_DEFAULT[@]}" )
-while getopts "p:f:a:t:h" opt; do
+while getopts "p:f:a:t:g:h" opt; do
     case $opt in
     ("p")
         PLATFORM="$OPTARG"
@@ -86,6 +97,9 @@ while getopts "p:f:a:t:h" opt; do
         ;;
     ("t")
         TC_TARGET_FLAVOR="$OPTARG"
+	;;
+    ("g")
+        TC_GPU="$OPTARG"
 	;;
     ("?")
         print_usage >&2
@@ -127,6 +141,16 @@ fi
 in_haystack "$TC_TARGET_FLAVOR" "${TC_TARGET_FLAVOR_OPTIONS[@]}" ||
     die "invalid TC_TARGET_FLAVOR: $TC_TARGET_FLAVOR"
 readonly TC_TARGET_FLAVOR
+
+if [[ -z "${TC_GPU:-}" ]] ; then
+    echo "ERROR: Mandatory -g TC_GPU not given!" >&2
+    echo "" >&2
+    print_usage >&2
+    exit 1
+fi
+in_haystack "$TC_GPU" "${TC_GPU_OPTIONS[@]}" ||
+    die "invalid TC_GPU: $TC_GPU"
+readonly TC_GPU
 
 if [[ -z "${AVB:-}" ]] ; then
     AVB=$AVB_DEFAULT

@@ -88,6 +88,8 @@ SYSTEM_IMG=${SYSTEM_IMG:-system.img}
 SYSTEM_SIZE=$(size_in_mb ${SYSTEM_IMG})
 USERDATA_IMG=${USERDATA_IMG:-userdata.img}
 USERDATA_SIZE=$(size_in_mb ${USERDATA_IMG})
+VENDOR_IMG=${VENDOR_IMG:-vendor.img}
+VENDOR_SIZE=$(size_in_mb ${VENDOR_IMG})
 
 if [ "$AVB" == true ]
 then
@@ -100,6 +102,7 @@ then
 else
 	IMAGE_LEN=$((SYSTEM_SIZE + USERDATA_SIZE + 2 ))
 fi
+
 
 # measured in MBytes
 PART1_START=1
@@ -126,10 +129,22 @@ $PARTED $IMG unit s mktable gpt
 SEC_PER_MB=$((1024*2))
 $PARTED $IMG unit s mkpart system ext4 $((PART1_START * SEC_PER_MB)) $((PART1_END * SEC_PER_MB - 1))
 $PARTED $IMG unit s mkpart data ext4 $((PART2_START * SEC_PER_MB)) $((PART2_END * SEC_PER_MB - 1))
+
 if [ "$AVB" == true ]
 then
 	$PARTED $IMG unit s mkpart vbmeta ext4 $((PART3_START * SEC_PER_MB)) $((PART3_END * SEC_PER_MB - 1))
 	$PARTED $IMG unit s mkpart boot ext4 $((PART4_START * SEC_PER_MB)) $((PART4_END * SEC_PER_MB - 1))
+fi
+
+if [ "$TC_GPU" == true ]; then
+    if [ "$AVB" == true ]; then
+        PART5_START=${PART4_END}
+    else
+        PART5_START=${PART2_END}
+    fi
+    PART5_END=$((PART5_START + VENDOR_SIZE))
+    IMAGE_LEN=$(($IMAGE_LEN + VENDOR_SIZE))
+    $PARTED $IMG unit s mkpart vendor ext4 $((PART5_START * SEC_PER_MB)) $((PART5_END * SEC_PER_MB - 1))
 fi
 
 # Assemble all the images into one final image
@@ -140,5 +155,7 @@ then
 	dd if=$VBMETA_IMG of=$IMG bs=1M seek=${PART3_START} conv=notrunc
 	dd if=$BOOT_IMG of=$IMG bs=1M seek=${PART4_START} conv=notrunc
 fi
-
+if [ "$TC_GPU" == true ]; then
+    dd if=$VENDOR_IMG of=$IMG bs=1M seek=${PART5_START} conv=notrunc
+fi
 popd

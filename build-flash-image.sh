@@ -190,7 +190,7 @@ do_deploy() {
     fi
 
     RSS_SIGN_AP_BL1_NAME=$RSS_SIGN_AP_BL1_NAME_BUILDROOT
-    if [[ $FILESYSTEM == "android-swr" ]]; then
+    if [[ $FILESYSTEM == "android-fvp" ]]; then
         RSS_SIGN_AP_BL1_NAME=$RSS_SIGN_AP_BL1_NAME_ANDROID
     fi
 

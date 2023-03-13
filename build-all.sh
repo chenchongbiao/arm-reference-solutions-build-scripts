@@ -49,7 +49,7 @@ fi
     local script
     for script in "${scripts[@]}" ; do
         echo "Executing command $@ for $script..."
-        "$SCRIPT_DIR/$script" -f "$FILESYSTEM" -p "$PLATFORM" -t "$TC_TARGET_FLAVOR" "$@" || exit 1
+        "$SCRIPT_DIR/$script" -f "$FILESYSTEM" -p "$PLATFORM" -t "$TC_TARGET_FLAVOR"  -g $TC_GPU "$@" || exit 1
     done
 }
 

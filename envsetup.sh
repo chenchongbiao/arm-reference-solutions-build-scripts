@@ -89,6 +89,14 @@ fi
 
 popd
 
+# armclang (A copy of armclang after install Arm DS)
+pushd $SCRIPT_DIR/../tools/
+TC_ARMCLANG=$SCRIPT_DIR/../tools/armclang/bin/armclang
+if [ ! -f $TC_ARMCLANG ]; then
+	git clone ssh://gerrit.oss.arm.com/tc/armclang.git
+fi
+popd
+
 # OpenSSL 3.0 (needed by TF-A)
 OPENSSL_DIR=$SCRIPT_DIR/../tools/openssl
 
@@ -128,6 +136,7 @@ pip3 install --upgrade pip
 
 # U-Boot requirements
 pip3 install pyelftools
+pip3 install ply
 
 # RSS requirements
 pushd $SCRIPT_DIR/../src/rss

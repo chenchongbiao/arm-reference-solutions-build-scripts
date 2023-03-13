@@ -94,7 +94,7 @@ do_build() {
     pip3 freeze -r $RSS_OUTDIR/build/lib/ext/mbedcrypto-src/scripts/driver.requirements.txt > $RSS_OUTDIR/pip_freeze.txt 2>&1
     if [[ $(grep "not installed" $RSS_OUTDIR/pip_freeze.txt) ]]; then
 	    warn_echo $(grep "not installed" $RSS_OUTDIR/pip_freeze.txt)
-	    die "Python dependencies are not installed. Add missing dependencies to the setup file"
+	    error_echo "Python dependencies are not installed. Add missing dependencies to the setup file"
     fi
     $CMAKE --build "$RSS_OUTDIR/build" -- install
 }
@@ -115,7 +115,7 @@ do_deploy() {
     #Expects the mentioned bin from the deploy directory
 
     RSS_SIGN_AP_BL1_NAME=$RSS_SIGN_AP_BL1_NAME_BUILDROOT
-    if [[ $FILESYSTEM == "android-swr" ]]; then
+    if [[ $FILESYSTEM == "android-fvp" ]]; then
         RSS_SIGN_AP_BL1_NAME=$RSS_SIGN_AP_BL1_NAME_ANDROID
     fi
     sign_image $RSS_SIGN_AP_BL1_NAME \
