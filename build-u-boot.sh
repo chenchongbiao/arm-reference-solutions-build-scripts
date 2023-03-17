@@ -45,8 +45,9 @@ do_build() {
         for cfg in $EXTRA_CFG; do
             CONFIG=$CONFIG"$CFG_DIR/$cfg "
         done
-        $LINUX_SRC/scripts/kconfig/merge_config.sh -m -O ./ .config $CONFIG
     fi
+    CONFIG=$CONFIG"$CFG_DIR/$TC_TARGET_FLAVOR.cfg "
+    $UBOOT_SRC/scripts/kconfig/merge_config.sh -m -O ./ .config $CONFIG
     popd
 
     pushd $UBOOT_SRC

@@ -1,4 +1,4 @@
-From 6d26058401bce6012173b5341cdf4de72772a1c2 Mon Sep 17 00:00:00 2001
+From 7f9bab0d0428d74d11956a6d7a1eebdca925a91e Mon Sep 17 00:00:00 2001
 From: Davidson K <davidson.kumaresan@arm.com>
 Date: Mon, 6 Jun 2022 13:19:07 +0530
 Subject: [PATCH 5/7] efi_firmware: add new fmp driver that supports arm fwu
@@ -21,8 +21,8 @@ Upstream-Status: Pending [Not submitted to upstream yet]
  lib/efi_loader/Makefile               |   1 +
  lib/efi_loader/efi_capsule.c          |   8 +
  lib/efi_loader/efi_firmware.c         | 134 +++++++
- lib/efi_loader/efi_firmware_arm_psa.c | 520 ++++++++++++++++++++++++++
- 7 files changed, 891 insertions(+)
+ lib/efi_loader/efi_firmware_arm_psa.c | 519 ++++++++++++++++++++++++++
+ 7 files changed, 890 insertions(+)
  create mode 100644 include/efi_firmware_arm_psa.h
  create mode 100644 lib/efi_loader/efi_firmware_arm_psa.c
 
@@ -464,17 +464,16 @@ index a5ff32f121..3356559af8 100644
 +#endif /* CONFIG_EFI_CAPSULE_FIRMWARE_ARM_PSA */
 diff --git a/lib/efi_loader/efi_firmware_arm_psa.c b/lib/efi_loader/efi_firmware_arm_psa.c
 new file mode 100644
-index 0000000000..ab575f0124
+index 0000000000..fab2e96b53
 --- /dev/null
 +++ b/lib/efi_loader/efi_firmware_arm_psa.c
-@@ -0,0 +1,520 @@
+@@ -0,0 +1,519 @@
 +/* SPDX-License-Identifier: GPL-2.0+ */
 +/*
 + * Copyright (C) 2022 Arm Limited
 + */
 +
 +#include <arm_ffa_helper.h>
-+#include <configs/total_compute.h>
 +#include <efi_firmware_arm_psa.h>
 +#include <efi_loader.h>
 +#include <malloc.h>

@@ -1,0 +1,209 @@
+From 91668a539ced78ed4f5550afe9e1d10235ff28f2 Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Fri, 17 Mar 2023 15:07:17 +0530
+Subject: [PATCH] arm: total_compute: create different product type for fvp and
+ fpga
+
+There are minor changes between total compute fpga and fvp platforms
+and hence different target types are created to select the appropriate
+configs
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+---
+ arch/arm/Kconfig                              | 13 +++-
+ arch/arm/dts/Makefile                         |  3 +-
+ board/armltd/total_compute/Kconfig            | 15 +++-
+ configs/total_compute_defconfig               |  1 -
+ include/configs/total_compute_fpga.h          | 69 +++++++++++++++++++
+ .../{total_compute.h => total_compute_fvp.h}  | 10 +--
+ 6 files changed, 101 insertions(+), 10 deletions(-)
+ create mode 100644 include/configs/total_compute_fpga.h
+ rename include/configs/{total_compute.h => total_compute_fvp.h} (90%)
+
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 4567c183fb..9b8291faa8 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -1266,8 +1266,17 @@ config TARGET_VEXPRESS64_JUNO
+ 	select USB
+ 	imply OF_HAS_PRIOR_STAGE
+ 
+-config TARGET_TOTAL_COMPUTE
+-	bool "Support Total Compute Platform"
++config TARGET_TOTAL_COMPUTE_FVP
++	bool "Support Total Compute FVP Platform"
++	select ARM64
++	select PL01X_SERIAL
++	select DM
++	select DM_SERIAL
++	select DM_MMC
++	select DM_GPIO
++
++config TARGET_TOTAL_COMPUTE_FPGA
++	bool "Support Total Compute FPGA Platform"
+ 	select ARM64
+ 	select PL01X_SERIAL
+ 	select DM
+diff --git a/arch/arm/dts/Makefile b/arch/arm/dts/Makefile
+index 644ba961a2..ebf76f66f0 100644
+--- a/arch/arm/dts/Makefile
++++ b/arch/arm/dts/Makefile
+@@ -1183,7 +1183,8 @@ dtb-$(CONFIG_TARGET_MX53PPD) += imx53-ppd.dtb
+ dtb-$(CONFIG_TARGET_VEXPRESS_CA9X4) += vexpress-v2p-ca9.dtb
+ dtb-$(CONFIG_TARGET_VEXPRESS64_JUNO) += juno-r2.dtb
+ 
+-dtb-$(CONFIG_TARGET_TOTAL_COMPUTE) += total_compute.dtb
++dtb-$(CONFIG_TARGET_TOTAL_COMPUTE_FVP) += total_compute.dtb
++dtb-$(CONFIG_TARGET_TOTAL_COMPUTE_FPGA) += total_compute.dtb
+ 
+ dtb-$(CONFIG_TARGET_DURIAN) += phytium-durian.dtb
+ 
+diff --git a/board/armltd/total_compute/Kconfig b/board/armltd/total_compute/Kconfig
+index 62e6e6f4ac..f3373500ce 100644
+--- a/board/armltd/total_compute/Kconfig
++++ b/board/armltd/total_compute/Kconfig
+@@ -1,4 +1,4 @@
+-if TARGET_TOTAL_COMPUTE
++if TARGET_TOTAL_COMPUTE_FVP
+ 
+ config SYS_BOARD
+ 	default "total_compute"
+@@ -7,6 +7,19 @@ config SYS_VENDOR
+ 	default "armltd"
+ 
+ config SYS_CONFIG_NAME
++	default "total_compute_fvp"
++
++endif
++
++if TARGET_TOTAL_COMPUTE_FPGA
++
++config SYS_BOARD
+ 	default "total_compute"
+ 
++config SYS_VENDOR
++	default "armltd"
++
++config SYS_CONFIG_NAME
++	default "total_compute_fpga"
++
+ endif
+diff --git a/configs/total_compute_defconfig b/configs/total_compute_defconfig
+index 531ce41cd3..2a3214516b 100644
+--- a/configs/total_compute_defconfig
++++ b/configs/total_compute_defconfig
+@@ -1,5 +1,4 @@
+ CONFIG_ARM=y
+-CONFIG_TARGET_TOTAL_COMPUTE=y
+ CONFIG_SYS_TEXT_BASE=0xe0000000
+ CONFIG_SYS_MALLOC_LEN=0x3200000
+ CONFIG_SYS_MALLOC_F_LEN=0x2000
+diff --git a/include/configs/total_compute_fpga.h b/include/configs/total_compute_fpga.h
+new file mode 100644
+index 0000000000..ec4ac93378
+--- /dev/null
++++ b/include/configs/total_compute_fpga.h
+@@ -0,0 +1,69 @@
++/* SPDX-License-Identifier: GPL-2.0+ */
++/*
++ * Configuration for Total Compute FPGA platform. Parts were derived from other
++ * ARM configurations.
++ * (C) Copyright 2020-2023 Arm Limited
++ * Usama Arif <usama.arif@arm.com>
++ */
++
++#ifndef __TOTAL_COMPUTE_FPGA_H
++#define __TOTAL_COMPUTE_FPGA_H
++
++/* Link Definitions */
++#define CONFIG_SYS_INIT_SP_ADDR	(CONFIG_SYS_SDRAM_BASE + 0x7fff0)
++
++#define CONFIG_SYS_BOOTM_LEN	(64 << 20)
++
++/* CSS non-secure UART base address */
++#define UART0_BASE		0x2A400000
++
++/* PL011 Serial Configuration */
++#define CONFIG_PL011_CLOCK	5000000
++
++/* Miscellaneous configurable options */
++
++/* Physical Memory Map */
++#define PHYS_SDRAM_1		0x80000000
++/* Top 112MB reserved for secure world use */
++#define DRAM_SEC_SIZE		0x03000000
++#define PHYS_SDRAM_1_SIZE	0x80000000 - DRAM_SEC_SIZE
++#define CONFIG_SYS_SDRAM_BASE	PHYS_SDRAM_1
++
++#define MTE_TC_SIZE    0x10000000 // 256 MB
++
++#define PHYS_SDRAM_2		0x8080000000
++#define PHYS_SDRAM_2_SIZE      0x180000000 - MTE_TC_SIZE
++
++#define CONFIG_SYS_MMC_MAX_BLK_COUNT		127
++
++#define CONFIG_EXTRA_ENV_SETTINGS	\
++				"bootm_size=0x20000000\0"	\
++				"load_addr=0xa0000000\0"	\
++				"kernel_addr_r=0x80200000\0"	\
++				"initrd_addr_r=0x88000000\0"	\
++				"fdt_addr_r=0x83000000\0"
++/*
++ * If vbmeta partition is present, boot Android with verification using AVB.
++ * Else if system partition is present (no vbmeta partition), boot Android
++ * without verification (for development purposes).
++ * Else boot FIT image.
++ */
++
++/* Monitor Command Prompt */
++#define CONFIG_SYS_CBSIZE		512	/* Console I/O Buffer Size */
++#define CONFIG_SYS_MAXARGS		64	/* max command args */
++
++#define CONFIG_SYS_FLASH_BASE		0x0C000000
++/* 256 x 256KiB sectors */
++#define CONFIG_SYS_MAX_FLASH_SECT	256
++
++#define CONFIG_SYS_FLASH_CFI_WIDTH	FLASH_CFI_32BIT
++
++#define CONFIG_SYS_FLASH_EMPTY_INFO	/* flinfo indicates empty blocks */
++#define FLASH_MAX_SECTOR_SIZE		0x00040000
++
++/* Shared buffer used for communication between u-boot and the FWU SP */
++#define FFA_SHARED_MM_BUFFER_SIZE	4 * 1024 * 1024 /* 4 MB */
++#define FFA_SHARED_MM_BUFFER_ADDR	(0xFCA00000)
++
++#endif /* __TOTAL_COMPUTE_FPGA_H */
+diff --git a/include/configs/total_compute.h b/include/configs/total_compute_fvp.h
+similarity index 90%
+rename from include/configs/total_compute.h
+rename to include/configs/total_compute_fvp.h
+index c2afedcc02..92292a4b39 100644
+--- a/include/configs/total_compute.h
++++ b/include/configs/total_compute_fvp.h
+@@ -1,13 +1,13 @@
+ /* SPDX-License-Identifier: GPL-2.0+ */
+ /*
+- * Configuration for Total Compute platform. Parts were derived from other ARM
+- * configurations.
++ * Configuration for Total Compute FVP platform. Parts were derived from other
++ * ARM configurations.
+  * (C) Copyright 2020-2023 Arm Limited
+  * Usama Arif <usama.arif@arm.com>
+  */
+ 
+-#ifndef __TOTAL_COMPUTE_H
+-#define __TOTAL_COMPUTE_H
++#ifndef __TOTAL_COMPUTE_FVP_H
++#define __TOTAL_COMPUTE_FVP_H
+ 
+ /* Link Definitions */
+ #define CONFIG_SYS_INIT_SP_ADDR	(CONFIG_SYS_SDRAM_BASE + 0x7fff0)
+@@ -64,4 +64,4 @@
+ #define FFA_SHARED_MM_BUFFER_SIZE	4 * 1024 * 1024 /* 4 MB */
+ #define FFA_SHARED_MM_BUFFER_ADDR	(0xFCA00000)
+ 
+-#endif /* __TOTAL_COMPUTE_H */
++#endif /* __TOTAL_COMPUTE_FVP_H */
+-- 
+2.34.1
+
