@@ -1,0 +1,61 @@
+From b91a2fac4533e831368e3271e5d5f7a0118c5a33 Mon Sep 17 00:00:00 2001
+From: annsai01 <annam.saimanisha@arm.com>
+Date: Mon, 20 Feb 2023 12:32:54 +0000
+Subject: [PATCH 1/2] plat-totalcompute: Remap console logs
+
+Remapping console logs from soc uart1 (s0 termial) to css secure (uart1_ap terminal)
+
+Change-Id: I5e790dcbe345405cdfaa0f2697d8cba27afb3df4
+Signed-off-by: Annam Sai Manisha <annam.saimanisha@arm.com>
+---
+ core/arch/arm/plat-totalcompute/fdts/optee_sp_manifest.dts | 4 ++--
+ core/arch/arm/plat-totalcompute/platform_config.h          | 6 +++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/core/arch/arm/plat-totalcompute/fdts/optee_sp_manifest.dts b/core/arch/arm/plat-totalcompute/fdts/optee_sp_manifest.dts
+index 3ebbaddc8..51abd7fc9 100644
+--- a/core/arch/arm/plat-totalcompute/fdts/optee_sp_manifest.dts
++++ b/core/arch/arm/plat-totalcompute/fdts/optee_sp_manifest.dts
+@@ -1,6 +1,6 @@
+ // SPDX-License-Identifier: BSD-2-Clause
+ /*
+- * Copyright (c) 2021, Arm Limited. All rights reserved.
++ * Copyright (c) 2021-2023, Arm Limited. All rights reserved.
+  *
+  * This file is a Partition Manifest (PM) for OP-TEE as a Secure Partition (SP)
+  *
+@@ -28,7 +28,7 @@
+ 	device-regions {
+ 		compatible = "arm,ffa-manifest-device-regions";
+ 		uart0 {
+-			base-address = <0x00000000 0x7ff70000>;
++			base-address = <0x00000000 0x2A410000>;
+ 			pages-count = <1>;
+ 			attributes = <0x3>; /* read-write */
+ 		};
+diff --git a/core/arch/arm/plat-totalcompute/platform_config.h b/core/arch/arm/plat-totalcompute/platform_config.h
+index c1091de49..2b34cd0ea 100644
+--- a/core/arch/arm/plat-totalcompute/platform_config.h
++++ b/core/arch/arm/plat-totalcompute/platform_config.h
+@@ -1,6 +1,6 @@
+ /* SPDX-License-Identifier: BSD-2-Clause */
+ /*
+- * Copyright (c) 2021, Arm Limited. All rights reserved.
++ * Copyright (c) 2021-2023, Arm Limited. All rights reserved.
+  */
+ 
+ #ifndef PLATFORM_CONFIG_H
+@@ -20,8 +20,8 @@
+ #define GICC_OFFSET		0x0
+ #endif
+ 
+-#define UART0_BASE		0x7FF70000
+-#define UART1_BASE		0x7FF80000
++#define UART0_BASE		0x2A410000
++#define UART1_BASE		0x2A400000
+ 
+ #define CONSOLE_UART_BASE	UART0_BASE
+ 
+-- 
+2.39.1
+
