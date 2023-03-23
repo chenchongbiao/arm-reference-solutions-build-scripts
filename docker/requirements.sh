@@ -22,6 +22,7 @@ apt-get -y install bc \
                    git-core \
                    git-lfs \
                    glibc-source \
+                   golang \
                    iputils-ping \
                    lib32ncurses5-dev \
                    libatomic1 \

@@ -13,11 +13,6 @@ sudo apt install docker.io
 sudo chmod 777 /var/run/docker.sock
 ```
 
-Login to docker container registry to push an image to the registry
-```sh
-docker login registry.gitlab.arm.com
-```
-
 Setup
 -----
 Setup includes two parts:
@@ -95,17 +90,8 @@ To run all the tests in one go, use run_selftest.sh script. Tests can be run ind
 Run FVP model from docker container
 -----------------------------------
 
-To run FVP model in docker container , either of the steps can be followed
-
-Option1:
-        - Copy the parent model directory into your tc-workspace directory where build-scripts, run-scripts, src are present.
-        - Please provide absolute path to the model binary, relative path doesn't work.
-
-Option2:
-        - Mount the model directory to container by adding "-v <Absolute path to model top directory>:<Absolute path to model top directory> in run_docker.sh
-        - Ex: -v 11.19/:11.19/
-
 To run FVP in docker container export required licenses and run:
 ```sh
+export MODEL_PATH=<Absolute path to model parent directory>
 ./run_docker.sh run_model -m Absolute_path_to_model -d distro_opts
 ```

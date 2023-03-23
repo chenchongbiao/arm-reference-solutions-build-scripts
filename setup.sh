@@ -39,4 +39,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # Setup the environmet to build TC stack
+if [ $? -eq 0 ]; then
 $SCRIPT_DIR/run_docker.sh envsetup.sh
+fi
