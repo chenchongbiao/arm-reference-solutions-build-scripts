@@ -52,11 +52,20 @@ To install the required packages, run:
 
 For Ubuntu 18.04:
 ::
+  
     sudo apt install pylint3 python-pip python
 
 For ubuntu 20.04:
 ::
+
     sudo apt install pylint python
+
+To install and allow access to docker
+::
+
+    sudo apt install docker.io
+    sudo chmod 777 /var/run/docker.sock
+
 
 Syncing and building the source code
 ------------------------------------
@@ -69,42 +78,54 @@ Syncing code
 Create a new folder that will be your workspace, which will henceforth be referred to as ``<tc2_workspace>``
 in these instructions.
 ::
+
     mkdir <tc2_workspace>
     cd <tc2_workspace>
     export TC2_RELEASE=refs/tags/TC2-2022.12.07
 
 To sync BSP only without Android, run the following repo command.
 ::
+
     repo init -u https://gitlab.arm.com/arm-reference-solutions/arm-reference-solutions-manifest -m tc2.xml -b ${TC2_RELEASE} -g bsp
     repo sync -j `nproc` --fetch-submodules
 
 To sync both the BSP and Android, run the following repo command.
 ::
+
     repo init -u https://gitlab.arm.com/arm-reference-solutions/arm-reference-solutions-manifest -m tc2.xml -b ${TC2_RELEASE} -g android
     repo sync -j `nproc` --fetch-submodules
 
 The resulting files will have the following structure:
-- build-scripts/: the components build scripts
-- run-scripts/: scripts to run the FVP
-- src/: each component's git repository
+ - build-scripts/: the components build scripts
+ - run-scripts/: scripts to run the FVP
+ - src/: each component's git repository
 
 Initial Setup
 #############
 
 NOTE: python cryptography module is needed, but might be already installed as an apt package in an older version. If this is the case, run
 ::
+
     sudo apt remove python3-cryptography
 
-To patch the components and install the toolchains and build tools, navigate to
-the build-scripts directory, then run:
+Setup includes two parts:
+ 1. Setup a Docker image
+ 2. Setup the environmet to build TC images
+
+Setting up a docker image involves pulling the prebuilt docker image from a docker registry. If that fails, it will build a local docker image.
+
+To setup a docker image, patch the components, install the toolchains and build tools, run:
+
 For buildroot build:
 ::
+
     export PLATFORM=tc2
     export FILESYSTEM=buildroot
     ./setup.sh
 
 For an Android build:
 ::
+
     export PLATFORM=tc2
     export FILESYSTEM=android-swr
     ./setup.sh
@@ -113,6 +134,7 @@ The various tools will be installed in the tools/ directory at the root of the w
 
 To build Android with AVB (Android Verified Boot) enabled, run:
 ::
+
     export AVB=true
 
 NOTES:
@@ -126,7 +148,8 @@ Board Support Package build
 
 To build the whole stack, simply run:
 ::
-    ./build-all.sh build
+
+    ./run_docker.sh ./build-all.sh build
 
 Build files are stored in build-scripts/output/tmp_build/, final images will be placed in build-script/output/deploy/.
 
@@ -138,16 +161,28 @@ All scripts support the ``build``, ``clean``, ``deploy``, ``patch`` commands. ``
 
 For example, to build, deploy, and clean SCP, run
 ::
-    ./build-scp.sh build
-    ./build-scp.sh deploy
-    ./build-scp.sh clean
+
+    ./run_docker.sh ./build-scp.sh build
+    ./run_docker.sh ./build-scp.sh deploy
+    ./run_docker.sh ./build-scp.sh clean
 
 The platform and filesystem used should be defined as described previously, but they can also be specified like so:
 ::
-    ./build-all -p $PLATFORM -f $FILESYSTEM build
+
+    ./run_docker.sh ./build-all -p $PLATFORM -f $FILESYSTEM build
+
+Build Components and its dependencies
+-------------------------------------
+
+A new dependency to a component can be added in the form of ``$component=$dependency`` in dependencies.txt file
+
+To build a component and rebuild those components that depend on it
+::
+
+    ./run_docker.sh ./$filename build with_reqs
 
 Additionally, Android Verified Boot (AVB) can be enabled with the ``-a`` option.
-Those options work for all the build-*.sh scripts.
+Those options work for all the ``build-*.sh`` scripts.
 
 Android OS build
 #################
@@ -166,13 +201,14 @@ Note
 
 If you encounter the below build error,
 ::
+
     -- Check for working CXX compiler: /usr/bin/aarch64-linux-gnu-gcc - broken
     -- Configuring incomplete, errors occurred!
 
 remove the installed cross compiler
 ::
-    sudo apt-get remove gcc-aarch64-linux-gnu
 
+    sudo apt-get remove gcc-aarch64-linux-gnu
 
 Provided components
 -------------------
@@ -280,7 +316,7 @@ Distributions
 #############
 
 Buildroot Linux distro
-*****************
+**********************
 
 The layer is based on the `buildroot <https://github.com/buildroot/buildroot/>`__ Linux distribution.
 The provided distribution is based on BusyBox and built using glibc.
@@ -363,13 +399,24 @@ Running Buildroot
 Running Android
 ###############
 
+For running android with AVB disabled:
+::
+ 
+     ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-swr
+ 
+For running android with AVB enabled:
 ::
 
-       For running android with AVB disabled:
-        ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-swr
+     ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-swr -a true
+ 
+Run FVP model from docker container
+###################################
 
-       For running android with AVB enabled:
-        ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-swr -a true
+To run FVP in docker container export required licenses and run:
+::
+
+    export MODEL_PATH=<Absolute path to model parent directory>
+    ./run_docker.sh run_model -m Absolute_path_to_model -d distro_opts
 
 When the script is run, three terminal instances will be launched.
 terminal_uart_ap used for TF-M firmware logs, terminal_s0 used for the SCP,
@@ -439,6 +486,20 @@ Switch between SCP and AP
 #. Under ``Connection``, select ``Cortex-M3`` for SCP and ``Arm-Hayes_x/Arm-Hunter_x`` for AP core x and then debug
 
 .. figure:: Switch_Cores.png
+
+Kernel Selftest
+###############
+
+Test are located at /usr/bin/selftest on device
+
+To run all the tests in one go, use run_selftest.sh script. Tests can be run individually also.
+::
+
+    ./run_kselftest --summary
+
+NOTE:
+
+KSM driver is not a part of TC2 kernel. Hence, one of the MTE Kselftests fail for check_ksm_options test.
 
 Building the Mali GPU DDK
 #########################
@@ -564,4 +625,4 @@ During the normal boot of the platform, stop at the U-Boot prompt and execute th
 This will update the firmware. After it is completed, reboot the platform using the FVP GUI
 
 
-*Copyright (c) 2022, Arm Limited. All rights reserved.*
+*Copyright (c) 2023, Arm Limited. All rights reserved.*

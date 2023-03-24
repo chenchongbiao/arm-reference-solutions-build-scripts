@@ -14,5 +14,5 @@ Total Compute : TC2
    change-log
    readme
    release_notes
-   tc0_sw_stack
+   tc2_sw_stack
    user-guide

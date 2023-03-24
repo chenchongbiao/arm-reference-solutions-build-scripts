@@ -10,6 +10,8 @@ Total Compute focuses on optimizing Performance, Security, and Developer Access 
 TC2 release tags
 ================
 
+`LATEST <http://totalcompute.rtd.oss.arm.com/en/latest/totalcompute/tc2/readme.html>`_
+
 `TC2-2022.12.07 <https://arm-reference-solutions-docs.readthedocs.io/en/tc2-2022.12.07/docs/totalcompute/tc2/readme.html>`_
 
 `TC2-2022.08.12 <https://arm-reference-solutions-docs.readthedocs.io/en/tc2-2022.08.12/docs/totalcompute/tc2/readme.html>`_

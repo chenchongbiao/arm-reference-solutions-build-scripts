@@ -17,8 +17,8 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'Arm reference solutions'
-copyright = '2020-2022, Arm'
+project = 'Total Compute'
+copyright = '2020-2023, Arm'
 author = 'Arm Limited'
 
 
