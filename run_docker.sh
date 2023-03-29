@@ -31,7 +31,7 @@ pull_img()
 }
 build_img()
 {
-  docker build --no-cache --build-arg version=$TAG -t $DOCKER_REGISTRY/$DOCKER_IMAGE:$TAG docker/ && return 0
+  docker build --network=host --no-cache --build-arg version=$TAG -t $DOCKER_REGISTRY/$DOCKER_IMAGE:$TAG docker/ && return 0
   echo -e "${RED}ERROR:Docker local build failed ${NC}"
   exit 1
 }
