@@ -1,0 +1,876 @@
+From fbab1aba2938787f1722c3ce37f7f2af28c9d960 Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Wed, 12 Apr 2023 17:22:57 +0530
+Subject: [PATCH] Add Total compute FPGA support
+
+Add Total Compute FPGA support including adding new
+Device tree file that includes GPU supoort, different
+BAUD rates for FPGA and other addresses and memory sizes
+specific to FPGA.
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+---
+ fdts/tc_fpga.dts                              | 445 ++++++++++++++++++
+ include/arch/aarch64/arch_features.h          |   4 +
+ include/plat/arm/board/common/board_css_def.h |   4 +
+ include/plat/arm/board/common/v2m_def.h       |   5 +
+ include/plat/arm/common/arm_def.h             |   4 +
+ include/plat/arm/css/common/css_def.h         |  13 +
+ include/plat/arm/soc/common/soc_css.h         |   3 +
+ include/plat/arm/soc/common/soc_css_def.h     |  10 +
+ plat/arm/board/tc/include/platform_def.h      |   8 +-
+ plat/arm/board/tc/platform.mk                 |  38 +-
+ plat/arm/board/tc/tc_bl31_setup.c             |   4 +
+ plat/arm/board/tc/tc_plat.c                   |   5 +
+ plat/arm/board/tc/tc_security.c               |   4 +
+ plat/arm/common/arm_common.c                  |   5 +
+ plat/arm/common/arm_nor_psci_mem_protect.c    |   9 +
+ 15 files changed, 546 insertions(+), 15 deletions(-)
+ create mode 100644 fdts/tc_fpga.dts
+
+diff --git a/fdts/tc_fpga.dts b/fdts/tc_fpga.dts
+new file mode 100644
+index 000000000..3b176dace
+--- /dev/null
++++ b/fdts/tc_fpga.dts
+@@ -0,0 +1,445 @@
++/*
++ * Copyright (c) 2023, Arm Limited. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++/dts-v1/;
++
++/ {
++	compatible = "arm,tc0";
++	interrupt-parent = <&gic>;
++	#address-cells = <2>;
++	#size-cells = <2>;
++
++	aliases {
++		serial0 = &soc_uart0;
++	};
++
++	chosen {
++		stdout-path = "serial0:38400n8";
++	};
++
++	cpus {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		cpu-map {
++			cluster0 {
++				core0 {
++					cpu = <&CPU0>;
++				};
++				core1 {
++					cpu = <&CPU1>;
++				};
++				core2 {
++					cpu = <&CPU2>;
++				};
++				core3 {
++					cpu = <&CPU3>;
++				};
++				core4 {
++					cpu = <&CPU4>;
++				};
++				core5 {
++					cpu = <&CPU5>;
++				};
++				core6 {
++					cpu = <&CPU6>;
++				};
++				core7 {
++					cpu = <&CPU7>;
++				};
++			};
++		};
++
++		/*
++		 * The timings below are just to demonstrate working cpuidle.
++		 * These values may be inaccurate.
++		 */
++
++		CPU0:cpu@0 {
++			device_type = "cpu";
++			compatible = "arm,armv8";
++			reg = <0x0>;
++			enable-method = "psci";
++			clocks = <&scmi_dvfs 0>;
++			capacity-dmips-mhz = <280>;
++		};
++
++		CPU1:cpu@100 {
++			device_type = "cpu";
++			compatible = "arm,armv8";
++			reg = <0x100>;
++			enable-method = "psci";
++			clocks = <&scmi_dvfs 0>;
++			capacity-dmips-mhz = <280>;
++		};
++
++		CPU2:cpu@200 {
++			device_type = "cpu";
++			compatible = "arm,armv8";
++			reg = <0x200>;
++			enable-method = "psci";
++			clocks = <&scmi_dvfs 0>;
++			capacity-dmips-mhz = <280>;
++		};
++
++		CPU3:cpu@300 {
++			device_type = "cpu";
++			compatible = "arm,armv8";
++			reg = <0x300>;
++			enable-method = "psci";
++			clocks = <&scmi_dvfs 0>;
++			capacity-dmips-mhz = <280>;
++		};
++
++		CPU4:cpu@400 {
++			device_type = "cpu";
++			compatible = "arm,armv8";
++			reg = <0x400>;
++			enable-method = "psci";
++			clocks = <&scmi_dvfs 1>;
++			capacity-dmips-mhz = <775>;
++		};
++
++		CPU5:cpu@500 {
++			device_type = "cpu";
++			compatible = "arm,armv8";
++			reg = <0x500>;
++			enable-method = "psci";
++			clocks = <&scmi_dvfs 1>;
++			capacity-dmips-mhz = <775>;
++		};
++
++		CPU6:cpu@600 {
++			device_type = "cpu";
++			compatible = "arm,armv8";
++			reg = <0x600>;
++			enable-method = "psci";
++			clocks = <&scmi_dvfs 1>;
++			capacity-dmips-mhz = <775>;
++		};
++
++		CPU7:cpu@700 {
++			device_type = "cpu";
++			compatible = "arm,armv8";
++			reg = <0x700>;
++			enable-method = "psci";
++			clocks = <&scmi_dvfs 2>;
++			capacity-dmips-mhz = <1024>;
++		};
++
++	};
++
++	cpu-pmu {
++		compatible = "arm,armv8-pmuv3";
++		interrupts = <0x1 7 0x4>;
++		interrupt-affinity = <&CPU0>, <&CPU1>, <&CPU2>, <&CPU3>, <&CPU4>, <&CPU5>, <&CPU6>, <&CPU7>;
++	};
++
++	memory@80000000 {
++		device_type = "memory";
++		reg = <0x0 0x80000000 0x0 0x7d000000>,
++				<0x80 0x80000000 0x0 0x80000000>;
++	};
++
++	cmn-pmu {
++		compatible = "arm,ci-700";
++		reg = <0x0 0x50000000 0x0 0xfffffff>;
++		interrupts = <0x0 460 0x4>;
++	};
++
++	reserved-memory {
++		#address-cells = <2>;
++		#size-cells = <2>;
++		ranges;
++
++		linux,cma {
++			compatible = "shared-dma-pool";
++			reusable;
++			reg = <0x0 0xf4c00000 0x0 0x8000000>;
++			// size = <0x0 0x8000000>;
++			linux,cma-default;
++		};
++		optee@0xfce00000 {
++			reg = <0x00000000 0xfce00000 0 0x00200000>;
++			no-map;
++		};
++	};
++
++	psci {
++		compatible = "arm,psci-1.0", "arm,psci-0.2", "arm,psci";
++		method = "smc";
++		cpu_on = <0xc4000003>;
++	};
++
++	sram: sram@6000000 {
++		compatible = "mmio-sram";
++		reg = <0x0 0x06000000 0x0 0x8000>;
++
++		#address-cells = <1>;
++		#size-cells = <1>;
++		ranges = <0 0x0 0x06000000 0x8000>;
++
++		cpu_scp_scmi_mem: scp-shmem@0 {
++			compatible = "arm,scmi-shmem";
++			reg = <0x0 0x80>;
++		};
++	};
++
++	mbox_db_rx: mhu@45010000 {
++		compatible = "arm,mhuv2-rx","arm,primecell";
++		reg = <0x0 0x45010000 0x0 0x1000>;
++		clocks = <&soc_refclk1000mhz>;
++		clock-names = "apb_pclk";
++		#mbox-cells = <2>;
++		interrupts = <0 317 4>;
++		interrupt-names = "mhu_rx";
++		mhu-protocol = "doorbell";
++		arm,mhuv2-protocols = <0 1>;
++	};
++
++	mbox_db_tx: mhu@45000000 {
++		compatible = "arm,mhuv2-tx","arm,primecell";
++		reg = <0x0 0x45000000 0x0 0x1000>;
++		clocks = <&soc_refclk1000mhz>;
++		clock-names = "apb_pclk";
++		#mbox-cells = <2>;
++		interrupt-names = "mhu_tx";
++		mhu-protocol = "doorbell";
++		arm,mhuv2-protocols = <0 1>;
++	};
++
++	scmi {
++		compatible = "arm,scmi";
++		mbox-names = "tx", "rx";
++		mboxes = <&mbox_db_tx 0 0 &mbox_db_rx 0 0 >;
++		shmem = <&cpu_scp_scmi_mem &cpu_scp_scmi_mem>;
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		scmi_dvfs: protocol@13 {
++			reg = <0x13>;
++			#clock-cells = <1>;
++		};
++
++		scmi_clk: protocol@14 {
++			reg = <0x14>;
++			#clock-cells = <1>;
++		};
++	};
++
++	gic: interrupt-controller@30000000 {
++		compatible = "arm,gic-600", "arm,gic-v3";
++		#address-cells = <2>;
++		#interrupt-cells = <3>;
++		#size-cells = <2>;
++		ranges;
++		interrupt-controller;
++		reg = <0x0 0x30000000 0 0x10000>, /* GICD */
++		      <0x0 0x30080000 0 0x200000>; /* GICR */
++		interrupts = <0x1 0x9 0x4>;
++	};
++
++	timer {
++		compatible = "arm,armv8-timer";
++		interrupts = <0x1 13 0x8>,
++			     <0x1 14 0x8>,
++			     <0x1 11 0x8>,
++			     <0x1 10 0x8>;
++	};
++
++	soc_refclk1000mhz: refclk1000mhz {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <1000000000>;
++		clock-output-names = "apb_pclk";
++	};
++
++	soc_refclk60mhz: refclk60mhz {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <60000000>;
++		clock-output-names = "iofpga_clk";
++	};
++
++	soc_uartclk:  uartclk {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <5000000>;
++		clock-output-names = "uartclk";
++	};
++
++	soc_uart0: uart@2a400000 {
++		compatible = "arm,pl011", "arm,primecell";
++		reg = <0x0 0x2a400000 0x0 0x10000>;
++		interrupts = <0x0 0x3f 0x4>;
++		current-speed = <0x1c200>;
++		clock-names = "uartclk", "apb_pclk";
++		clocks = <&soc_uartclk>, <&soc_refclk1000mhz>;
++	};
++
++	ethernet: eth@18000000 {
++		compatible = "smsc,lan9115";
++		reg = <0x0 0x18000000 0x0 0x10000>;
++		phy-mode = "mii";
++		interrupt-parent = <&gic>;
++		interrupts = <0 109 4>;
++		reg-io-width = <2>;
++		smsc,irq-push-pull;
++	};
++
++	bp_clock24mhz: clock24mhz {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <24000000>;
++		clock-output-names = "bp:clock24mhz";
++	};
++
++	sysreg: sysreg@1c010000 {
++		compatible = "arm,vexpress-sysreg";
++		reg = <0x0 0x001c010000 0x0 0x1000>;
++		gpio-controller;
++		#gpio-cells = <2>;
++	};
++
++	fixed_3v3: v2m-3v3 {
++		compatible = "regulator-fixed";
++		regulator-name = "3V3";
++		regulator-min-microvolt = <3300000>;
++		regulator-max-microvolt = <3300000>;
++		regulator-always-on;
++	};
++
++	mmci@1c050000 {
++		compatible = "arm,pl180", "arm,primecell";
++		reg = <0x0 0x001c050000 0x0 0x1000>;
++		interrupts = <0 107 0x4>,
++			     <0 108 0x4>;
++		non-removable;
++		wp-gpios = <&sysreg 1 0>;
++		bus-width = <4>;
++		max-frequency = <25000000>;
++		vmmc-supply = <&fixed_3v3>;
++		clocks = <&bp_clock24mhz>, <&bp_clock24mhz>;
++		clock-names = "mclk", "apb_pclk";
++	};
++
++	dpu_aclk: dpu_aclk {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <836000000>;
++		clock-output-names = "fpga:dpu_aclk";
++	};
++
++	dpu_pixel_clk: dpu-pixel-clk {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <836000000>;
++		clock-output-names = "pxclk";
++	};
++
++	smmu_700: smmu_700@3f000000 {
++		compatible = "arm,smmu-v3";
++		reg = <0x0 0x3f000000 0x0 0x5000000>;
++		dma-coherent;
++		#iommu-cells = <1>;
++	};
++
++	dp0: display@2cc00000 {
++		#address-cells = <1>;
++		#size-cells = <0>;
++		compatible = "arm,mali-d71";
++		reg = <0 0x2cc00000 0 0x20000>;
++		interrupts = <0 69 4>;
++		interrupt-names = "DPU";
++		clocks = <&dpu_aclk>;
++		iommus = <&smmu_700 0x100>;
++
++		clock-names = "aclk";
++		pl0: pipeline@0 {
++			reg = <0>;
++			clocks = <&dpu_pixel_clk>, <&dpu_aclk> ;
++			clock-names = "pxclk", "aclk";
++			pl_id = <0>;
++			ports {
++				#address-cells = <1>;
++				#size-cells = <0>;
++				port@0 {
++					reg = <0>;
++					dp_pl0_out0: endpoint {
++						remote-endpoint = <&vencoder_in1>;
++					};
++				};
++			};
++		};
++
++		pl1: pipeline@1 {
++			reg = <1>;
++			clocks = <&dpu_pixel_clk>, <&dpu_aclk> ;
++			clock-names = "pxclk", "aclk";
++			pl_id = <1>;
++			ports {
++				#address-cells = <1>;
++				#size-cells = <0>;
++				port@0 {
++					reg = <0>;
++				};
++			};
++		};
++	};
++
++	vencoder1 {
++		compatible = "drm,virtual-encoder";
++		status = "okay";
++		display-timings {
++			native-mode = <&timing0>;
++			timing0: timing@0 {
++				/* 1440x3200@120 framebuffer */
++				clock-frequency = <836000000>;
++				hactive = <1440>;
++				vactive = <3200>;
++				hfront-porch = <136>;
++				hback-porch = <296>;
++				hsync-len = <160>;
++				vfront-porch = <3>;
++				vback-porch = <217>;
++				vsync-len = <10>;
++			};
++		};
++		port {
++			vencoder_in1: endpoint {
++				remote-endpoint = <&dp_pl0_out0>;
++			};
++		};
++	};
++
++	gpu_clk: gpu_clk {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <1000000000>;
++	};
++
++	gpu_core_clk: gpu_core_clk {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <1000000000>;
++	};
++
++	gpu: gpu@0x2d000000 {
++		compatible = "arm,mali-midgard";
++		reg = <0x0 0x2d000000 0x0 0x200000>;
++		interrupts = <0 66 4>, <0 67 4>, <0 65 4>;
++		interrupt-names = "JOB", "MMU", "GPU";
++		clocks = <&gpu_clk>, <&gpu_core_clk>;
++		clock-names = "clk_mali", "shadercores";
++		power_policy = "always_on";
++		iommus = <&smmu_700 0x200>;
++		kvm,protected-device;
++		operating-points = <
++			/* KHz uV */
++			50000 820000
++		>;
++	};
++};
+diff --git a/include/arch/aarch64/arch_features.h b/include/arch/aarch64/arch_features.h
+index 9ff81aa10..e5a075312 100644
+--- a/include/arch/aarch64/arch_features.h
++++ b/include/arch/aarch64/arch_features.h
+@@ -51,6 +51,9 @@ static inline bool is_feat_pacqarma3_present(void)
+ 
+ static inline bool is_armv8_3_pauth_present(void)
+ {
++#if defined(PLAT_tc) && defined(TARGET_PLATFORM_FPGA)
++	return true;
++#else
+ 	uint64_t mask_id_aa64isar1 =
+ 		(ID_AA64ISAR1_GPI_MASK << ID_AA64ISAR1_GPI_SHIFT) |
+ 		(ID_AA64ISAR1_GPA_MASK << ID_AA64ISAR1_GPA_SHIFT) |
+@@ -63,6 +66,7 @@ static inline bool is_armv8_3_pauth_present(void)
+ 	 */
+ 	return ((read_id_aa64isar1_el1() & mask_id_aa64isar1) != 0U ||
+ 		is_feat_pacqarma3_present());
++#endif
+ }
+ 
+ static inline bool is_armv8_4_dit_present(void)
+diff --git a/include/plat/arm/board/common/board_css_def.h b/include/plat/arm/board/common/board_css_def.h
+index 1963bf0cb..9f0dcef91 100644
+--- a/include/plat/arm/board/common/board_css_def.h
++++ b/include/plat/arm/board/common/board_css_def.h
+@@ -57,7 +57,11 @@
+ #define PLAT_ARM_FIP_OFFSET_IN_GPT		0x4400
+ #endif /* ARM_GPT_SUPPORT */
+ 
++#if defined(PLAT_tc) && defined(TARGET_PLATFORM_FPGA)
++#define PLAT_ARM_NVM_BASE		0x80000000
++#else
+ #define PLAT_ARM_NVM_BASE		V2M_FLASH0_BASE
++#endif
+ #define PLAT_ARM_NVM_SIZE		(V2M_FLASH0_SIZE - V2M_FLASH_BLOCK_SIZE)
+ 
+ /* UART related constants */
+diff --git a/include/plat/arm/board/common/v2m_def.h b/include/plat/arm/board/common/v2m_def.h
+index cb11dac47..7547d898d 100644
+--- a/include/plat/arm/board/common/v2m_def.h
++++ b/include/plat/arm/board/common/v2m_def.h
+@@ -76,8 +76,13 @@
+ 
+ 
+ /* NOR Flash */
++#if defined(PLAT_tc) && defined(TARGET_PLATFORM_FPGA)
++#define V2M_FLASH0_BASE			UL(0x0C000000)
++#define V2M_FLASH0_SIZE			UL(0x02000000)
++#else
+ #define V2M_FLASH0_BASE			(V2M_OFFSET + UL(0x08000000))
+ #define V2M_FLASH0_SIZE			UL(0x04000000)
++#endif
+ #define V2M_FLASH_BLOCK_SIZE		UL(0x00040000) /* 256 KB */
+ 
+ #define V2M_IOFPGA_BASE			(V2M_OFFSET + UL(0x1c000000))
+diff --git a/include/plat/arm/common/arm_def.h b/include/plat/arm/common/arm_def.h
+index 38793cd73..d5526605e 100644
+--- a/include/plat/arm/common/arm_def.h
++++ b/include/plat/arm/common/arm_def.h
+@@ -450,7 +450,11 @@
+ #define ARM_SYS_CNT_BASE_NS		UL(0x2a830000)
+ #endif
+ 
++#if defined(PLAT_tc) && defined(TARGET_PLATFORM_FPGA)
++#define ARM_CONSOLE_BAUDRATE		38400
++#else
+ #define ARM_CONSOLE_BAUDRATE		115200
++#endif
+ 
+ /* Trusted Watchdog constants */
+ #ifdef PLAT_ARM_SP805_TWDG_BASE
+diff --git a/include/plat/arm/css/common/css_def.h b/include/plat/arm/css/common/css_def.h
+index dde174c37..a90af0dbb 100644
+--- a/include/plat/arm/css/common/css_def.h
++++ b/include/plat/arm/css/common/css_def.h
+@@ -78,6 +78,19 @@
+ /* If SDS is present, then mailbox is at top of SRAM */
+ #define PLAT_ARM_TRUSTED_MAILBOX_BASE	(ARM_SHARED_RAM_BASE + ARM_SHARED_RAM_SIZE - 0x8)
+ 
++#if defined(PLAT_tc) && defined(TARGET_PLATFORM_FPGA)
++/* Mailbox base address */
++#define TC_TRUSTED_MAILBOX_BASE		ARM_TRUSTED_SRAM_BASE
++#define TC_TRUSTED_MAILBOX_SIZE		(8 + TC_HOLD_SIZE)
++#define TC_HOLD_BASE			(TC_TRUSTED_MAILBOX_BASE + 8)
++#define TC_HOLD_SIZE			(PLATFORM_CORE_COUNT * \
++					 TC_HOLD_ENTRY_SIZE)
++#define TC_HOLD_ENTRY_SHIFT		3
++#define TC_HOLD_ENTRY_SIZE		(1 << TC_HOLD_ENTRY_SHIFT)
++#define TC_HOLD_STATE_WAIT		0
++#define TC_HOLD_STATE_GO		1
++#endif
++
+ /* Number of retries for SCP_RAM_READY flag */
+ #define CSS_SCP_READY_10US_RETRIES		1000000 /* Effective timeout of 10000 ms */
+ 
+diff --git a/include/plat/arm/soc/common/soc_css.h b/include/plat/arm/soc/common/soc_css.h
+index 469928d8d..3506b1555 100644
+--- a/include/plat/arm/soc/common/soc_css.h
++++ b/include/plat/arm/soc/common/soc_css.h
+@@ -15,8 +15,11 @@ void soc_css_init_pcie(void);
+ 
+ static inline void soc_css_security_setup(void)
+ {
++#if defined(PLAT_tc) && defined(TARGET_PLATFORM_FPGA)
++#else
+ 	soc_css_init_nic400();
+ 	soc_css_init_pcie();
++#endif
+ }
+ 
+ #endif /* SOC_CSS_H */
+diff --git a/include/plat/arm/soc/common/soc_css_def.h b/include/plat/arm/soc/common/soc_css_def.h
+index b4b6ba8e4..e16bb1ab3 100644
+--- a/include/plat/arm/soc/common/soc_css_def.h
++++ b/include/plat/arm/soc/common/soc_css_def.h
+@@ -20,11 +20,21 @@
+ #define SOC_CSS_PCIE_CONTROL_BASE	0x7ff20000
+ 
+ /* PL011 UART related constants */
++#if defined(PLAT_tc) && defined(TARGET_PLATFORM_FPGA)
++#define SOC_CSS_UART0_BASE		0x2a400000
++#define SOC_CSS_UART1_BASE		0x2a400000
++#else
+ #define SOC_CSS_UART0_BASE		0x7ff80000
+ #define SOC_CSS_UART1_BASE		0x7ff70000
++#endif
+ 
++#if defined(PLAT_tc) && defined(TARGET_PLATFORM_FPGA)
++#define SOC_CSS_UART0_CLK_IN_HZ		5000000
++#define SOC_CSS_UART1_CLK_IN_HZ		5000000
++#else
+ #define SOC_CSS_UART0_CLK_IN_HZ		7372800
+ #define SOC_CSS_UART1_CLK_IN_HZ		7372800
++#endif
+ 
+ /* SoC NIC-400 Global Programmers View (GPV) */
+ #define SOC_CSS_NIC400_BASE		0x7fd00000
+diff --git a/plat/arm/board/tc/include/platform_def.h b/plat/arm/board/tc/include/platform_def.h
+index 34b0b1c0f..be56d7a7f 100644
+--- a/plat/arm/board/tc/include/platform_def.h
++++ b/plat/arm/board/tc/include/platform_def.h
+@@ -200,7 +200,7 @@
+ 
+ #define PLAT_ARM_NSTIMER_FRAME_ID	0
+ 
+-#if (TARGET_PLATFORM >= 2)
++#if (TARGET_VERSION >= 2)
+ #define PLAT_ARM_TRUSTED_ROM_BASE	0x1000
+ #else
+ #define PLAT_ARM_TRUSTED_ROM_BASE	0x0
+@@ -210,7 +210,11 @@
+ #define PLAT_ARM_TRUSTED_ROM_SIZE	(0x00080000 - PLAT_ARM_TRUSTED_ROM_BASE)
+ 
+ #define PLAT_ARM_NSRAM_BASE		0x06000000
++#ifdef TARGET_PLATFORM_FVP
+ #define PLAT_ARM_NSRAM_SIZE		0x00080000	/* 512KB */
++#else
++#define PLAT_ARM_NSRAM_SIZE		0x00008000	/* 64KB */
++#endif
+ 
+ #define PLAT_ARM_DRAM2_BASE		ULL(0x8080000000)
+ #define PLAT_ARM_DRAM2_SIZE		ULL(0x180000000)
+@@ -323,6 +327,7 @@
+ 
+ /* UART related constants */
+ 
++#ifdef TARGET_PLATFORM_FVP
+ #undef PLAT_ARM_BOOT_UART_BASE
+ #define PLAT_ARM_BOOT_UART_BASE		0x2A410000
+ 
+@@ -334,5 +339,6 @@
+ 
+ #undef PLAT_ARM_CRASH_UART_BASE
+ #define PLAT_ARM_CRASH_UART_BASE	PLAT_ARM_RUN_UART_BASE
++#endif
+ 
+ #endif /* PLATFORM_DEF_H */
+diff --git a/plat/arm/board/tc/platform.mk b/plat/arm/board/tc/platform.mk
+index 218247769..ee0c9657a 100644
+--- a/plat/arm/board/tc/platform.mk
++++ b/plat/arm/board/tc/platform.mk
+@@ -5,16 +5,17 @@
+ 
+ include common/fdt_wrappers.mk
+ 
+-ifeq ($(TARGET_PLATFORM), 0)
+-$(warning Platform ${PLAT}$(TARGET_PLATFORM) is deprecated. \
+-Some of the features might not work as expected)
++ifeq ($(filter ${TARGET_PLATFORM}, fvp fpga),)
++        $(error TARGET_PLATFORM must be fvp or fpga)
+ endif
+ 
+-ifeq ($(shell expr $(TARGET_PLATFORM) \<= 2), 0)
+-        $(error TARGET_PLATFORM must be less than or equal to 2)
++$(eval $(call add_define,TARGET_PLATFORM_$(call uppercase,${TARGET_PLATFORM})))
++
++ifeq ($(filter ${TARGET_VERSION}, 0 1 2),)
++        $(error TARGET_VERSION must be 0 or 1 2)
+ endif
+ 
+-$(eval $(call add_define,TARGET_PLATFORM))
++$(eval $(call add_define,TARGET_VERSION))
+ 
+ CSS_LOAD_SCP_IMAGES	:=	1
+ 
+@@ -71,22 +72,22 @@ TC_BASE	=	plat/arm/board/tc
+ 
+ PLAT_INCLUDES		+=	-I${TC_BASE}/include/
+ 
+-# CPU libraries for TARGET_PLATFORM=0
+-ifeq (${TARGET_PLATFORM}, 0)
++# CPU libraries for TARGET_VERSION=0
++ifeq (${TARGET_VERSION}, 0)
+ TC_CPU_SOURCES	+=	lib/cpus/aarch64/cortex_a510.S	\
+ 			lib/cpus/aarch64/cortex_a710.S	\
+ 			lib/cpus/aarch64/cortex_x2.S
+ endif
+ 
+-# CPU libraries for TARGET_PLATFORM=1
+-ifeq (${TARGET_PLATFORM}, 1)
++# CPU libraries for TARGET_VERSION=1
++ifeq (${TARGET_VERSION}, 1)
+ TC_CPU_SOURCES	+=	lib/cpus/aarch64/cortex_a510.S \
+ 			lib/cpus/aarch64/cortex_a715.S \
+ 			lib/cpus/aarch64/cortex_x3.S
+ endif
+ 
+-# CPU libraries for TARGET_PLATFORM=2
+-ifeq (${TARGET_PLATFORM}, 2)
++# CPU libraries for TARGET_VERSION=2
++ifeq (${TARGET_VERSION}, 2)
+ TC_CPU_SOURCES	+=	lib/cpus/aarch64/cortex_hayes.S \
+ 			lib/cpus/aarch64/cortex_hunter.S \
+ 			lib/cpus/aarch64/cortex_hunter_elp_arm.S
+@@ -110,7 +111,8 @@ BL2_SOURCES		+=	${TC_BASE}/tc_security.c	\
+ 				lib/utils/mem_region.c			\
+ 				drivers/arm/tzc/tzc400.c		\
+ 				plat/arm/common/arm_tzc400.c		\
+-				plat/arm/common/arm_nor_psci_mem_protect.c
++				plat/arm/common/arm_nor_psci_mem_protect.c \
++				plat/arm/common/aarch64/arm_bl2_mem_params_desc.c
+ 
+ BL31_SOURCES		+=	${INTERCONNECT_SOURCES}	\
+ 				${TC_CPU_SOURCES}	\
+@@ -148,9 +150,15 @@ TC_TOS_FW_CONFIG	:=	${BUILD_PLAT}/fdts/$(notdir $(basename ${ARM_SPMC_MANIFEST_D
+ $(eval $(call TOOL_ADD_PAYLOAD,${TC_TOS_FW_CONFIG},--tos-fw-config,${TC_TOS_FW_CONFIG}))
+ endif
+ 
+-#Device tree
++# Device tree
++ifeq (${TARGET_PLATFORM}, fpga)
++TC_HW_CONFIG_DTS	:=	fdts/tc_fpga.dts
++TC_HW_CONFIG		:=	${BUILD_PLAT}/fdts/${PLAT}_fpga.dtb
++else
+ TC_HW_CONFIG_DTS	:=	fdts/tc.dts
+ TC_HW_CONFIG		:=	${BUILD_PLAT}/fdts/${PLAT}.dtb
++endif
++
+ FDT_SOURCES		+=	${TC_HW_CONFIG_DTS}
+ $(eval TC_HW_CONFIG	:=	${BUILD_PLAT}/$(patsubst %.dts,%.dtb,$(TC_HW_CONFIG_DTS)))
+ 
+@@ -167,8 +175,10 @@ override ENABLE_AMU := 1
+ override ENABLE_AMU_AUXILIARY_COUNTERS := 1
+ override ENABLE_AMU_FCONF := 1
+ 
++ifeq (${TARGET_PLATFORM}, fvp)
+ override ENABLE_MPMM := 1
+ override ENABLE_MPMM_FCONF := 1
++endif
+ 
+ # Include Measured Boot makefile before any Crypto library makefile.
+ # Crypto library makefile may need default definitions of Measured Boot build
+diff --git a/plat/arm/board/tc/tc_bl31_setup.c b/plat/arm/board/tc/tc_bl31_setup.c
+index c79558de3..800ece4f3 100644
+--- a/plat/arm/board/tc/tc_bl31_setup.c
++++ b/plat/arm/board/tc/tc_bl31_setup.c
+@@ -18,6 +18,10 @@
+ #include <plat/arm/common/plat_arm.h>
+ #include <plat/common/platform.h>
+ 
++#ifdef TARGET_PLATFORM_FPGA
++#include <drivers/arm/gicv3.h>
++#endif
++
+ static scmi_channel_plat_info_t tc_scmi_plat_info[] = {
+ 	{
+ 		.scmi_mbx_mem = CSS_SCMI_PAYLOAD_BASE,
+diff --git a/plat/arm/board/tc/tc_plat.c b/plat/arm/board/tc/tc_plat.c
+index 77db023fd..55dfc04b3 100644
+--- a/plat/arm/board/tc/tc_plat.c
++++ b/plat/arm/board/tc/tc_plat.c
+@@ -28,6 +28,9 @@
+ #if IMAGE_BL1
+ const mmap_region_t plat_arm_mmap[] = {
+ 	ARM_MAP_SHARED_RAM,
++#ifdef TARGET_PLATFORM_FPGA
++	TC_MAP_NS_DRAM1,
++#endif
+ 	TC_FLASH0_RO,
+ 	TC_MAP_DEVICE,
+ 	{0}
+@@ -147,7 +150,9 @@ int plat_get_mbedtls_heap(void **heap_addr, size_t *heap_size)
+ 
+ void plat_arm_secure_wdt_start(void)
+ {
++#ifdef TARGET_PLATFORM_FVP
+ 	sbsa_wdog_start(SBSA_SECURE_WDOG_BASE, SBSA_SECURE_WDOG_TIMEOUT);
++#endif
+ }
+ 
+ void plat_arm_secure_wdt_stop(void)
+diff --git a/plat/arm/board/tc/tc_security.c b/plat/arm/board/tc/tc_security.c
+index 6a345010a..7efb8cbfe 100644
+--- a/plat/arm/board/tc/tc_security.c
++++ b/plat/arm/board/tc/tc_security.c
+@@ -7,17 +7,21 @@
+ #include <plat/arm/common/plat_arm.h>
+ #include <platform_def.h>
+ 
++#ifdef TARGET_PLATFORM_FVP
+ static const arm_tzc_regions_info_t tzc_regions[] = {
+ 	TC_TZC_REGIONS_DEF,
+ 	{}
+ };
++#endif
+ 
+ /* Initialize the secure environment */
+ void plat_arm_security_setup(void)
+ {
++#ifdef TARGET_PLATFORM_FVP
+ 	unsigned int i;
+ 
+ 	for (i = 0U; i < TZC400_COUNT; i++) {
+ 		arm_tzc400_setup(TZC400_BASE(i), tzc_regions);
+ 	}
++#endif
+ }
+diff --git a/plat/arm/common/arm_common.c b/plat/arm/common/arm_common.c
+index fc681149e..deb180623 100644
+--- a/plat/arm/common/arm_common.c
++++ b/plat/arm/common/arm_common.c
+@@ -177,6 +177,10 @@ unsigned int plat_get_syscnt_freq2(void)
+ {
+ 	unsigned int counter_base_frequency;
+ 
++#if defined(PLAT_tc) && defined(TARGET_PLATFORM_FPGA)
++	(void)counter_base_frequency;
++	return 1000000000;
++#else
+ 	/* Read the frequency from Frequency modes table */
+ 	counter_base_frequency = mmio_read_32(ARM_SYS_CNTCTL_BASE + CNTFID_OFF);
+ 
+@@ -185,6 +189,7 @@ unsigned int plat_get_syscnt_freq2(void)
+ 		panic();
+ 
+ 	return counter_base_frequency;
++#endif
+ }
+ 
+ #endif /* ARM_SYS_CNTCTL_BASE */
+diff --git a/plat/arm/common/arm_nor_psci_mem_protect.c b/plat/arm/common/arm_nor_psci_mem_protect.c
+index 1fa234d79..2ef4f423f 100644
+--- a/plat/arm/common/arm_nor_psci_mem_protect.c
++++ b/plat/arm/common/arm_nor_psci_mem_protect.c
+@@ -26,8 +26,12 @@
+ static mem_region_t arm_ram_ranges[] = {
+ 	{DRAM1_NS_IMAGE_LIMIT, DRAM1_PROTECTED_SIZE},
+ #ifdef __aarch64__
++#if defined(PLAT_tc) && defined(TARGET_PLATFORM_FPGA)
++	/* NA */
++#else
+ 	{ARM_DRAM2_BASE, 1u << ONE_GB_SHIFT},
+ #endif
++#endif
+ };
+ 
+ /*******************************************************************************
+@@ -39,8 +43,13 @@ int arm_psci_read_mem_protect(int *enabled)
+ {
+ 	int tmp;
+ 
++#if defined(PLAT_tc) && defined(TARGET_PLATFORM_FPGA)
++	(void)tmp;
++	*enabled = 0;
++#else
+ 	tmp = *(int *) PLAT_ARM_MEM_PROT_ADDR;
+ 	*enabled = (tmp == 1) ? 1 : 0;
++#endif
+ 	return 0;
+ }
+ 
+-- 
+2.34.1
+

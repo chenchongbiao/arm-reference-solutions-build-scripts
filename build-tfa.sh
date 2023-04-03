@@ -32,22 +32,33 @@ do_build() {
 
     info_echo "Building TF-A"
 
-    # Copy sp_layout.json to TFA_SP_DIR
-    cp $TFA_FILES/$PLATFORM/sp_layout.json $TFA_SP_DIR
+    if [[ $TC_TARGET_FLAVOR == "fvp" ]]; then
+        # Copy sp_layout.json to TFA_SP_DIR
+        cp $TFA_FILES/$PLATFORM/sp_layout.json $TFA_SP_DIR
 
-    pushd $TFA_SRC
-    make "${make_opts_tfa[@]}" "${make_opts_tfa_optee[@]}" all fip
-    popd
-
+        pushd $TFA_SRC
+        make "${make_opts_tfa[@]}" "${make_opts_tfa_optee[@]}" all fip
+        popd
+    elif [[ $TC_TARGET_FLAVOR == "fpga" ]]; then
+        pushd $TFA_SRC
+        make "${make_opts_fpga[@]}" all fip
+        popd
+    fi
 }
 
 
 do_clean() {
     info_echo "Cleaning TF-A"
-    pushd $TFA_SRC
-    make "${make_opts_tfa[@]}" "${make_opts_tfa_optee[@]}" clean
-    popd
-    rm -f $TFA_SP_DIR/sp_layout.json
+    if [[ $TC_TARGET_FLAVOR == "fvp" ]]; then
+        pushd $TFA_SRC
+        make "${make_opts_tfa[@]}" "${make_opts_tfa_optee[@]}" clean
+        popd
+        rm -f $TFA_SP_DIR/sp_layout.json
+    elif [[ $TC_TARGET_FLAVOR == "fpga" ]]; then
+        pushd $TFA_SRC
+        make "${make_opts_fpga[@]}" clean
+        popd
+    fi
 }
 
 do_deploy() {
@@ -59,6 +70,9 @@ do_deploy() {
 
     ln -s $TFA_OUTDIR/build/$TFA_PLATFORM/$BUILD_TYPE/bl1.bin $DEPLOY_DIR/$PLATFORM/bl1-tc.bin 2>/dev/null || :
     ln -s $TFA_OUTDIR/build/$TFA_PLATFORM/$BUILD_TYPE/bl1/bl1.elf $DEPLOY_DIR/$PLATFORM/bl1-tc.elf 2>/dev/null || :
+    if [[ $TC_TARGET_FLAVOR == "fpga" ]]; then
+        ln -s $TFA_OUTDIR/build/$TFA_PLATFORM/$BUILD_TYPE/fip.bin $DEPLOY_DIR/$PLATFORM/fip-tc.bin 2>/dev/null || :
+    fi
 }
 
 do_patch() {
