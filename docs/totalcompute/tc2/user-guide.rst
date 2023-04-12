@@ -17,7 +17,7 @@ Prerequisites
 -------------
 
 These instructions assume that:
- * Your host PC is running a recent Ubuntu Linux (18.04 or 20.04)
+ * Your host PC is running a recent Ubuntu Linux.
  * You are running the provided scripts in a ``bash`` shell environment.
 
 To get the latest repo tool from google, run the following commands:
@@ -34,38 +34,20 @@ If syncing and building android, the minimum requirements for the host machine c
  * At least 32 GB of available RAM/swap.
  * Git configured properly using "git config" otherwise it may throw error while fetching the code.
 
-The software requirements can be automatically installed by running
-``requirements.sh`` with sudo, once the code is synced. They can also be
-installed by running the following steps:
-(Note: Python modules will be installed in a virtual environment)
-
-To install the required packages, run:
-
-::
-
-    sudo apt install -y chrpath gawk texinfo diffstat wget git unzip \
-    build-essential socat cpio python3 python3-pip python3-pexpect xz-utils debianutils \
-    iputils-ping python3-git libegl1-mesa libsdl1.2-dev xterm git-lfs openssl \
-    curl lib32ncurses5-dev libz-dev u-boot-tools m4 zip liblz4-tool zstd make \
-    dwarves ninja-build libssl-dev srecord libelf-dev bison flex libncurses5 \ 
-    uuid-dev libgnutls28-dev
-
-For Ubuntu 18.04:
-::
-  
-    sudo apt install pylint3 python-pip python
-
-For ubuntu 20.04:
-::
-
-    sudo apt install pylint python
-
 To install and allow access to docker
 ::
 
     sudo apt install docker.io
     sudo chmod 777 /var/run/docker.sock
 
+NOTE:
+
+To manage Docker as a non-root user
+::
+
+    sudo groupadd docker
+    sudo usermod -aG docker $USER
+    newgrp docker
 
 Syncing and building the source code
 ------------------------------------
@@ -102,11 +84,6 @@ The resulting files will have the following structure:
 
 Initial Setup
 #############
-
-NOTE: python cryptography module is needed, but might be already installed as an apt package in an older version. If this is the case, run
-::
-
-    sudo apt remove python3-cryptography
 
 Setup includes two parts:
  1. Setup a Docker image
@@ -196,19 +173,6 @@ The ``-a`` option does not influence the way the system boots rather it adds an 
 
 Android based stack takes considerable time to build, so start the build and go grab a cup of coffee!
 
-Note
-####
-
-If you encounter the below build error,
-::
-
-    -- Check for working CXX compiler: /usr/bin/aarch64-linux-gnu-gcc - broken
-    -- Configuring incomplete, errors occurred!
-
-remove the installed cross compiler
-::
-
-    sudo apt-get remove gcc-aarch64-linux-gnu
 
 Provided components
 -------------------
