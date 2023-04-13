@@ -1,0 +1,287 @@
+From 552f1b4ee5f8ff66dfd60255c0e52b58a67a262a Mon Sep 17 00:00:00 2001
+From: Ben Horgan <ben.horgan@arm.com>
+Date: Tue, 27 Sep 2022 13:43:10 +0100
+Subject: [PATCH 16/18] tc2: fpga: Clock updates
+
+Change-Id: I58fb05ffd5cb68c499077a64a9ac6d8e4443eb1d
+Signed-off-by: Ben Horgan <ben.horgan@arm.com>
+---
+ product/tc2/include/clock_soc.h          |   3 +
+ product/tc2/scp_ramfw/config_clock.c     |  12 +++
+ product/tc2/scp_ramfw/config_gtimer.c    |   2 +-
+ product/tc2/scp_ramfw/config_pik_clock.c |  21 ++++
+ product/tc2/scp_romfw/config_clock.c     |  16 ++-
+ product/tc2/scp_romfw/config_pik_clock.c | 119 ++++++++++++++++++++++-
+ 6 files changed, 169 insertions(+), 4 deletions(-)
+
+diff --git a/product/tc2/include/clock_soc.h b/product/tc2/include/clock_soc.h
+index 8574b752..3d18add3 100644
+--- a/product/tc2/include/clock_soc.h
++++ b/product/tc2/include/clock_soc.h
+@@ -21,6 +21,7 @@ enum clock_pll_idx {
+     CLOCK_PLL_IDX_CPU_HUNTER,
+     CLOCK_PLL_IDX_CPU_HUNTER_ELP,
+     CLOCK_PLL_IDX_SYS,
++    CLOCK_PLL_IDX_INTERCONNECT,
+     CLOCK_PLL_IDX_DPU,
+     CLOCK_PLL_IDX_PIX0,
+     CLOCK_PLL_IDX_PIX1,
+@@ -31,6 +32,7 @@ enum clock_pll_idx {
+  * PIK clock indexes.
+  */
+ enum clock_pik_idx {
++    CLOCK_PIK_IDX_INTERCONNECT,
+     CLOCK_PIK_IDX_CLUS0_CPU0,
+     CLOCK_PIK_IDX_CLUS0_CPU1,
+     CLOCK_PIK_IDX_CLUS0_CPU2,
+@@ -82,6 +84,7 @@ enum clock_css_idx {
+  * Clock indexes.
+  */
+ enum clock_idx {
++    CLOCK_IDX_INTERCONNECT,
+     CLOCK_IDX_CPU_GROUP_HAYES,
+     CLOCK_IDX_CPU_GROUP_HUNTER,
+     CLOCK_IDX_CPU_GROUP_HUNTER_ELP,
+diff --git a/product/tc2/scp_ramfw/config_clock.c b/product/tc2/scp_ramfw/config_clock.c
+index 8f98a9fa..efbf93ca 100644
+--- a/product/tc2/scp_ramfw/config_clock.c
++++ b/product/tc2/scp_ramfw/config_clock.c
+@@ -20,6 +20,18 @@
+ #include <fwk_module_idx.h>
+ 
+ static const struct fwk_element clock_dev_desc_table[CLOCK_IDX_COUNT + 1] = {
++    [CLOCK_IDX_INTERCONNECT] =
++        {
++            .name = "Interconnect",
++            .data = &((struct mod_clock_dev_config){
++                .driver_id = FWK_ID_ELEMENT_INIT(
++                    FWK_MODULE_IDX_PIK_CLOCK,
++                    CLOCK_PIK_IDX_INTERCONNECT),
++                .api_id = FWK_ID_API_INIT(
++                    FWK_MODULE_IDX_PIK_CLOCK,
++                    MOD_PIK_CLOCK_API_TYPE_CLOCK),
++            }),
++        },
+     [CLOCK_IDX_CPU_GROUP_HAYES] =
+         {
+             .name = "CPU_GROUP_HAYES",
+diff --git a/product/tc2/scp_ramfw/config_gtimer.c b/product/tc2/scp_ramfw/config_gtimer.c
+index 5cbef899..dfb52912 100644
+--- a/product/tc2/scp_ramfw/config_gtimer.c
++++ b/product/tc2/scp_ramfw/config_gtimer.c
+@@ -28,7 +28,7 @@ static const struct fwk_element gtimer_dev_table[2] = {
+                 .frequency = CLOCK_RATE_REFCLK,
+                 .clock_id = FWK_ID_ELEMENT_INIT(
+                    FWK_MODULE_IDX_CLOCK,
+-                    CLOCK_IDX_CPU_GROUP_HAYES),
++                    CLOCK_IDX_INTERCONNECT),
+         }),
+     },
+     [1] = { 0 },
+diff --git a/product/tc2/scp_ramfw/config_pik_clock.c b/product/tc2/scp_ramfw/config_pik_clock.c
+index f452646c..394b9ec1 100644
+--- a/product/tc2/scp_ramfw/config_pik_clock.c
++++ b/product/tc2/scp_ramfw/config_pik_clock.c
+@@ -48,6 +48,15 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_hunter_elp[1] = {
+     },
+ };
+ 
++static const struct mod_pik_clock_rate rate_table_sys_intclk[] = {
++    {
++        .rate = 2000 * FWK_MHZ,
++        .source = MOD_PIK_CLOCK_INTCLK_SOURCE_INTPLL,
++        .divider_reg = MOD_PIK_CLOCK_MSCLOCK_DIVIDER_DIV_EXT,
++        .divider = 1,
++    },
++};
++
+ static const struct mod_pik_clock_rate rate_table_gicclk[1] = {
+     {
+         .rate = 2000 * FWK_MHZ,
+@@ -192,6 +201,18 @@ static const struct fwk_element pik_clock_element_table[
+             .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp),
+         }),
+     },
++    [CLOCK_PIK_IDX_INTERCONNECT] = {
++        .name = "INTERCONNECT",
++        .data = &((struct mod_pik_clock_dev_config) {
++            .type = MOD_PIK_CLOCK_TYPE_MULTI_SOURCE,
++            .is_group_member = false,
++            .control_reg = &SYSTEM_PIK_PTR->INTCLK_CTRL,
++            .divext_reg = &SYSTEM_PIK_PTR->INTCLK_DIV1,
++            .rate_table = rate_table_sys_intclk,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_sys_intclk),
++            .initial_rate = 2000 * FWK_MHZ,
++        }),
++    },
+     [CLOCK_PIK_IDX_GIC] = {
+         .name = "GIC",
+         .data = &((struct mod_pik_clock_dev_config) {
+diff --git a/product/tc2/scp_romfw/config_clock.c b/product/tc2/scp_romfw/config_clock.c
+index 1f3aee95..00c015b1 100644
+--- a/product/tc2/scp_romfw/config_clock.c
++++ b/product/tc2/scp_romfw/config_clock.c
+@@ -25,7 +25,21 @@
+ #include <fwk_module.h>
+ #include <fwk_module_idx.h>
+ 
+-static const struct fwk_element clock_dev_desc_table[2] = {
++static const struct fwk_element clock_dev_desc_table[3] = {
++    [CLOCK_IDX_INTERCONNECT] =
++        {
++            .name = "Interconnect",
++            .data = &((struct mod_clock_dev_config){
++                .driver_id = FWK_ID_ELEMENT_INIT(
++                    FWK_MODULE_IDX_PIK_CLOCK,
++                    CLOCK_PIK_IDX_INTERCONNECT),
++                .api_id = FWK_ID_API_INIT(
++                    FWK_MODULE_IDX_PIK_CLOCK,
++                    MOD_PIK_CLOCK_API_TYPE_CLOCK),
++                .pd_source_id = FWK_ID_MODULE_INIT(FWK_MODULE_IDX_MSYS_ROM),
++
++            }),
++        },
+     [CLOCK_IDX_CPU_GROUP_HAYES] =
+         {
+             .name = "CPU_GROUP_HAYES",
+diff --git a/product/tc2/scp_romfw/config_pik_clock.c b/product/tc2/scp_romfw/config_pik_clock.c
+index 79627abf..f8536af2 100644
+--- a/product/tc2/scp_romfw/config_pik_clock.c
++++ b/product/tc2/scp_romfw/config_pik_clock.c
+@@ -29,8 +29,54 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_hayes[1] = {
+     },
+ };
+ 
++static const struct mod_pik_clock_rate rate_table_sys_intclk[] = {
++    {
++        .rate = 2000 * FWK_MHZ,
++        .source = MOD_PIK_CLOCK_INTCLK_SOURCE_INTPLL,
++        .divider_reg = MOD_PIK_CLOCK_MSCLOCK_DIVIDER_DIV_EXT,
++        .divider = 1,
++    },
++};
++
++
++static const struct mod_pik_clock_rate rate_table_gicclk[] = {
++    {
++        .rate = 2000 * FWK_MHZ,
++        .source = MOD_PIK_CLOCK_MSCLOCK_SOURCE_SYSPLLCLK,
++        .divider_reg = MOD_PIK_CLOCK_MSCLOCK_DIVIDER_DIV_SYS,
++        .divider = CLOCK_RATE_SYSPLLCLK / (2000 * FWK_MHZ),
++    },
++};
++
++static const struct mod_pik_clock_rate rate_table_pclkscp[] = {
++    {
++        .rate = 2000 * FWK_MHZ,
++        .source = MOD_PIK_CLOCK_MSCLOCK_SOURCE_SYSPLLCLK,
++        .divider_reg = MOD_PIK_CLOCK_MSCLOCK_DIVIDER_DIV_SYS,
++        .divider = CLOCK_RATE_SYSPLLCLK / (2000 * FWK_MHZ),
++    },
++};
++
++static const struct mod_pik_clock_rate rate_table_sysperclk[] = {
++    {
++        .rate = 2000 * FWK_MHZ,
++        .source = MOD_PIK_CLOCK_MSCLOCK_SOURCE_SYSPLLCLK,
++        .divider_reg = MOD_PIK_CLOCK_MSCLOCK_DIVIDER_DIV_SYS,
++        .divider = CLOCK_RATE_SYSPLLCLK / (2000 * FWK_MHZ),
++    },
++};
++
++static const struct mod_pik_clock_rate rate_table_uartclk[] = {
++    {
++        .rate = 2000 * FWK_MHZ,
++        .source = MOD_PIK_CLOCK_MSCLOCK_SOURCE_SYSPLLCLK,
++        .divider_reg = MOD_PIK_CLOCK_MSCLOCK_DIVIDER_DIV_SYS,
++        .divider = CLOCK_RATE_SYSPLLCLK / (2000 * FWK_MHZ),
++    },
++};
++
+ static const struct fwk_element
+-    pik_clock_element_table[CLOCK_PIK_IDX_CLUS0_CPU3 + 2] =
++    pik_clock_element_table[] =
+         {
+             [CLOCK_PIK_IDX_CLUS0_CPU0] =
+                 {
+@@ -84,7 +130,76 @@ static const struct fwk_element
+                         .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hayes),
+                     }),
+                 },
+-            {0}
++            [CLOCK_PIK_IDX_INTERCONNECT] =
++                {
++                    .name = "INTERCONNECT",
++                    .data = &((struct mod_pik_clock_dev_config){
++                        .type = MOD_PIK_CLOCK_TYPE_MULTI_SOURCE,
++                        .is_group_member = false,
++                        .control_reg = &SYSTEM_PIK_PTR->INTCLK_CTRL,
++                        .divext_reg = &SYSTEM_PIK_PTR->INTCLK_DIV1,
++                        .rate_table = rate_table_sys_intclk,
++                        .rate_count = FWK_ARRAY_SIZE(rate_table_sys_intclk),
++                        .initial_rate = 2000 * FWK_MHZ,
++                    }),
++                },
++            [CLOCK_PIK_IDX_GIC] =
++                {
++                    .name = "GIC",
++                    .data = &((struct mod_pik_clock_dev_config){
++                        .type = MOD_PIK_CLOCK_TYPE_MULTI_SOURCE,
++                        .is_group_member = false,
++                        .control_reg = &SYSTEM_PIK_PTR->GICCLK_CTRL,
++                        .divsys_reg = &SYSTEM_PIK_PTR->GICCLK_DIV1,
++                        .rate_table = rate_table_gicclk,
++                        .rate_count = FWK_ARRAY_SIZE(rate_table_gicclk),
++                        .initial_rate = 2000 * FWK_MHZ,
++                    }),
++                },
++            [CLOCK_PIK_IDX_PCLKSCP] =
++                {
++                    .name = "PCLKSCP",
++                    .data = &((struct mod_pik_clock_dev_config){
++                        .type = MOD_PIK_CLOCK_TYPE_MULTI_SOURCE,
++                        .is_group_member = false,
++                        .control_reg = &SYSTEM_PIK_PTR->PCLKSCP_CTRL,
++                        .divsys_reg = &SYSTEM_PIK_PTR->PCLKSCP_DIV1,
++                        .rate_table = rate_table_pclkscp,
++                        .rate_count = FWK_ARRAY_SIZE(rate_table_pclkscp),
++                        .initial_rate = 2000 * FWK_MHZ,
++                    }),
++                },
++            [CLOCK_PIK_IDX_SYSPERCLK] =
++                {
++                    .name = "SYSPERCLK",
++                    .data =
++                        &(
++                            (struct mod_pik_clock_dev_config){
++                                .type = MOD_PIK_CLOCK_TYPE_MULTI_SOURCE,
++                                .is_group_member = false,
++                                .control_reg = &SYSTEM_PIK_PTR->SYSPERCLK_CTRL,
++                                .divsys_reg = &SYSTEM_PIK_PTR->SYSPERCLK_DIV1,
++                                .rate_table = rate_table_sysperclk,
++                                .rate_count =
++                                    FWK_ARRAY_SIZE(rate_table_sysperclk),
++                                .initial_rate = 2000 * FWK_MHZ,
++                            }),
++                },
++            [CLOCK_PIK_IDX_UARTCLK] =
++                {
++                    .name = "UARTCLK",
++                    .data = &(
++                        (struct mod_pik_clock_dev_config){
++                            .type = MOD_PIK_CLOCK_TYPE_MULTI_SOURCE,
++                            .is_group_member = false,
++                            .control_reg = &SYSTEM_PIK_PTR->UARTCLK_CTRL,
++                            .divsys_reg = &SYSTEM_PIK_PTR->UARTCLK_DIV1,
++                            .rate_table = rate_table_uartclk,
++                            .rate_count = FWK_ARRAY_SIZE(rate_table_uartclk),
++                            .initial_rate = 2000 * FWK_MHZ,
++                        }),
++                },
++            [CLOCK_PIK_IDX_COUNT] = { 0 }, /* Termination description. */
+         };
+ 
+ static const struct fwk_element *pik_clock_get_element_table(fwk_id_t module_id)
+-- 
+2.25.1
+

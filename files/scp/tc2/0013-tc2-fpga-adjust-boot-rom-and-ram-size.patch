@@ -1,0 +1,29 @@
+From ad411e0069c106f6e6b79aae0e163ddd76d01fb3 Mon Sep 17 00:00:00 2001
+From: Ben Horgan <ben.horgan@arm.com>
+Date: Tue, 20 Sep 2022 14:28:38 +0100
+Subject: [PATCH 13/18] tc2: fpga: adjust boot rom and ram size
+
+Change-Id: Idaf8504d211bb4fc61c358883788f3ea51858b67
+Signed-off-by: Ben Horgan <ben.horgan@arm.com>
+---
+ product/tc2/include/scp_mmap.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/product/tc2/include/scp_mmap.h b/product/tc2/include/scp_mmap.h
+index 4b38f0d7..fdbf02f3 100644
+--- a/product/tc2/include/scp_mmap.h
++++ b/product/tc2/include/scp_mmap.h
+@@ -13,8 +13,8 @@
+ #define SCP_RAM_BASE      0x10000000
+ 
+ /* SCP ROM and RAM firmware size loaded on main memory */
+-#define SCP_BOOT_ROM_SIZE (512 * 1024)
+-#define SCP_RAM_SIZE      (512 * 1024)
++#define SCP_BOOT_ROM_SIZE (128 * 1024)
++#define SCP_RAM_SIZE (128 * 1024)
+ 
+ /* SCP trusted and non-trusted RAM base address */
+ #define SCP_TRUSTED_RAM_BASE    (SCP_SYSTEM_ACCESS_PORT1_BASE + 0x04000000)
+-- 
+2.25.1
+

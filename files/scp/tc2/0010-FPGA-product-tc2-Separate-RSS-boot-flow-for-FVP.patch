@@ -1,0 +1,305 @@
+From 91a1b65466ba72c9185cb10ce1ebf9c932e1f890 Mon Sep 17 00:00:00 2001
+From: QuocKhanh Le <QuocKhanh.Le@arm.com>
+Date: Thu, 16 Mar 2023 16:32:36 +0000
+Subject: [PATCH 10/18] FPGA: product/tc2: Separate RSS boot flow for FVP.
+
+This is based on commit 861a3b93aaaf2ec4d1880259e4ac3b5d16036f3f
+by ben.horgan@arm.com
+This commit supports both FVP and FPGA build
+
+Signed-off-by: QuocKhanh Le <QuocKhanh.Le@arm.com>
+---
+ CMakeLists.txt                          |  1 +
+ product/tc2/include/scp_mmap.h          |  2 +
+ product/tc2/include/scp_tc2_mhu.h       |  2 +
+ product/tc2/scp_ramfw/CMakeLists.txt    |  4 ++
+ product/tc2/scp_romfw/CMakeLists.txt    | 54 +++++++++++++++++--------
+ product/tc2/scp_romfw/Firmware.cmake    | 19 ++++++---
+ product/tc2/scp_romfw/config_clock.c    | 16 +++++++-
+ product/tc2/scp_romfw/config_msys_rom.c | 25 ++++++++++++
+ product/tc2/scp_romfw/config_ppu_v1.c   | 14 ++++++-
+ 9 files changed, 114 insertions(+), 23 deletions(-)
+ create mode 100644 product/tc2/scp_romfw/config_msys_rom.c
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 86951826..2ccf3a35 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -9,6 +9,7 @@
+ 
+ cmake_minimum_required(VERSION 3.18.3)
+ 
++set(SCP_ENABLE_PLAT_FVP TRUE)
+ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+ 
+ #
+diff --git a/product/tc2/include/scp_mmap.h b/product/tc2/include/scp_mmap.h
+index d4a1ccc6..cc4a9297 100644
+--- a/product/tc2/include/scp_mmap.h
++++ b/product/tc2/include/scp_mmap.h
+@@ -67,8 +67,10 @@
+ #define SCP_MHU_SCP_AP_RCV_S_CLUS0  (SCP_MHU_AP_BASE + 0x4000)
+ #define SCP_MHU_SCP_AP_SND_S_CLUS0  (SCP_MHU_AP_BASE + 0x5000)
+ 
++#if defined(PLAT_FVP)
+ #define SCP_MHU_SCP_RSS_RCV_S_CLUS0 0x45440000
+ #define SCP_MHU_SCP_RSS_SND_S_CLUS0 0x45430000
++#endif
+ 
+ #define SCP_PLL_BASE         (SCP_SOC_EXPANSION3_BASE + 0x03000000)
+ #define SCP_PLL_SYSPLL       (SCP_PLL_BASE + 0x00000000)
+diff --git a/product/tc2/include/scp_tc2_mhu.h b/product/tc2/include/scp_tc2_mhu.h
+index 4e1c2703..abbcde8d 100644
+--- a/product/tc2/include/scp_tc2_mhu.h
++++ b/product/tc2/include/scp_tc2_mhu.h
+@@ -15,7 +15,9 @@ enum scp_tc2_mhu_device_idx {
+     SCP_TC2_MHU_DEVICE_IDX_SCP_AP_S_CLUS0,
+     SCP_TC2_MHU_DEVICE_IDX_SCP_AP_NS_HP_CLUS0,
+     SCP_TC2_MHU_DEVICE_IDX_SCP_AP_NS_LP_CLUS0,
++#if defined(PLAT_FVP)
+     SCP_TC2_MHU_DEVICE_IDX_SCP_RSS_S_CLUS0,
++#endif
+     SCP_TC2_MHU_DEVICE_IDX_COUNT
+ };
+ 
+diff --git a/product/tc2/scp_ramfw/CMakeLists.txt b/product/tc2/scp_ramfw/CMakeLists.txt
+index 472a67e4..59eceb60 100644
+--- a/product/tc2/scp_ramfw/CMakeLists.txt
++++ b/product/tc2/scp_ramfw/CMakeLists.txt
+@@ -23,6 +23,10 @@ add_executable(tc2-bl2)
+ target_compile_definitions(tc2-bl2 PUBLIC -DTC2_VARIANT_STD=0)
+ target_compile_definitions(tc2-bl2 PUBLIC -DTC2_VAR_EXPERIMENT_POWER=1)
+ 
++if(SCP_ENABLE_PLAT_FVP)
++    target_compile_definitions(tc2-bl2 PUBLIC -DPLAT_FVP=1)
++endif()
++
+ if (SCP_PLATFORM_VARIANT STREQUAL "1")
+     message(NOTICE "SCP_PLATFORM_VARIANT set to: EXPERIMENT_POWER (tc2-bl2)\n")
+ 
+diff --git a/product/tc2/scp_romfw/CMakeLists.txt b/product/tc2/scp_romfw/CMakeLists.txt
+index a5066a24..7dc6d3a2 100644
+--- a/product/tc2/scp_romfw/CMakeLists.txt
++++ b/product/tc2/scp_romfw/CMakeLists.txt
+@@ -15,24 +15,46 @@ target_include_directories(
+     tc2-bl1 PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+                    "${CMAKE_CURRENT_SOURCE_DIR}")
+ 
++if(SCP_ENABLE_PLAT_FVP)
++    target_compile_definitions(tc2-bl1 PUBLIC -DPLAT_FVP=1)
++endif()
++
+ # cmake-lint: disable=E1122
+ 
+-target_sources(
+-    tc2-bl1
+-    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/config_pl011.c"
+-            "${CMAKE_CURRENT_SOURCE_DIR}/config_ppu_v1.c"
+-            "${CMAKE_CURRENT_SOURCE_DIR}/config_sds.c"
+-            "${CMAKE_CURRENT_SOURCE_DIR}/config_cmn_booker.c"
+-            "${CMAKE_CURRENT_SOURCE_DIR}/config_system_pll.c"
+-            "${CMAKE_CURRENT_SOURCE_DIR}/config_pik_clock.c"
+-            "${CMAKE_CURRENT_SOURCE_DIR}/config_css_clock.c"
+-            "${CMAKE_CURRENT_SOURCE_DIR}/config_clock.c"
+-            "${CMAKE_CURRENT_SOURCE_DIR}/config_gtimer.c"
+-            "${CMAKE_CURRENT_SOURCE_DIR}/config_timer.c"
+-            "${CMAKE_CURRENT_SOURCE_DIR}/config_tc2_bl1.c"
+-            "${CMAKE_CURRENT_SOURCE_DIR}/config_bootloader.c"
+-            "${CMAKE_CURRENT_SOURCE_DIR}/config_transport.c"
+-            "${CMAKE_CURRENT_SOURCE_DIR}/config_mhu2.c")
++if(SCP_ENABLE_PLAT_FVP)
++    target_sources(
++        tc2-bl1
++        PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/config_pl011.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_ppu_v1.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_sds.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_cmn_booker.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_system_pll.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_pik_clock.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_css_clock.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_clock.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_gtimer.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_timer.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_tc2_bl1.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_bootloader.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_transport.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_mhu2.c")
++else()
++    target_sources(
++        tc2-bl1
++        PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/config_pl011.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_ppu_v1.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_sds.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_cmn_booker.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_system_pll.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_pik_clock.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_css_clock.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_clock.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_gtimer.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_timer.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_msys_rom.c"
++                "${CMAKE_CURRENT_SOURCE_DIR}/config_bootloader.c")
++endif()
++
+ 
+ #
+ # Some of our firmware includes require CMSIS.
+diff --git a/product/tc2/scp_romfw/Firmware.cmake b/product/tc2/scp_romfw/Firmware.cmake
+index 2cb53b20..4df0a7e3 100644
+--- a/product/tc2/scp_romfw/Firmware.cmake
++++ b/product/tc2/scp_romfw/Firmware.cmake
+@@ -21,22 +21,25 @@ set(SCP_ENABLE_NOTIFICATIONS_INIT TRUE)
+ 
+ set(SCP_ENABLE_IPO_INIT FALSE)
+ 
+-set(SCP_ENABLE_INBAND_MSG_SUPPORT TRUE)
++if(SCP_ENABLE_PLAT_FVP)
++    set(SCP_ENABLE_INBAND_MSG_SUPPORT TRUE)
++endif()
+ 
+ set(SCP_PLATFORM_VARIANT_INIT 0)
+ 
+ set(SCP_ARCHITECTURE "arm-m")
+ 
+ list(PREPEND SCP_MODULE_PATHS "${CMAKE_SOURCE_DIR}/module/cmn_booker")
+-list(PREPEND SCP_MODULE_PATHS "${CMAKE_SOURCE_DIR}/product/tc2/module/tc2_bl1")
+ 
++if(SCP_ENABLE_PLAT_FVP)
++    list(PREPEND SCP_MODULE_PATHS "${CMAKE_SOURCE_DIR}/product/tc2/module/tc2_bl1")
++endif()
+ # The order of the modules in the following list is the order in which the
+ # modules are initialized, bound, started during the pre-runtime phase.
+ # any change in the order will cause firmware initialization errors.
+ 
+ list(APPEND SCP_MODULES "pl011")
+ list(APPEND SCP_MODULES "ppu-v1")
+-list(APPEND SCP_MODULES "tc2-bl1")
+ list(APPEND SCP_MODULES "bootloader")
+ list(APPEND SCP_MODULES "system-pll")
+ list(APPEND SCP_MODULES "pik-clock")
+@@ -46,5 +49,11 @@ list(APPEND SCP_MODULES "gtimer")
+ list(APPEND SCP_MODULES "timer")
+ list(APPEND SCP_MODULES "cmn-booker")
+ list(APPEND SCP_MODULES "sds")
+-list(APPEND SCP_MODULES "mhu2")
+-list(APPEND SCP_MODULES "transport")
++
++if(SCP_ENABLE_PLAT_FVP)
++    list(APPEND SCP_MODULES "tc2-bl1")
++    list(APPEND SCP_MODULES "mhu2")
++    list(APPEND SCP_MODULES "transport")
++else()
++    list(APPEND SCP_MODULES "msys-rom")
++endif()
+diff --git a/product/tc2/scp_romfw/config_clock.c b/product/tc2/scp_romfw/config_clock.c
+index 2588e38f..1f3aee95 100644
+--- a/product/tc2/scp_romfw/config_clock.c
++++ b/product/tc2/scp_romfw/config_clock.c
+@@ -13,7 +13,12 @@
+ #include <mod_css_clock.h>
+ #include <mod_pik_clock.h>
+ #include <mod_power_domain.h>
+-#include <mod_tc2_bl1.h>
++
++#if defined(PLAT_FVP)
++    #include <mod_tc2_bl1.h>
++#else
++    #include <mod_msys_rom.h>
++#endif
+ 
+ #include <fwk_element.h>
+ #include <fwk_id.h>
+@@ -31,7 +36,11 @@ static const struct fwk_element clock_dev_desc_table[2] = {
+                 .api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_CSS_CLOCK,
+                     MOD_CSS_CLOCK_API_TYPE_CLOCK),
++#if defined(PLAT_FVP)
+                 .pd_source_id = FWK_ID_MODULE_INIT(FWK_MODULE_IDX_TC2_BL1),
++#else
++                .pd_source_id = FWK_ID_MODULE_INIT(FWK_MODULE_IDX_MSYS_ROM)
++#endif                                
+             }),
+         },
+     { 0 }, /* Termination description. */
+@@ -46,8 +55,13 @@ const struct fwk_module_config config_clock = {
+     .elements = FWK_MODULE_DYNAMIC_ELEMENTS(clock_get_dev_desc_table),
+     .data = &((struct mod_clock_config){
+         .pd_transition_notification_id = FWK_ID_NOTIFICATION_INIT(
++#if defined(PLAT_FVP)            
+             FWK_MODULE_IDX_TC2_BL1,
+             MOD_TC2_BL1_NOTIFICATION_IDX_POWER_SYSTOP),
++#else
++            FWK_MODULE_IDX_MSYS_ROM,
++            MOD_MSYS_ROM_NOTIFICATION_IDX_POWER_SYSTOP), 
++#endif                       
+         .pd_pre_transition_notification_id = FWK_ID_NONE_INIT,
+     }),
+ };
+diff --git a/product/tc2/scp_romfw/config_msys_rom.c b/product/tc2/scp_romfw/config_msys_rom.c
+new file mode 100644
+index 00000000..514c1c05
+--- /dev/null
++++ b/product/tc2/scp_romfw/config_msys_rom.c
+@@ -0,0 +1,25 @@
++/*
++ * Arm SCP/MCP Software
++ * Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#include <mod_msys_rom.h>
++
++#if !defined(PLAT_FVP)
++#include "scp_mmap.h"
++
++#include <fwk_id.h>
++#include <fwk_module.h>
++#include <fwk_module_idx.h>
++
++const struct fwk_module_config config_msys_rom = {
++    .data = &((struct msys_rom_config){
++        .ap_context_base = SCP_AP_CONTEXT_BASE,
++        .ap_context_size = SCP_AP_CONTEXT_SIZE,
++        .id_primary_cluster = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PPU_V1, 1),
++        .id_primary_core = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PPU_V1, 0),
++    })
++};
++#endif
+diff --git a/product/tc2/scp_romfw/config_ppu_v1.c b/product/tc2/scp_romfw/config_ppu_v1.c
+index f297ff8c..5be55a02 100644
+--- a/product/tc2/scp_romfw/config_ppu_v1.c
++++ b/product/tc2/scp_romfw/config_ppu_v1.c
+@@ -12,7 +12,13 @@
+ #include <mod_cmn_booker.h>
+ #include <mod_power_domain.h>
+ #include <mod_ppu_v1.h>
+-#include <mod_tc2_bl1.h>
++
++#if defined(PLAT_FVP)
++    #include <mod_tc2_bl1.h>
++#else
++    #include <mod_msys_rom.h>
++#endif
++
+ 
+ #include <fwk_element.h>
+ #include <fwk_id.h>
+@@ -128,8 +134,14 @@ struct fwk_module_config config_ppu_v1 = {
+     .data =
+         &(struct mod_ppu_v1_config){
+             .pd_notification_id = FWK_ID_NOTIFICATION_INIT(
++#if defined(PLAT_FVP)                
+                 FWK_MODULE_IDX_TC2_BL1,
+                 MOD_TC2_BL1_NOTIFICATION_IDX_POWER_SYSTOP),
+             .pd_source_id = FWK_ID_MODULE_INIT(FWK_MODULE_IDX_TC2_BL1),
++#else
++                FWK_MODULE_IDX_MSYS_ROM,
++                MOD_MSYS_ROM_NOTIFICATION_IDX_POWER_SYSTOP),
++            .pd_source_id = FWK_ID_MODULE_INIT(FWK_MODULE_IDX_MSYS_ROM),
++#endif                       
+         },
+ };
+-- 
+2.25.1
+

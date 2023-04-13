@@ -31,6 +31,11 @@
 do_build() {
     info_echo "Building SCP-firmware"
     mkdir -p "$SCP_OUTDIR"
+    if [ "$TC_TARGET_FLAVOR" == "fvp" ]; then
+    	SCP_PLAT_FVP=true
+    elif [ "$TC_TARGET_FLAVOR" == "fpga" ]; then
+    	SCP_PLAT_FVP=false
+    fi
     for scp_fw in $FW_TARGETS; do
         for scp_type in $FW_INSTALL; do
             local makeopts=(
@@ -42,6 +47,7 @@ do_build() {
                 -DCMAKE_OBJCOPY="${SCP_COMPILER}-objcopy"
                 -DSCP_LOG_LEVEL=${SCP_LOG_LEVEL}
                 -DDISABLE_CPPCHECK=true
+                -DSCP_ENABLE_PLAT_FVP=$SCP_PLAT_FVP
             )
 
             case "${SCP_BUILD_MODE}" in

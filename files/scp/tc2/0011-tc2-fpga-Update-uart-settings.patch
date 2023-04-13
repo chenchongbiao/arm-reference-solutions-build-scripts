@@ -1,0 +1,59 @@
+From 982fe7b83eafe783483be4f2997fae6db8f0e4d7 Mon Sep 17 00:00:00 2001
+From: Ben Horgan <ben.horgan@arm.com>
+Date: Tue, 20 Sep 2022 10:41:10 +0100
+Subject: [PATCH 11/18] tc2 fpga: Update uart settings
+
+Change-Id: I62d865477689c2a4d87d367ff3d9bd0a93c31e40
+Signed-off-by: Ben Horgan <ben.horgan@arm.com>
+---
+ product/tc2/include/scp_mmap.h       | 2 +-
+ product/tc2/scp_ramfw/config_pl011.c | 4 ++--
+ product/tc2/scp_romfw/config_pl011.c | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/product/tc2/include/scp_mmap.h b/product/tc2/include/scp_mmap.h
+index cc4a9297..4b38f0d7 100644
+--- a/product/tc2/include/scp_mmap.h
++++ b/product/tc2/include/scp_mmap.h
+@@ -35,7 +35,7 @@
+ #define SCP_SYSTEM_ACCESS_PORT1_BASE           UINT32_C(0xA0000000)
+ 
+ #define SCP_CMN_BOOKER_BASE (SCP_SYSTEM_ACCESS_PORT0_BASE + 0x10000000)
+-#define SCP_UART_BOARD_BASE (SCP_SYSTEM_ACCESS_PORT0_BASE + 0x3FF70000)
++#define SCP_UART_BOARD_BASE (SCP_SYSTEM_ACCESS_PORT1_BASE + 0x2a400000)
+ #define SCP_PIK_SCP_BASE    (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE)
+ 
+ #define SCP_REFCLK_CNTCONTROL_BASE (SCP_SYSTEM_ACCESS_PORT1_BASE + 0x2A430000)
+diff --git a/product/tc2/scp_ramfw/config_pl011.c b/product/tc2/scp_ramfw/config_pl011.c
+index 69e6f559..ae567b06 100644
+--- a/product/tc2/scp_ramfw/config_pl011.c
++++ b/product/tc2/scp_ramfw/config_pl011.c
+@@ -22,8 +22,8 @@ const struct fwk_module_config config_pl011 = {
+             .data =
+                 &(struct mod_pl011_element_cfg){
+                     .reg_base = SCP_UART_BOARD_BASE,
+-                    .baud_rate_bps = 115200,
+-                    .clock_rate_hz = 24 * FWK_MHZ,
++                    .baud_rate_bps = 38400,
++                    .clock_rate_hz = 5 * FWK_MHZ,
+                     .clock_id = FWK_ID_NONE_INIT,
+                     .pd_id = FWK_ID_NONE_INIT,
+                 },
+diff --git a/product/tc2/scp_romfw/config_pl011.c b/product/tc2/scp_romfw/config_pl011.c
+index 9e5944a7..abe090bf 100644
+--- a/product/tc2/scp_romfw/config_pl011.c
++++ b/product/tc2/scp_romfw/config_pl011.c
+@@ -21,8 +21,8 @@ const struct fwk_module_config config_pl011 = {
+             .data =
+                 &(struct mod_pl011_element_cfg){
+                     .reg_base = SCP_UART_BOARD_BASE,
+-                    .baud_rate_bps = 115200,
+-                    .clock_rate_hz = 24 * FWK_MHZ,
++                    .baud_rate_bps = 38400,
++                    .clock_rate_hz = 5 * FWK_MHZ,
+                     .clock_id = FWK_ID_NONE_INIT,
+                 },
+         },
+-- 
+2.25.1
+

@@ -1,0 +1,56 @@
+From 01e5417054902e942684c4acb5ed865fb4339a3f Mon Sep 17 00:00:00 2001
+From: Usama Arif <usama.arif@arm.com>
+Date: Tue, 5 Oct 2021 16:38:25 +0100
+Subject: [PATCH 06/18] module/cmn_booker: increase QoS to 12 for greater GPU
+ throughput
+
+Signed-off-by: Usama Arif <usama.arif@arm.com>
+---
+ module/cmn_booker/src/cmn_booker.h     |  9 +++++++++
+ module/cmn_booker/src/mod_cmn_booker.c | 10 ++++++++++
+ 2 files changed, 19 insertions(+)
+
+diff --git a/module/cmn_booker/src/cmn_booker.h b/module/cmn_booker/src/cmn_booker.h
+index c0379de8..d1468294 100644
+--- a/module/cmn_booker/src/cmn_booker.h
++++ b/module/cmn_booker/src/cmn_booker.h
+@@ -129,6 +129,15 @@ struct cmn_booker_hnf_reg {
+     FWK_RW uint64_t PPU_PWPR;
+ };
+ 
++struct cmn_booker_rni_reg {
++           uint8_t  RESERVED0[0xA80 - 0x0];
++    FWK_RW uint64_t S0_QOS_CONTROL;
++           uint8_t  RESERVED1[0xAA0 - 0xA88];
++    FWK_RW uint64_t S1_QOS_CONTROL;
++           uint8_t  RESERVED2[0xAC0 - 0xAA8];
++    FWK_RW uint64_t S2_QOS_CONTROL;
++};
++
+ /*
+  * Configuration manager registers
+  */
+diff --git a/module/cmn_booker/src/mod_cmn_booker.c b/module/cmn_booker/src/mod_cmn_booker.c
+index 397c7687..0247047f 100644
+--- a/module/cmn_booker/src/mod_cmn_booker.c
++++ b/module/cmn_booker/src/mod_cmn_booker.c
+@@ -331,6 +331,16 @@ static void cmn_booker_configure(void)
+                     mtsx_node->TAG_ADDR_SHUTTER1 = 0x2222222222222222;
+                     mtsx_node->TAG_ADDR_SHUTTER2 = 0x2222222222222222;
+ #endif
++                } else if (node_type == NODE_TYPE_RN_I || node_type == NODE_TYPE_RN_D) {
++                    struct cmn_booker_rni_reg* rni_node =
++                        (struct cmn_booker_rni_reg*) node;
++
++                    rni_node->S0_QOS_CONTROL = 0x00CC000C;
++                    FWK_LOG_INFO(MOD_NAME "rni_node S0_QOS_CONTROL %p val %x%x\n", &rni_node->S0_QOS_CONTROL, HIGH_WORD(rni_node->S0_QOS_CONTROL), LOW_WORD(rni_node->S0_QOS_CONTROL));
++                    rni_node->S1_QOS_CONTROL = 0x00CC000C;
++                    FWK_LOG_INFO(MOD_NAME "rni_node S1_QOS_CONTROL %p val %x%x\n", &rni_node->S1_QOS_CONTROL, HIGH_WORD(rni_node->S1_QOS_CONTROL), LOW_WORD(rni_node->S1_QOS_CONTROL));
++                    rni_node->S2_QOS_CONTROL = 0x00CC000C;
++                    FWK_LOG_INFO(MOD_NAME "rni_node S2_QOS_CONTROL %p val %x%x\n", &rni_node->S2_QOS_CONTROL, HIGH_WORD(rni_node->S2_QOS_CONTROL), LOW_WORD(rni_node->S2_QOS_CONTROL));
+                 }
+             }
+         }
+-- 
+2.25.1
+

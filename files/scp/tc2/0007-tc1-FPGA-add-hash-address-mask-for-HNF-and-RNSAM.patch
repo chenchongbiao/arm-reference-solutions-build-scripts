@@ -1,0 +1,77 @@
+From 9ad3912f87ce45394b870ca75c8d5234292ad781 Mon Sep 17 00:00:00 2001
+From: Usama Arif <usama.arif@arm.com>
+Date: Thu, 15 Apr 2021 11:30:46 +0100
+Subject: [PATCH 07/18] tc1: FPGA: add hash address mask for HNF and RNSAM
+
+Signed-off-by: Usama Arif <usama.arif@arm.com>
+Change-Id: Id66a2dd3e5b07199bf21f73deb26231045bc711e
+---
+ module/cmn_booker/src/cmn_booker.h     | 16 ++++++++++------
+ module/cmn_booker/src/mod_cmn_booker.c |  6 ++++++
+ 2 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/module/cmn_booker/src/cmn_booker.h b/module/cmn_booker/src/cmn_booker.h
+index d1468294..150af52a 100644
+--- a/module/cmn_booker/src/cmn_booker.h
++++ b/module/cmn_booker/src/cmn_booker.h
+@@ -101,15 +101,17 @@ struct cmn_booker_rnsam_reg {
+     FWK_RW uint64_t NON_HASH_TGT_NODEID[5];
+            uint8_t  RESERVED4[0xE00 - 0xDA8];
+     FWK_RW uint64_t SYS_CACHE_GRP_REGION[4];
+-           uint8_t  RESERVED5[0xEA0 - 0xE20];
++           uint8_t  RESERVED5[0xE80 - 0xE20];
++    FWK_RW uint64_t HASH_ADDR_MASK_REG;
++           uint8_t  RESERVED6[0xEA0 - 0xE88];
+     FWK_RW uint64_t SYS_CACHE_GRP_HN_COUNT;
+-           uint8_t  RESERVED6[0xF00 - 0xEA8];
++           uint8_t  RESERVED7[0xF00 - 0xEA8];
+     FWK_RW uint64_t SYS_CACHE_GRP_HN_NODEID[16];
+-           uint8_t  RESERVED7[0x1000 - 0xF80];
++           uint8_t  RESERVED8[0x1000 - 0xF80];
+     FWK_RW uint64_t SYS_CACHE_GRP_SN_NODEID[16];
+-           uint8_t  RESERVED8[0x1100 - 0x1080];
++           uint8_t  RESERVED9[0x1100 - 0x1080];
+     FWK_RW uint64_t STATUS;
+-           uint8_t  RESERVED9[0x1120 - 0x1108];
++           uint8_t  RESERVED10[0x1120 - 0x1108];
+     FWK_RW uint64_t SYS_CACHE_GRP_CAL_MODE;
+ };
+ 
+@@ -122,7 +124,9 @@ struct cmn_booker_hnf_reg {
+     FWK_R  uint64_t CHILD_INFO;
+            uint8_t  RESERVED1[0x900 - 0x88];
+     FWK_R  uint64_t UNIT_INFO;
+-           uint8_t  RESERVED2[0xD00 - 0x908];
++           uint8_t  RESERVED2[0xCF0 - 0x908];
++    FWK_RW uint64_t HASH_ADDR_MASK_REG;
++    FWK_RW uint64_t REGION_CMP_ADDR_MASK_REG;
+     FWK_RW uint64_t SAM_CONTROL;
+     FWK_RW uint64_t SAM_MEMREGION[2];
+            uint8_t  RESERVED8[0x1C00 - 0xD18];
+diff --git a/module/cmn_booker/src/mod_cmn_booker.c b/module/cmn_booker/src/mod_cmn_booker.c
+index 0247047f..fb6aaafa 100644
+--- a/module/cmn_booker/src/mod_cmn_booker.c
++++ b/module/cmn_booker/src/mod_cmn_booker.c
+@@ -92,6 +92,9 @@ static void process_node_hnf(struct cmn_booker_hnf_reg *hnf)
+     /* Set target node */
+     hnf->SAM_CONTROL = config->snf_table[logical_id];
+ 
++    /* Set hashing for HNF */
++    hnf->HASH_ADDR_MASK_REG = 0xFFFFFFC012F00;
++
+     /*
+      * Map sub-regions to this HN-F node
+      */
+@@ -398,6 +401,9 @@ static int cmn_booker_setup_sam(struct cmn_booker_rnsam_reg *rnsam)
+                 (region->node_id &
+                  CMN_BOOKER_RNSAM_NON_HASH_TGT_NODEID_ENTRY_MASK) << bit_pos;
+ 
++            /* Set hashing for RNSAM */
++            rnsam->HASH_ADDR_MASK_REG = 0xFFFFFFC012F00;
++
+             region_io_count++;
+             break;
+ 
+-- 
+2.25.1
+

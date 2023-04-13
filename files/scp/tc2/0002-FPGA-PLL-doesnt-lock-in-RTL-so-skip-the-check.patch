@@ -1,0 +1,35 @@
+From 43de7e4d78adc6e31b15db15409fbca4c17b0723 Mon Sep 17 00:00:00 2001
+From: Usama Arif <usama.arif@arm.com>
+Date: Thu, 15 Apr 2021 11:10:11 +0100
+Subject: [PATCH 02/18] FPGA: PLL doesnt lock in RTL so skip the check
+
+Signed-off-by: Usama Arif <usama.arif@arm.com>
+Change-Id: I7cde5076e8b7dfc8371990904f3b77d5f964177d
+---
+ module/system_pll/src/mod_system_pll.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/module/system_pll/src/mod_system_pll.c b/module/system_pll/src/mod_system_pll.c
+index 22927688..7145f038 100644
+--- a/module/system_pll/src/mod_system_pll.c
++++ b/module/system_pll/src/mod_system_pll.c
+@@ -134,6 +134,7 @@ static int system_pll_set_rate(fwk_id_t dev_id, uint64_t rate,
+     if (picoseconds == 0)
+         return FWK_E_RANGE;
+ 
++#if 0
+     *ctx->config->control_reg = picoseconds;
+ 
+     if (ctx->config->status_reg != NULL) {
+@@ -141,7 +142,7 @@ static int system_pll_set_rate(fwk_id_t dev_id, uint64_t rate,
+         while ((*ctx->config->status_reg & ctx->config->lock_flag_mask) == 0)
+             continue;
+     }
+-
++#endif
+     ctx->current_rate = rounded_rate;
+ 
+     return FWK_SUCCESS;
+-- 
+2.25.1
+

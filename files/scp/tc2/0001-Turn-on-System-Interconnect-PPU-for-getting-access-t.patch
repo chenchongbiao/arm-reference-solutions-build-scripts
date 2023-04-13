@@ -1,0 +1,32 @@
+From e199073be28921235fe4020f1a76749a4672f86f Mon Sep 17 00:00:00 2001
+From: Usama Arif <usama.arif@arm.com>
+Date: Thu, 15 Apr 2021 11:08:38 +0100
+Subject: [PATCH 01/18] Turn on System Interconnect PPU for getting access to
+ AP UART
+
+This has to be done before UART is accessed.
+
+Signed-off-by: Usama Arif <usama.arif@arm.com>
+Change-Id: I921395ea6c605138b8166a5d022e774070e3f021
+---
+ framework/src/fwk_arch.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/framework/src/fwk_arch.c b/framework/src/fwk_arch.c
+index bc5eb0e8..c156addb 100644
+--- a/framework/src/fwk_arch.c
++++ b/framework/src/fwk_arch.c
+@@ -69,6 +69,10 @@ int fwk_arch_init(const struct fwk_arch_init_driver *driver)
+ 
+     fwk_module_init();
+ 
++    // Turn on System Interconnect PPU for getting access to AP UART
++    volatile uint64_t *addr = (uint64_t*) (0x50000000 + 0x40000 + 0x1000);
++    *addr = 0x00000008;
++
+     status = fwk_io_init();
+     if (!fwk_expect(status == FWK_SUCCESS)) {
+         return FWK_E_PANIC;
+-- 
+2.25.1
+

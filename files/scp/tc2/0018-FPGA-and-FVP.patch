@@ -1,0 +1,669 @@
+From 4cb11e3799c6f9e678250d9bff3ec21b2ab7f9cb Mon Sep 17 00:00:00 2001
+From: QuocKhanh Le <QuocKhanh.Le@arm.com>
+Date: Thu, 23 Mar 2023 16:37:43 +0000
+Subject: [PATCH 18/18] FPGA and FVP: Use PLAT_FVP to seperate code for FPGA
+ and FVP build in: - framework - module: system_pll, cmn_booker - product:tc2
+
+Signed-off-by: QuocKhanh Le <QuocKhanh.Le@arm.com>
+---
+ CMakeLists.txt                            |  1 -
+ framework/CMakeLists.txt                  |  4 ++
+ framework/src/fwk_arch.c                  |  2 +
+ module/cmn_booker/CMakeLists.txt          |  3 ++
+ module/cmn_booker/src/cmn_booker.h        | 51 ++++++++++++++++++-----
+ module/cmn_booker/src/mod_cmn_booker.c    | 10 ++++-
+ module/system_pll/CMakeLists.txt          |  4 ++
+ module/system_pll/src/mod_system_pll.c    |  2 +-
+ product/tc2/include/clock_soc.h           |  6 +++
+ product/tc2/include/scp_mmap.h            | 15 ++++++-
+ product/tc2/include/scp_pik.h             |  3 ++
+ product/tc2/scp_ramfw/config_clock.c      |  2 +
+ product/tc2/scp_ramfw/config_gtimer.c     |  4 ++
+ product/tc2/scp_ramfw/config_pik_clock.c  |  4 ++
+ product/tc2/scp_ramfw/config_pl011.c      |  5 +++
+ product/tc2/scp_ramfw/config_ppu_v1.c     | 16 +++++++
+ product/tc2/scp_ramfw/config_system_pll.c |  2 +
+ product/tc2/scp_romfw/Firmware.cmake      | 44 +++++++++++++------
+ product/tc2/scp_romfw/config_clock.c      |  4 ++
+ product/tc2/scp_romfw/config_pik_clock.c  | 12 +++++-
+ product/tc2/scp_romfw/config_pl011.c      |  5 +++
+ 21 files changed, 170 insertions(+), 29 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2ccf3a35..86951826 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -9,7 +9,6 @@
+ 
+ cmake_minimum_required(VERSION 3.18.3)
+ 
+-set(SCP_ENABLE_PLAT_FVP TRUE)
+ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+ 
+ #
+diff --git a/framework/CMakeLists.txt b/framework/CMakeLists.txt
+index 9b9bb229..369beb04 100644
+--- a/framework/CMakeLists.txt
++++ b/framework/CMakeLists.txt
+@@ -20,6 +20,10 @@ add_library(framework)
+ target_include_directories(framework
+                            PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+ 
++if(SCP_ENABLE_PLAT_FVP)
++    target_compile_definitions(framework PUBLIC -DPLAT_FVP=1)
++endif()                           
++
+ target_sources(
+     framework
+     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/assert.c"
+diff --git a/framework/src/fwk_arch.c b/framework/src/fwk_arch.c
+index 8e3838a6..a1f478a5 100644
+--- a/framework/src/fwk_arch.c
++++ b/framework/src/fwk_arch.c
+@@ -69,6 +69,7 @@ int fwk_arch_init(const struct fwk_arch_init_driver *driver)
+ 
+     fwk_module_init();
+ 
++#if !defined(PLAT_FVP)
+     // Turn on System Interconnect PPU for getting access to AP UART
+     volatile uint64_t *addr = (uint64_t*) (0x50000000 + 0x40000 + 0x1000);
+     *addr = 0x00000008;
+@@ -77,6 +78,7 @@ int fwk_arch_init(const struct fwk_arch_init_driver *driver)
+     // code added to stop cpu going to sleep and killing UART
+     addr = (uint64_t*) (0x50000000 + 0x40000 + 0x00A04);
+     *addr = 0x00000040;
++#endif
+ 
+     status = fwk_io_init();
+     if (!fwk_expect(status == FWK_SUCCESS)) {
+diff --git a/module/cmn_booker/CMakeLists.txt b/module/cmn_booker/CMakeLists.txt
+index 6436d08f..d6faaaf1 100644
+--- a/module/cmn_booker/CMakeLists.txt
++++ b/module/cmn_booker/CMakeLists.txt
+@@ -9,6 +9,9 @@ add_library(${SCP_MODULE_TARGET} SCP_MODULE)
+ target_include_directories(${SCP_MODULE_TARGET}
+                            PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
+                            PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
++if(SCP_ENABLE_PLAT_FVP)
++    target_compile_definitions(${SCP_MODULE_TARGET} PUBLIC -DPLAT_FVP=1)
++endif()
+ 
+ target_sources(
+     ${SCP_MODULE_TARGET}
+diff --git a/module/cmn_booker/src/cmn_booker.h b/module/cmn_booker/src/cmn_booker.h
+index 150af52a..a403223e 100644
+--- a/module/cmn_booker/src/cmn_booker.h
++++ b/module/cmn_booker/src/cmn_booker.h
+@@ -89,6 +89,31 @@ enum sam_node_type {
+ /*
+  * Request Node System Address Map (RN-SAM) registers
+  */
++#if defined(PLAT_FVP)
++struct cmn_booker_rnsam_reg {
++    FWK_R  uint64_t NODE_INFO;
++           uint8_t  RESERVED0[0x80 - 0x8];
++    FWK_R  uint64_t CHILD_INFO;
++           uint8_t  RESERVED1[0x900 - 0x88];
++    FWK_R  uint64_t UNIT_INFO;
++           uint8_t  RESERVED2[0xC00 - 0x908];
++    FWK_RW uint64_t NON_HASH_MEM_REGION[20];
++           uint8_t  RESERVED3[0xD80 - 0xCA0];
++    FWK_RW uint64_t NON_HASH_TGT_NODEID[5];
++           uint8_t  RESERVED4[0xE00 - 0xDA8];
++    FWK_RW uint64_t SYS_CACHE_GRP_REGION[4];
++           uint8_t  RESERVED5[0xEA0 - 0xE20];
++    FWK_RW uint64_t SYS_CACHE_GRP_HN_COUNT;
++           uint8_t  RESERVED6[0xF00 - 0xEA8];
++    FWK_RW uint64_t SYS_CACHE_GRP_HN_NODEID[16];
++           uint8_t  RESERVED7[0x1000 - 0xF80];
++    FWK_RW uint64_t SYS_CACHE_GRP_SN_NODEID[16];
++           uint8_t  RESERVED8[0x1100 - 0x1080];
++    FWK_RW uint64_t STATUS;
++           uint8_t  RESERVED9[0x1120 - 0x1108];
++    FWK_RW uint64_t SYS_CACHE_GRP_CAL_MODE;
++};
++#else
+ struct cmn_booker_rnsam_reg {
+     FWK_R  uint64_t NODE_INFO;
+            uint8_t  RESERVED0[0x80 - 0x8];
+@@ -115,6 +140,16 @@ struct cmn_booker_rnsam_reg {
+     FWK_RW uint64_t SYS_CACHE_GRP_CAL_MODE;
+ };
+ 
++struct cmn_booker_rni_reg {
++           uint8_t  RESERVED0[0xA80 - 0x0];
++    FWK_RW uint64_t S0_QOS_CONTROL;
++           uint8_t  RESERVED1[0xAA0 - 0xA88];
++    FWK_RW uint64_t S1_QOS_CONTROL;
++           uint8_t  RESERVED2[0xAC0 - 0xAA8];
++    FWK_RW uint64_t S2_QOS_CONTROL;
++};
++#endif
++
+ /*
+  * Fully Coherent Home Node (HN-F) registers
+  */
+@@ -124,24 +159,19 @@ struct cmn_booker_hnf_reg {
+     FWK_R  uint64_t CHILD_INFO;
+            uint8_t  RESERVED1[0x900 - 0x88];
+     FWK_R  uint64_t UNIT_INFO;
++#if defined(PLAT_FVP)
++           uint8_t  RESERVED2[0xD00 - 0x908];
++#else
+            uint8_t  RESERVED2[0xCF0 - 0x908];
+     FWK_RW uint64_t HASH_ADDR_MASK_REG;
+     FWK_RW uint64_t REGION_CMP_ADDR_MASK_REG;
++#endif
+     FWK_RW uint64_t SAM_CONTROL;
+     FWK_RW uint64_t SAM_MEMREGION[2];
+            uint8_t  RESERVED8[0x1C00 - 0xD18];
+     FWK_RW uint64_t PPU_PWPR;
+ };
+ 
+-struct cmn_booker_rni_reg {
+-           uint8_t  RESERVED0[0xA80 - 0x0];
+-    FWK_RW uint64_t S0_QOS_CONTROL;
+-           uint8_t  RESERVED1[0xAA0 - 0xA88];
+-    FWK_RW uint64_t S1_QOS_CONTROL;
+-           uint8_t  RESERVED2[0xAC0 - 0xAA8];
+-    FWK_RW uint64_t S2_QOS_CONTROL;
+-};
+-
+ /*
+  * Configuration manager registers
+  */
+@@ -197,6 +227,7 @@ struct cmn_booker_hni_reg {
+     FWK_RW uint64_t ERRMISC_NS;
+ };
+ 
++#if !defined(PLAT_FVP)
+ /*
+  * SBSX registers
+  */
+@@ -268,7 +299,7 @@ struct cmn_booker_mtsx_reg {
+   FWK_RW  uint64_t    ERRMISC_NS;                                /*!< Offset: 0x3120 */
+   FWK_RW  uint64_t    ERR_INJ;                                   /*!< Offset: 0x3130 */
+ };
+-
++#endif
+ 
+ #define CMN_BOOKER_NODE_INFO_TYPE           UINT64_C(0x000000000000FFFF)
+ #define CMN_BOOKER_NODE_INFO_ID             UINT64_C(0x00000000FFFF0000)
+diff --git a/module/cmn_booker/src/mod_cmn_booker.c b/module/cmn_booker/src/mod_cmn_booker.c
+index fb817338..4d650c52 100644
+--- a/module/cmn_booker/src/mod_cmn_booker.c
++++ b/module/cmn_booker/src/mod_cmn_booker.c
+@@ -92,9 +92,10 @@ static void process_node_hnf(struct cmn_booker_hnf_reg *hnf)
+     /* Set target node */
+     hnf->SAM_CONTROL = config->snf_table[logical_id];
+ 
++#if !defined(PLAT_FVP)
+     /* Set hashing for HNF */
+     hnf->HASH_ADDR_MASK_REG = 0xffffffffff00;
+-
++#endif
+     /*
+      * Map sub-regions to this HN-F node
+      */
+@@ -296,7 +297,9 @@ static void cmn_booker_configure(void)
+                     struct cmn_booker_hni_reg* hni_node =
+                         (struct cmn_booker_hni_reg*) node;
+                     hni_node->CFG_CTL &= ~1;
+-                } else if (node_type == NODE_TYPE_SBSX) {
++                }
++#if !defined(PLAT_FVP) 
++                else if (node_type == NODE_TYPE_SBSX) {
+                     struct cmn_booker_sbsx_reg* sbsx_node =
+                         (struct cmn_booker_sbsx_reg*) node;
+                     FWK_LOG_INFO(MOD_NAME "sbsx CFG_CTL %p val %x%x\n", &sbsx_node->CFG_CTL, HIGH_WORD(sbsx_node->CFG_CTL), LOW_WORD(sbsx_node->CFG_CTL));
+@@ -345,6 +348,7 @@ static void cmn_booker_configure(void)
+                     rni_node->S2_QOS_CONTROL = 0x00CC000C;
+                     FWK_LOG_INFO(MOD_NAME "rni_node S2_QOS_CONTROL %p val %x%x\n", &rni_node->S2_QOS_CONTROL, HIGH_WORD(rni_node->S2_QOS_CONTROL), LOW_WORD(rni_node->S2_QOS_CONTROL));
+                 }
++#endif
+             }
+         }
+     }
+@@ -401,8 +405,10 @@ static int cmn_booker_setup_sam(struct cmn_booker_rnsam_reg *rnsam)
+                 (region->node_id &
+                  CMN_BOOKER_RNSAM_NON_HASH_TGT_NODEID_ENTRY_MASK) << bit_pos;
+ 
++#if !defined(PLAT_FVP)
+             /* Set hashing for RNSAM */
+             rnsam->HASH_ADDR_MASK_REG = 0xffffffffff00;
++#endif
+ 
+             region_io_count++;
+             break;
+diff --git a/module/system_pll/CMakeLists.txt b/module/system_pll/CMakeLists.txt
+index ef6f66d4..d9153e3f 100644
+--- a/module/system_pll/CMakeLists.txt
++++ b/module/system_pll/CMakeLists.txt
+@@ -7,6 +7,10 @@
+ 
+ add_library(${SCP_MODULE_TARGET} SCP_MODULE)
+ 
++if(SCP_ENABLE_PLAT_FVP)
++    target_compile_definitions(${SCP_MODULE_TARGET} PUBLIC -DPLAT_FVP=1)
++endif()
++
+ target_include_directories(${SCP_MODULE_TARGET}
+                            PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+ 
+diff --git a/module/system_pll/src/mod_system_pll.c b/module/system_pll/src/mod_system_pll.c
+index 7145f038..5bbeea0c 100644
+--- a/module/system_pll/src/mod_system_pll.c
++++ b/module/system_pll/src/mod_system_pll.c
+@@ -134,7 +134,7 @@ static int system_pll_set_rate(fwk_id_t dev_id, uint64_t rate,
+     if (picoseconds == 0)
+         return FWK_E_RANGE;
+ 
+-#if 0
++#if defined(PLAT_FVP)
+     *ctx->config->control_reg = picoseconds;
+ 
+     if (ctx->config->status_reg != NULL) {
+diff --git a/product/tc2/include/clock_soc.h b/product/tc2/include/clock_soc.h
+index 3d18add3..2ca49fe2 100644
+--- a/product/tc2/include/clock_soc.h
++++ b/product/tc2/include/clock_soc.h
+@@ -21,7 +21,9 @@ enum clock_pll_idx {
+     CLOCK_PLL_IDX_CPU_HUNTER,
+     CLOCK_PLL_IDX_CPU_HUNTER_ELP,
+     CLOCK_PLL_IDX_SYS,
++#if !defined(PLAT_FVP)
+     CLOCK_PLL_IDX_INTERCONNECT,
++#endif    
+     CLOCK_PLL_IDX_DPU,
+     CLOCK_PLL_IDX_PIX0,
+     CLOCK_PLL_IDX_PIX1,
+@@ -32,7 +34,9 @@ enum clock_pll_idx {
+  * PIK clock indexes.
+  */
+ enum clock_pik_idx {
++#if !defined(PLAT_FVP)
+     CLOCK_PIK_IDX_INTERCONNECT,
++#endif
+     CLOCK_PIK_IDX_CLUS0_CPU0,
+     CLOCK_PIK_IDX_CLUS0_CPU1,
+     CLOCK_PIK_IDX_CLUS0_CPU2,
+@@ -84,7 +88,9 @@ enum clock_css_idx {
+  * Clock indexes.
+  */
+ enum clock_idx {
++#if !defined(PLAT_FVP)
+     CLOCK_IDX_INTERCONNECT,
++#endif
+     CLOCK_IDX_CPU_GROUP_HAYES,
+     CLOCK_IDX_CPU_GROUP_HUNTER,
+     CLOCK_IDX_CPU_GROUP_HUNTER_ELP,
+diff --git a/product/tc2/include/scp_mmap.h b/product/tc2/include/scp_mmap.h
+index 47405bab..365badca 100644
+--- a/product/tc2/include/scp_mmap.h
++++ b/product/tc2/include/scp_mmap.h
+@@ -13,8 +13,13 @@
+ #define SCP_RAM_BASE      0x10000000
+ 
+ /* SCP ROM and RAM firmware size loaded on main memory */
++#if defined(PLAT_FVP)
++#define SCP_BOOT_ROM_SIZE (512 * 1024)
++#define SCP_RAM_SIZE      (512 * 1024)
++#else
+ #define SCP_BOOT_ROM_SIZE (128 * 1024)
+-#define SCP_RAM_SIZE (128 * 1024)
++#define SCP_RAM_SIZE      (128 * 1024)
++#endif
+ 
+ /* SCP trusted and non-trusted RAM base address */
+ #define SCP_TRUSTED_RAM_BASE    (SCP_SYSTEM_ACCESS_PORT1_BASE + 0x04000000)
+@@ -35,7 +40,11 @@
+ #define SCP_SYSTEM_ACCESS_PORT1_BASE           UINT32_C(0xA0000000)
+ 
+ #define SCP_CMN_BOOKER_BASE (SCP_SYSTEM_ACCESS_PORT0_BASE + 0x10000000)
++#if defined(PLAT_FVP)
++#define SCP_UART_BOARD_BASE (SCP_SYSTEM_ACCESS_PORT0_BASE + 0x3FF70000)
++#else
+ #define SCP_UART_BOARD_BASE (SCP_SYSTEM_ACCESS_PORT1_BASE + 0x2a400000)
++#endif
+ #define SCP_PIK_SCP_BASE    (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE)
+ 
+ #define SCP_REFCLK_CNTCONTROL_BASE (SCP_SYSTEM_ACCESS_PORT1_BASE + 0x2A430000)
+@@ -45,7 +54,9 @@
+ #define SCP_PIK_CLUSTER_BASE (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE + 0x60000)
+ #define SCP_PIK_SYSTEM_BASE  (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE + 0x40000)
+ #define SCP_PIK_DPU_BASE     (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE + 0xE0000)
++#if !defined(PLAT_FVP)
+ #define SCP_PIK_GPU_BASE     (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE + 0xA0000)
++#endif
+ 
+ #define SCP_UTILITY_BUS_BASE \
+     (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE + 0x1000000)
+@@ -61,11 +72,13 @@
+ 
+ #define SCP_PPU_SYS0_BASE (SCP_PIK_SYSTEM_BASE + 0x1000)
+ 
++#if !defined(PLAT_FVP)
+ /* benhor01: Move this to Firmware.cmake */
+ #define GPU_DPU
+ 
+ #define SCP_PPU_DPU_BASE (SCP_PIK_DPU_BASE + 0x1000)
+ #define SCP_PPU_GPU_BASE (SCP_PIK_GPU_BASE + 0x1000)
++#endif
+ 
+ #define SCP_MHU_AP_BASE (SCP_PERIPHERAL_BASE)
+ 
+diff --git a/product/tc2/include/scp_pik.h b/product/tc2/include/scp_pik.h
+index 6b446e34..b0d29b49 100644
+--- a/product/tc2/include/scp_pik.h
++++ b/product/tc2/include/scp_pik.h
+@@ -45,8 +45,11 @@ struct pik_scp_reg {
+     FWK_R uint32_t ID3;
+ };
+ 
++#if !defined(PLAT_FVP)
+ /* benhor01: INTPLL ?? */
+ #define PLL_STATUS_0_INTPLL_LOCK     UINT32_C(1 << 3)
++#endif
++
+ #define PLL_STATUS_0_SYSPLL_LOCK     UINT32_C(1 << 5)
+ #define PLL_STATUS_0_DISPLAYPLL_LOCK UINT32_C(1 << 6)
+ 
+diff --git a/product/tc2/scp_ramfw/config_clock.c b/product/tc2/scp_ramfw/config_clock.c
+index efbf93ca..1969f5f8 100644
+--- a/product/tc2/scp_ramfw/config_clock.c
++++ b/product/tc2/scp_ramfw/config_clock.c
+@@ -20,6 +20,7 @@
+ #include <fwk_module_idx.h>
+ 
+ static const struct fwk_element clock_dev_desc_table[CLOCK_IDX_COUNT + 1] = {
++#if !defined(PLAT_FVP)
+     [CLOCK_IDX_INTERCONNECT] =
+         {
+             .name = "Interconnect",
+@@ -32,6 +33,7 @@ static const struct fwk_element clock_dev_desc_table[CLOCK_IDX_COUNT + 1] = {
+                     MOD_PIK_CLOCK_API_TYPE_CLOCK),
+             }),
+         },
++#endif
+     [CLOCK_IDX_CPU_GROUP_HAYES] =
+         {
+             .name = "CPU_GROUP_HAYES",
+diff --git a/product/tc2/scp_ramfw/config_gtimer.c b/product/tc2/scp_ramfw/config_gtimer.c
+index dfb52912..0299d6bc 100644
+--- a/product/tc2/scp_ramfw/config_gtimer.c
++++ b/product/tc2/scp_ramfw/config_gtimer.c
+@@ -28,7 +28,11 @@ static const struct fwk_element gtimer_dev_table[2] = {
+                 .frequency = CLOCK_RATE_REFCLK,
+                 .clock_id = FWK_ID_ELEMENT_INIT(
+                    FWK_MODULE_IDX_CLOCK,
++#if defined(PLAT_FVP)
++                    CLOCK_IDX_CPU_GROUP_HAYES),
++#else
+                     CLOCK_IDX_INTERCONNECT),
++#endif
+         }),
+     },
+     [1] = { 0 },
+diff --git a/product/tc2/scp_ramfw/config_pik_clock.c b/product/tc2/scp_ramfw/config_pik_clock.c
+index 394b9ec1..19613eb7 100644
+--- a/product/tc2/scp_ramfw/config_pik_clock.c
++++ b/product/tc2/scp_ramfw/config_pik_clock.c
+@@ -48,6 +48,7 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_hunter_elp[1] = {
+     },
+ };
+ 
++#if !defined(PLAT_FVP)
+ static const struct mod_pik_clock_rate rate_table_sys_intclk[] = {
+     {
+         .rate = 2000 * FWK_MHZ,
+@@ -56,6 +57,7 @@ static const struct mod_pik_clock_rate rate_table_sys_intclk[] = {
+         .divider = 1,
+     },
+ };
++#endif
+ 
+ static const struct mod_pik_clock_rate rate_table_gicclk[1] = {
+     {
+@@ -201,6 +203,7 @@ static const struct fwk_element pik_clock_element_table[
+             .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp),
+         }),
+     },
++#if !defined(PLAT_FVP)
+     [CLOCK_PIK_IDX_INTERCONNECT] = {
+         .name = "INTERCONNECT",
+         .data = &((struct mod_pik_clock_dev_config) {
+@@ -213,6 +216,7 @@ static const struct fwk_element pik_clock_element_table[
+             .initial_rate = 2000 * FWK_MHZ,
+         }),
+     },
++#endif    
+     [CLOCK_PIK_IDX_GIC] = {
+         .name = "GIC",
+         .data = &((struct mod_pik_clock_dev_config) {
+diff --git a/product/tc2/scp_ramfw/config_pl011.c b/product/tc2/scp_ramfw/config_pl011.c
+index ae567b06..df96f6f0 100644
+--- a/product/tc2/scp_ramfw/config_pl011.c
++++ b/product/tc2/scp_ramfw/config_pl011.c
+@@ -22,8 +22,13 @@ const struct fwk_module_config config_pl011 = {
+             .data =
+                 &(struct mod_pl011_element_cfg){
+                     .reg_base = SCP_UART_BOARD_BASE,
++#if defined(PLAT_FVP)
++                    .baud_rate_bps = 115200,
++                    .clock_rate_hz = 24 * FWK_MHZ,
++#else   
+                     .baud_rate_bps = 38400,
+                     .clock_rate_hz = 5 * FWK_MHZ,
++#endif                               
+                     .clock_id = FWK_ID_NONE_INIT,
+                     .pd_id = FWK_ID_NONE_INIT,
+                 },
+diff --git a/product/tc2/scp_ramfw/config_ppu_v1.c b/product/tc2/scp_ramfw/config_ppu_v1.c
+index 1f811a9a..deda9911 100644
+--- a/product/tc2/scp_ramfw/config_ppu_v1.c
++++ b/product/tc2/scp_ramfw/config_ppu_v1.c
+@@ -40,6 +40,7 @@ static struct mod_ppu_v1_config ppu_v1_config_data = {
+         MOD_PD_NOTIFICATION_IDX_POWER_STATE_TRANSITION),
+ };
+ 
++#if !defined(PLAT_FVP)
+ /* Identifiers for the static table */
+ enum ppu_v1_static_element_idx {
+     PPU_V1_ELEMENT_IDX_SYS0,
+@@ -49,7 +50,21 @@ enum ppu_v1_static_element_idx {
+ #endif
+     PPU_V1_ELEMENT_IDX_COUNT
+ };
++#endif
+ 
++#if defined(PLAT_FVP)
++static const struct fwk_element ppu_v1_system_element_table[1] = {
++    [0] =
++        {
++            .name = "SYS0",
++            .data = &((struct mod_ppu_v1_pd_config){
++                .pd_type = MOD_PD_TYPE_SYSTEM,
++                .ppu.reg_base = SCP_PPU_SYS0_BASE,
++                .observer_id = FWK_ID_NONE_INIT,
++            }),
++        },
++};
++#else
+ static struct fwk_element ppu_v1_system_element_table[] = {
+     [PPU_V1_ELEMENT_IDX_SYS0] =
+         {
+@@ -83,6 +98,7 @@ static struct fwk_element ppu_v1_system_element_table[] = {
+         },
+ #endif
+ };
++#endif
+ 
+ static const struct fwk_element *ppu_v1_get_element_table(fwk_id_t module_id)
+ {
+diff --git a/product/tc2/scp_ramfw/config_system_pll.c b/product/tc2/scp_ramfw/config_system_pll.c
+index 46a34928..239e342c 100644
+--- a/product/tc2/scp_ramfw/config_system_pll.c
++++ b/product/tc2/scp_ramfw/config_system_pll.c
+@@ -71,6 +71,7 @@ static const struct fwk_element system_pll_element_table[
+                     .min_step = MOD_SYSTEM_PLL_MIN_INTERVAL,
+                 }),
+             },
++#if !defined(PLAT_FVP)            
+         [CLOCK_PLL_IDX_INTERCONNECT] =
+             {
+                 .name = "INT_PLL",
+@@ -84,6 +85,7 @@ static const struct fwk_element system_pll_element_table[
+                     .min_step = MOD_SYSTEM_PLL_MIN_INTERVAL,
+                 }),
+             },
++#endif            
+         [CLOCK_PLL_IDX_DPU] =
+             {
+                 .name = "DPU_PLL",
+diff --git a/product/tc2/scp_romfw/Firmware.cmake b/product/tc2/scp_romfw/Firmware.cmake
+index b994d760..0fe9e570 100644
+--- a/product/tc2/scp_romfw/Firmware.cmake
++++ b/product/tc2/scp_romfw/Firmware.cmake
+@@ -36,20 +36,38 @@ if(SCP_ENABLE_PLAT_FVP)
+ else()
+     list(PREPEND SCP_MODULE_PATHS "${CMAKE_SOURCE_DIR}/module/snps_umctl")
+ endif()
++
+ # The order of the modules in the following list is the order in which the
+ # modules are initialized, bound, started during the pre-runtime phase.
+ # any change in the order will cause firmware initialization errors.
+ 
+-list(APPEND SCP_MODULES "ppu-v1")
+-list(APPEND SCP_MODULES "pl011")
+-list(APPEND SCP_MODULES "msys-rom")
+-list(APPEND SCP_MODULES "snps-umctl")
+-list(APPEND SCP_MODULES "cmn-booker")
+-list(APPEND SCP_MODULES "sds")
+-list(APPEND SCP_MODULES "bootloader")
+-list(APPEND SCP_MODULES "system-pll")
+-list(APPEND SCP_MODULES "pik-clock")
+-list(APPEND SCP_MODULES "css-clock")
+-list(APPEND SCP_MODULES "clock")
+-list(APPEND SCP_MODULES "gtimer")
+-list(APPEND SCP_MODULES "timer")
++if(SCP_ENABLE_PLAT_FVP)
++    list(APPEND SCP_MODULES "pl011")
++    list(APPEND SCP_MODULES "ppu-v1")
++    list(APPEND SCP_MODULES "tc2-bl1")
++    list(APPEND SCP_MODULES "bootloader")
++    list(APPEND SCP_MODULES "system-pll")
++    list(APPEND SCP_MODULES "pik-clock")
++    list(APPEND SCP_MODULES "css-clock")
++    list(APPEND SCP_MODULES "clock")
++    list(APPEND SCP_MODULES "gtimer")
++    list(APPEND SCP_MODULES "timer")
++    list(APPEND SCP_MODULES "cmn-booker")
++    list(APPEND SCP_MODULES "sds")
++    list(APPEND SCP_MODULES "mhu2")
++    list(APPEND SCP_MODULES "transport")
++else()
++    list(APPEND SCP_MODULES "ppu-v1")
++    list(APPEND SCP_MODULES "pl011")
++    list(APPEND SCP_MODULES "msys-rom")
++    list(APPEND SCP_MODULES "snps-umctl")
++    list(APPEND SCP_MODULES "cmn-booker")
++    list(APPEND SCP_MODULES "sds")
++    list(APPEND SCP_MODULES "bootloader")
++    list(APPEND SCP_MODULES "system-pll")
++    list(APPEND SCP_MODULES "pik-clock")
++    list(APPEND SCP_MODULES "css-clock")
++    list(APPEND SCP_MODULES "clock")
++    list(APPEND SCP_MODULES "gtimer")
++    list(APPEND SCP_MODULES "timer")
++endif()
+\ No newline at end of file
+diff --git a/product/tc2/scp_romfw/config_clock.c b/product/tc2/scp_romfw/config_clock.c
+index 00c015b1..b4baecac 100644
+--- a/product/tc2/scp_romfw/config_clock.c
++++ b/product/tc2/scp_romfw/config_clock.c
+@@ -25,6 +25,9 @@
+ #include <fwk_module.h>
+ #include <fwk_module_idx.h>
+ 
++#if defined(PLAT_FVP)
++static const struct fwk_element clock_dev_desc_table[2] = {
++#else
+ static const struct fwk_element clock_dev_desc_table[3] = {
+     [CLOCK_IDX_INTERCONNECT] =
+         {
+@@ -40,6 +43,7 @@ static const struct fwk_element clock_dev_desc_table[3] = {
+ 
+             }),
+         },
++#endif
+     [CLOCK_IDX_CPU_GROUP_HAYES] =
+         {
+             .name = "CPU_GROUP_HAYES",
+diff --git a/product/tc2/scp_romfw/config_pik_clock.c b/product/tc2/scp_romfw/config_pik_clock.c
+index f8536af2..c0475889 100644
+--- a/product/tc2/scp_romfw/config_pik_clock.c
++++ b/product/tc2/scp_romfw/config_pik_clock.c
+@@ -28,7 +28,7 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_hayes[1] = {
+         .divider = 1, /* Rate adjusted via CPU PLL */
+     },
+ };
+-
++#if !defined(PLAT_FVP)
+ static const struct mod_pik_clock_rate rate_table_sys_intclk[] = {
+     {
+         .rate = 2000 * FWK_MHZ,
+@@ -74,9 +74,15 @@ static const struct mod_pik_clock_rate rate_table_uartclk[] = {
+         .divider = CLOCK_RATE_SYSPLLCLK / (2000 * FWK_MHZ),
+     },
+ };
++#endif
+ 
++#if defined(PLAT_FVP)
++static const struct fwk_element
++    pik_clock_element_table[CLOCK_PIK_IDX_CLUS0_CPU3 + 2] =
++#else
+ static const struct fwk_element
+     pik_clock_element_table[] =
++#endif
+         {
+             [CLOCK_PIK_IDX_CLUS0_CPU0] =
+                 {
+@@ -130,6 +136,9 @@ static const struct fwk_element
+                         .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hayes),
+                     }),
+                 },
++#if defined(PLAT_FVP)
++            {0}
++#else
+             [CLOCK_PIK_IDX_INTERCONNECT] =
+                 {
+                     .name = "INTERCONNECT",
+@@ -200,6 +209,7 @@ static const struct fwk_element
+                         }),
+                 },
+             [CLOCK_PIK_IDX_COUNT] = { 0 }, /* Termination description. */
++#endif            
+         };
+ 
+ static const struct fwk_element *pik_clock_get_element_table(fwk_id_t module_id)
+diff --git a/product/tc2/scp_romfw/config_pl011.c b/product/tc2/scp_romfw/config_pl011.c
+index abe090bf..0eb5b62a 100644
+--- a/product/tc2/scp_romfw/config_pl011.c
++++ b/product/tc2/scp_romfw/config_pl011.c
+@@ -21,8 +21,13 @@ const struct fwk_module_config config_pl011 = {
+             .data =
+                 &(struct mod_pl011_element_cfg){
+                     .reg_base = SCP_UART_BOARD_BASE,
++#if defined(PLAT_FVP)
++                    .baud_rate_bps = 115200,
++                    .clock_rate_hz = 24 * FWK_MHZ,
++#else                    
+                     .baud_rate_bps = 38400,
+                     .clock_rate_hz = 5 * FWK_MHZ,
++#endif                    
+                     .clock_id = FWK_ID_NONE_INIT,
+                 },
+         },
+-- 
+2.25.1
+

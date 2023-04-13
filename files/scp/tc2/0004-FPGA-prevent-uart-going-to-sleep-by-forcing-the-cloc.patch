@@ -1,0 +1,30 @@
+From f9e811e54b2072cf28bc0575de8ad95d2ef69990 Mon Sep 17 00:00:00 2001
+From: Usama Arif <usama.arif@arm.com>
+Date: Thu, 20 May 2021 09:59:38 +0100
+Subject: [PATCH 04/18] FPGA: prevent uart going to sleep by forcing the clock
+
+Signed-off-by: Usama Arif <usama.arif@arm.com>
+Change-Id: I3813f32c444d762fba8ecadfd62fb1f8ef4361f0
+---
+ framework/src/fwk_arch.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/framework/src/fwk_arch.c b/framework/src/fwk_arch.c
+index c156addb..8e3838a6 100644
+--- a/framework/src/fwk_arch.c
++++ b/framework/src/fwk_arch.c
+@@ -72,6 +72,11 @@ int fwk_arch_init(const struct fwk_arch_init_driver *driver)
+     // Turn on System Interconnect PPU for getting access to AP UART
+     volatile uint64_t *addr = (uint64_t*) (0x50000000 + 0x40000 + 0x1000);
+     *addr = 0x00000008;
++    while((*(addr+1) &0xf)!=0x8);
++
++    // code added to stop cpu going to sleep and killing UART
++    addr = (uint64_t*) (0x50000000 + 0x40000 + 0x00A04);
++    *addr = 0x00000040;
+ 
+     status = fwk_io_init();
+     if (!fwk_expect(status == FWK_SUCCESS)) {
+-- 
+2.25.1
+

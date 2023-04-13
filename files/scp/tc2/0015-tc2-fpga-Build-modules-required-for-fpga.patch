@@ -1,0 +1,53 @@
+From 3dd1e13d4b9a9449b0a4d451ae3215d3a86b0463 Mon Sep 17 00:00:00 2001
+From: Ben Horgan <ben.horgan@arm.com>
+Date: Tue, 27 Sep 2022 13:38:35 +0100
+Subject: [PATCH 15/18] tc2: fpga: Build modules required for fpga
+
+Change-Id: I0c1dabb3841650ef51494527863fd314c0965dad
+Signed-off-by: Ben Horgan <ben.horgan@arm.com>
+---
+ product/tc2/scp_romfw/Firmware.cmake | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)
+
+diff --git a/product/tc2/scp_romfw/Firmware.cmake b/product/tc2/scp_romfw/Firmware.cmake
+index 4df0a7e3..b994d760 100644
+--- a/product/tc2/scp_romfw/Firmware.cmake
++++ b/product/tc2/scp_romfw/Firmware.cmake
+@@ -33,13 +33,19 @@ list(PREPEND SCP_MODULE_PATHS "${CMAKE_SOURCE_DIR}/module/cmn_booker")
+ 
+ if(SCP_ENABLE_PLAT_FVP)
+     list(PREPEND SCP_MODULE_PATHS "${CMAKE_SOURCE_DIR}/product/tc2/module/tc2_bl1")
++else()
++    list(PREPEND SCP_MODULE_PATHS "${CMAKE_SOURCE_DIR}/module/snps_umctl")
+ endif()
+ # The order of the modules in the following list is the order in which the
+ # modules are initialized, bound, started during the pre-runtime phase.
+ # any change in the order will cause firmware initialization errors.
+ 
+-list(APPEND SCP_MODULES "pl011")
+ list(APPEND SCP_MODULES "ppu-v1")
++list(APPEND SCP_MODULES "pl011")
++list(APPEND SCP_MODULES "msys-rom")
++list(APPEND SCP_MODULES "snps-umctl")
++list(APPEND SCP_MODULES "cmn-booker")
++list(APPEND SCP_MODULES "sds")
+ list(APPEND SCP_MODULES "bootloader")
+ list(APPEND SCP_MODULES "system-pll")
+ list(APPEND SCP_MODULES "pik-clock")
+@@ -47,13 +53,3 @@ list(APPEND SCP_MODULES "css-clock")
+ list(APPEND SCP_MODULES "clock")
+ list(APPEND SCP_MODULES "gtimer")
+ list(APPEND SCP_MODULES "timer")
+-list(APPEND SCP_MODULES "cmn-booker")
+-list(APPEND SCP_MODULES "sds")
+-
+-if(SCP_ENABLE_PLAT_FVP)
+-    list(APPEND SCP_MODULES "tc2-bl1")
+-    list(APPEND SCP_MODULES "mhu2")
+-    list(APPEND SCP_MODULES "transport")
+-else()
+-    list(APPEND SCP_MODULES "msys-rom")
+-endif()
+-- 
+2.25.1
+
