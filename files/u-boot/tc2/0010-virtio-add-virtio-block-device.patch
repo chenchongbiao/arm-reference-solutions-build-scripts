@@ -1,0 +1,28 @@
+From 1a91fb8cae43ee371a9e765d6152afba3c25717e Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Mon, 17 Apr 2023 16:16:37 +0530
+Subject: [PATCH] virtio: add virtio block device
+
+This will help in mounting a disk image as a virtio block device
+---
+ arch/arm/dts/total_compute.dts | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/arch/arm/dts/total_compute.dts b/arch/arm/dts/total_compute.dts
+index 9b2cbfb452..e08dd88bd9 100644
+--- a/arch/arm/dts/total_compute.dts
++++ b/arch/arm/dts/total_compute.dts
+@@ -56,4 +56,10 @@
+ 		method = "smc";
+ 		status = "okay";
+ 	};
++
++        virtio_block@1c130000 {
++                compatible = "virtio,mmio";
++                reg = <0x0 0x1c130000 0x0 0x200>;
++                interrupts = <0 170 4>;
++        };
+ };
+-- 
+2.34.1
+
