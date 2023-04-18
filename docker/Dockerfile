@@ -29,7 +29,6 @@
 ARG version
 FROM ubuntu:$version
 ENTRYPOINT ["/usr/bin/local/entrypoint.sh"]
-
 # We expect the caller to invoke us as non-root so there is never a need for us
 # to drop uid and gid.
 # chmod 777 for all system files so that they can be accessed by nonroot users
@@ -39,21 +38,14 @@ ENTRYPOINT ["/usr/bin/local/entrypoint.sh"]
 #         this is needed by the 'ssh' command) and set the home as '/home'.
 #  (3) ...exec requested CMD with arguments forwarded.
 
-# this is the home shared by all users
-ENV HOME="/home"
-
 COPY requirements.sh .
 RUN bash requirements.sh
-
-RUN git config --global user.name "dummy-user" \
-    && git config --global user.email "invalid-email" \
-    && git config --global color.ui true
 
 # 777 so that it is writeable by the non-root user
 RUN wget https://storage.googleapis.com/git-repo-downloads/repo -O /usr/local/bin/repo \
     && chmod 777 /usr/local/bin/repo
 
-RUN chmod -R 777 /home /etc/passwd /etc/group
+RUN chmod -R 777 /etc/passwd /etc/group
 
 COPY entrypoint.sh /usr/bin/local/entrypoint.sh
 RUN chmod 555 /usr/bin/local/entrypoint.sh

@@ -14,8 +14,8 @@ if test "$uid" = "0" -o "$gid" = "0" ; then
     exit 1
 fi
 
-echo "build:x:$uid:$gid::/home:/bin/bash" > /etc/passwd
-echo "build:x:$gid:" > /etc/group
+echo "$USER:x:$uid:$gid::$HOME:/bin/bash" > /etc/passwd
+echo "$USER:x:$gid:" > /etc/group
 
 if test "$#" -ne 0 ; then
     exec "$@"

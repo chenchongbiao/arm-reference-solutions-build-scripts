@@ -17,7 +17,7 @@ NC="\e[0m"
 
 verify_img()
 {
-    img_digest_reg="a058002ef161c4733ef1adac8aed46486918f3c9ff938395e04795fe3a939b35"
+    img_digest_reg="25912b900d250f41130ed2cd048bd989871a25ae249bd4f902218e46b2cf3e05"
     img_digest_local=$(docker images --format "{{.Repository}}:{{.Tag}}:{{.Digest}}" |grep $DOCKER_IMAGE |cut -d":" -f4)
     [ $img_digest_reg == $img_digest_local ] && exit 0
     echo -e "${YELLOW}Image verification failed!! ${NC}" && exit 1
@@ -75,7 +75,17 @@ else
                -e FILESYSTEM=$FILESYSTEM \
                -e AVB=$AVB \
                -e TC_GPU=$TC_GPU \
-	       -e TC_TARGET_FLAVOR=$TC_TARGET_FLAVOR"
+	       -e TC_TARGET_FLAVOR=$TC_TARGET_FLAVOR \
+	       -e ARMCLANG_TOOL=$ARMCLANG_TOOL \
+	       -e USER=$USER \
+	       -e HOME=$HOME \
+	       -e ANDROID_TEST_EXAMPLES=$ANDROID_TEST_EXAMPLES \
+	       -e GPU_DDK_REPO=$GPU_DDK_REPO \
+	       -e GPU_DDK_VERSION=$GPU_DDK_VERSION \
+	       -e LM_LICENSE_FILE=$LM_LICENSE_FILE \
+	       -e ARMLMD_LICENSE_FILE=$ARMLMD_LICENSE_FILE \
+	       -e ARMCLANG_TOOL=$ARMCLANG_TOOL"
+
 
     if [ $PARALLELISM ];then
         env_opts+=" -e PARALLELISM=$PARALLELISM"
@@ -85,9 +95,11 @@ else
     echo -e "${BLUE}INFO: ENTERING DOCKER CONTAINER ${NC}"
 
     docker run --rm --net=host --mount type=bind,source=$WORK_DIR,target=$WORK_DIR \
-        $env_opts \
-        --workdir /$SCRIPT_DIR \
-        --user $(id -u):$(id -g) -it $DOCKER_REGISTRY/$DOCKER_IMAGE:$TAG $PWD/$@
+      $env_opts \
+      -v $HOME:$HOME \
+      -v $SSH_AUTH_SOCK:/ssh.socket -e SSH_AUTH_SOCK=/ssh.socket \
+      --workdir /$SCRIPT_DIR \
+      --user $(id -u):$(id -g) -it $DOCKER_REGISTRY/$DOCKER_IMAGE:$TAG ${PWD}/$@
 
     echo -e "${BLUE}INFO: EXITING DOCKER CONTAINER ${NC}"
 fi
