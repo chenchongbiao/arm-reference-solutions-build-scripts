@@ -338,7 +338,7 @@ The run-scripts structure is as follows:
 Ensure that all dependencies are met by running the FVP: ``./path/to/FVP_TC2``. You should see
 the FVP launch, presenting a graphical interface showing information about the current state of the FVP.
 
-The ``run_model.sh`` script in ``<tc2_workspace>/bsp/run-scripts/tc2`` will launch the FVP, providing
+The ``run_model.sh`` script in ``<tc2_workspace>/run-scripts/tc2`` will launch the FVP, providing
 the previously built images as arguments. Run the ``run_model.sh`` script:
 
 ::
@@ -373,27 +373,46 @@ For running android with AVB enabled:
 
      ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-swr -a true
 
-When the script is run, three terminal instances will be launched.
-terminal_uart_ap used for TF-M firmware logs, terminal_s0 used for the SCP,
-TF-A, OP-TEE core logs and terminal_s1 used by TF-A early boot, Hafnium, U-boot
-and Linux.
+When the script is run, four terminal instances will be launched:
+ * terminal_uart_ap used for U-boot and Linux bootlogs and normal shell prompt
+ * terminal_uart1_ap used for TF-A, Hafnium, Trusty and OP-TEE core logs
+ * terminal_s0 used for the SCP logs
+ * terminal_s1 used by TF-M logs (no output by default)
 
 Once the FVP is running, hardware Root of Trust will verify AP and SCP
 images, initialize various crypto services and then handover execution to the
-SCP. SCP will bring the AP out of reset.  The AP will start booting from its
+SCP. SCP will bring the AP out of reset. The AP will start booting from its
 ROM and then proceed to boot Trusted Firmware-A, Hafnium,
 Secure Partitions (OP-TEE, Trusted Services in Buildroot and Trusty in Android) then
 U-Boot, and then Linux and Buildroot/Android.
 
-When booting Buildroot the model will boot Linux and present a login prompt on terminal_s1. Login
+When booting Buildroot, the model will boot Linux and present a login prompt on terminal_uart_ap. Login
 using the username ``root``. You may need to hit Enter for the prompt to appear.
+
+
+Running sanity tests
+-----------------------------------
 
 The OP-TEE and Trusted Services are initialized in Buildroot distribution. The functionality of OP-TEE and
 core set of trusted services such as Crypto and Internal Trusted Storage can be invoked only on Builroot distribution.
-For OP-TEE, the TEE sanity test suite can be run using command ``xtest`` on terminal_s1.
-For Trusted Services, run command ``ts-service-test -sg ItsServiceTests -sg PsaCryptoApiTests -sg
-CryptoServicePackedcTests -sg CryptoServiceProtobufTests -sg CryptoServiceLimitTests -v`` for Service API level tests
-and run command ``ts-demo`` for the demonstration client application.
+
+OP-TEE
+###############
+
+For OP-TEE, the TEE sanity test suite can be run using command ``xtest`` on terminal_uart_ap.
+
+NOTE:
+This test suite will take some time to run all its related tests.
+
+
+Trusted Services and Client application
+########################################
+
+For Trusted Services, run command ``ts-service-test -sg ItsServiceTests -sg PsaCryptoApiTests -sg CryptoServicePackedcTests -sg CryptoServiceProtobufTests -sg CryptoServiceLimitTests -v`` for Service API level tests, and run ``ts-demo`` for the demonstration of the client application.
+
+
+Trusty
+###############
 
 On Android distribution, Trusty provides a Trusted Execution Environment (TEE).
 The functionality of Trusty IPC can be tested using command ``tipc-test -t ta2ta-ipc`` with root privilege.
@@ -408,6 +427,22 @@ For running a demo Microdroid, boot TC FVP with Android distribution. Once the A
 ::
 
  ./run-scripts/tc2/run_microdroid_demo.sh
+
+
+Kernel Selftest
+###############
+
+Tests are located at /usr/bin/selftest on device
+
+To run all the tests in one go, use run_selftest.sh script. Tests can be run individually also.
+::
+
+    ./run_kselftest --summary
+
+NOTE:
+
+KSM driver is not a part of the TC2 kernel. Hence, one of the MTE Kselftests will fail for check_ksm_options test.
+
 
 Debugging on Arm Development Studio
 -----------------------------------
@@ -442,101 +477,6 @@ Switch between SCP and AP
 
 .. figure:: Switch_Cores.png
 
-Kernel Selftest
-###############
-
-Test are located at /usr/bin/selftest on device
-
-To run all the tests in one go, use run_selftest.sh script. Tests can be run individually also.
-::
-
-    ./run_kselftest --summary
-
-NOTE:
-
-KSM driver is not a part of TC2 kernel. Hence, one of the MTE Kselftests fail for check_ksm_options test.
-
-Building the Mali GPU DDK
-#########################
-
-The Mali GPU DDK is not part of this release and hence needs to be
-obtained separately.  Also, note that the GPU is not modelled in the
-FVP.  The version that has been tested is r40p0_01eac0. These
-instructions assume you have the Mali DDK in the directory $MALI_DDK
-with all submodules. These instructions assume you are building the
-DDK for Android but do not cover device profile changes. The three
-components of the DDK build are the linux device driver, the CSF
-firmware and gralloc.
-
-Building the linux driver
--------------------------
-The driver, mali_kbase.ko, must be build as a module. One method is to do this in-tree.
-
-#. cp -R $MALI_DDK/product/kernel/drivers $MALI_DDK/product/kernel/include src/linux
-#. Edit the kbuild system to include the driver as described by this patch.
-
-::
-
-      diff --git a/drivers/Kconfig b/drivers/Kconfig
-      index e346c35f42b4..978e083d1427 100644
-      --- a/drivers/Kconfig
-      +++ b/drivers/Kconfig
-      @@ -238,4 +238,6 @@ source "drivers/interconnect/Kconfig"
-      source "drivers/counter/Kconfig"
-      
-      source "drivers/most/Kconfig"
-      +source "drivers/base/arm/Kconfig"
-      +source "drivers/gpu/arm/midgard/Kconfig"
-      endmenu
-      diff --git a/drivers/base/Makefile b/drivers/base/Makefile
-      index ef8e44a7d288..1151ad6ff861 100644
-      --- a/drivers/base/Makefile
-      +++ b/drivers/base/Makefile
-      @@ -33,3 +33,4 @@ ccflags-$(CONFIG_DEBUG_DRIVER) := -DDEBUG
-      # define_trace.h needs to know how to find our header
-      CFLAGS_trace.o         := -I$(src)
-      obj-$(CONFIG_TRACING)  += trace.o
-      +obj-y +=                       arm/
-      diff --git a/drivers/gpu/Makefile b/drivers/gpu/Makefile
-      index 835c88318cec..37888b7ecf31 100644
-      --- a/drivers/gpu/Makefile
-      +++ b/drivers/gpu/Makefile
-      @@ -6,3 +6,4 @@ obj-$(CONFIG_TEGRA_HOST1X)      += host1x/
-      obj-y                  += drm/ vga/
-      obj-$(CONFIG_IMX_IPUV3_CORE)   += ipu-v3/
-      obj-$(CONFIG_TRACE_GPU_MEM)            += trace/
-      +obj-y                  += arm/
-
-Building the csf firmware
--------------------------
-
-#. cd $MALI_DDK
-#. export KERNEL_DIR=<tc2_workspace>/bsp/src/linux
-#. mkdir -p build_cfw
-#. export BUILDDIR=$PWD/build_cfw
-#. bldsys/bootstrap_linux.bash
-#. build_cfw/config LINUX=y CSFFW=y EGL=y GPU_TTIX=y RELEASE=y DEBUG=n SYMBOLS=n GLES=y CL=n VULKAN=y TARGET_GNU_PREFIX=<tc2_workspace>/bsp/tools/gcc-arm-11.2-2022.02-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu- KERNEL_DIR=$KERNEL_DIR
-#. build_cfw/buildme csffw
-
-Incorporate this in an Android build:
-
-#. mkdir -p <tc2_workspace>/android/vendor/arm/mali/product/firmware
-#. cp build_cfw/install/bin/mali_csffw.bin firmware_prebuilt/ttix
-
-Building gralloc
-----------------
-
-Copy or clone the Mali DDK into the android tree at <tc2_workspace>/android/vendor/arm/mali/
-This assumes a lunch target 'tc2_hwr' has been created.
-
-#. cd <tc2_workspace>/android/
-#. source build/envsetup.sh
-#. lunch tc2_hwr
-#. cd vendor/arm/mali/product
-#. ./setup_android ANDROID=y CSFFW=n EGL=y GPU_TTIX=y RELEASE=y DEBUG=n SYMBOLS=n GLES=y CL=n VULKAN=y INSTRUMENTATION_GFX=y KERNEL_DIR=$KERNEL_DIR KERNEL_COMPILER=<tc2_workspace>/bsp/tools/gcc-arm-11.2-2022.02-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu- KERNEL_CC=$TC2_ANDROID/prebuilts/clang/host/linux-x86/clang-r416183b/bin/clang USES_REFERENCE_GRALLOC=y REFERENCE_GRALLOC_XML=y
-#. ./android/gralloc/configure
-#. mmm
-#. mm
 
 
 Firmware Update
