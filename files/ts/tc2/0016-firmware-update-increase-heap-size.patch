@@ -1,0 +1,31 @@
+From ca885ab9b9db0c25b9d03bf636da8ddc839507cf Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Wed, 19 Apr 2023 18:03:54 +0530
+Subject: [PATCH] firmware-update: increase heap size
+
+The size of the FIP image is increased as it now also includes the RSS
+binaries. Since the firmware update secure partition will allocate
+dynamic memory of the size of the FIP image, the size of the heap also
+have to be increased
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+---
+ deployments/firmware-update/sp/CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/deployments/firmware-update/sp/CMakeLists.txt b/deployments/firmware-update/sp/CMakeLists.txt
+index 10b2bc3..48f9eb5 100644
+--- a/deployments/firmware-update/sp/CMakeLists.txt
++++ b/deployments/firmware-update/sp/CMakeLists.txt
+@@ -27,7 +27,7 @@ set(SP_UUID_CANON "6823a838-1b06-470e-9774-0cce8bfb53fd")
+ set(SP_UUID_LE "0x38a82368 0x0e47061b 0xce0c7497 0xfd53fb8b")
+ set(TRACE_PREFIX "FWU" CACHE STRING "Trace prefix")
+ set(SP_STACK_SIZE "64 * 1024" CACHE STRING "Stack size")
+-set(SP_HEAP_SIZE "5 * 1024 * 1024" CACHE STRING "Heap size")
++set(SP_HEAP_SIZE "13 * 1024 * 1024" CACHE STRING "Heap size")
+ 
+ # Setting the MM communication buffer parameters
+ set(FFA_SHARED_MM_BUFFER_ADDR "0xFCA00000" CACHE STRING "MM communication buffer address")
+-- 
+2.34.1
+

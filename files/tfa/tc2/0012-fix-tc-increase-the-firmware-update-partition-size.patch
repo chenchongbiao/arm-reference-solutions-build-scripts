@@ -1,0 +1,56 @@
+From 4ad00c90be8228b2ecdb340fc96a8686b7b3f71f Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Wed, 19 Apr 2023 18:25:25 +0530
+Subject: [PATCH] fix(tc): increase the firmware update partition size
+
+The firmware update partition size is increased to accomodate the
+increase in size of the FIP images. Since the partition size is
+increased, the load address also have to be changed accordingly.
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+---
+ plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts | 6 +++---
+ plat/arm/board/tc/fdts/tc_tb_fw_config.dts           | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts b/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts
+index 23ad06888..c9d170ded 100644
+--- a/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts
++++ b/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts
+@@ -28,7 +28,7 @@
+ 			load_address = <0xfd280000>;
+ 			vcpu_count = <8>;
+ #ifdef TS_SP_FW_CONFIG
+-			mem_size = <20447232>; /* 19MB TZC DRAM */
++			mem_size = <0xb00000>; /* 11MB TZC DRAM */
+ #else
+ 			mem_size = <30928896>; /* 29MB TZC DRAM */
+ #endif
+@@ -51,9 +51,9 @@
+ 		vm4 {
+ 			is_ffa_partition;
+ 			debug_name = "firmware-update";
+-			load_address = <0xfe600000>;
++			load_address = <0xfde00000>;
+ 			vcpu_count = <1>;
+-			mem_size = <6291456>; /* 6MB TZC DRAM */
++			mem_size = <0xe00000>; /* 14MB TZC DRAM */
+ 		};
+ #endif
+ 	};
+diff --git a/plat/arm/board/tc/fdts/tc_tb_fw_config.dts b/plat/arm/board/tc/fdts/tc_tb_fw_config.dts
+index 2c640b363..e5bd6ff96 100644
+--- a/plat/arm/board/tc/fdts/tc_tb_fw_config.dts
++++ b/plat/arm/board/tc/fdts/tc_tb_fw_config.dts
+@@ -43,7 +43,7 @@
+ 		};
+ 		firmware-update {
+ 		       uuid = "6823a838-1b06-470e-9774-0cce8bfb53fd";
+-		       load-address = <0xfe600000>;
++		       load-address = <0xfde00000>;
+ 		};
+ #endif
+ #if OPTEE_SP_FW_CONFIG
+-- 
+2.34.1
+
