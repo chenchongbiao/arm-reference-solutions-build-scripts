@@ -310,7 +310,7 @@ Android
 Run scripts
 ###########
 
-Within the ``<tc2_workspace>/run-scripts/`` are several convenience functions for testing the software
+Within the ``<tc2_workspace>/run-scripts/`` there are several convenience functions for testing the software
 stack. Usage descriptions for the various scripts are provided in the following sections.
 
 
@@ -343,22 +343,22 @@ the previously built images as arguments. Run the ``run_model.sh`` script:
 
 ::
 
-       ./run_model.sh
-       Incorrect script use, call script as:
-       <path_to_run_model.sh> [OPTIONS]
-       OPTIONS:
-       -m, --model                      path to model
-       -d, --distro                     distro version, values supported [buildroot, android-swr]
-       -a, --avb                        [OPTIONAL] avb boot, values supported [true, false], DEFAULT: false
-       -t, --tap-interface              [OPTIONAL] enable TAP interface
-       -e, --extra-model-params	        [OPTIONAL] extra model parameters
+    ./run_model.sh
+    Incorrect script use, call script as:
+    <path_to_run_model.sh> [OPTIONS]
+    OPTIONS:
+    -m, --model                      path to model
+    -d, --distro                     distro version, values supported [buildroot, android-swr]
+    -a, --avb                        [OPTIONAL] avb boot, values supported [true, false], DEFAULT: false
+    -t, --tap-interface              [OPTIONAL] enable TAP interface
+    -e, --extra-model-params	        [OPTIONAL] extra model parameters
 
 Running Buildroot
 #################
 
 ::
 
-        ./run-scripts/tc2/run_model.sh -m <model binary path> -d buildroot
+    ./run-scripts/tc2/run_model.sh -m <model binary path> -d buildroot
 
 Running Android
 ###############
@@ -366,12 +366,12 @@ Running Android
 For running android with AVB disabled:
 ::
  
-     ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-swr
+    ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-swr
  
 For running android with AVB enabled:
 ::
 
-     ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-swr -a true
+    ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-swr -a true
 
 When the script is run, four terminal instances will be launched:
  * terminal_uart_ap used for U-boot and Linux bootlogs and normal shell prompt
@@ -426,7 +426,7 @@ For running a demo Microdroid, boot TC FVP with Android distribution. Once the A
 
 ::
 
- ./run-scripts/tc2/run_microdroid_demo.sh
+    ./run-scripts/tc2/run_microdroid_demo.sh
 
 
 Kernel Selftest
@@ -481,6 +481,8 @@ Switch between SCP and AP
 
 Firmware Update
 ---------------
+Currently, the firmware update functionality is only supported with the buildroot distro.
+
 
 Creating Capsule
 ################
@@ -491,7 +493,7 @@ of the `edk2 project <https://github.com/tianocore/edk2>`__.
 
 ::
 
-       GenerateCapsule -e -o efi_capsule --fw-version 1 --lsv 0 --guid 0d5c011f-0776-5b38-8e81-36fbdf6743e2 --verbose --update-image-index 0 --verbose fip-tc.bin
+       GenerateCapsule -e -o efi_capsule --fw-version 1 --lsv 0 --guid 0d5c011f-0776-5b38-8e81-36fbdf6743e2 --update-image-index 0 --verbose fip-tc.bin
 
 | "fip-tc.bin" is the input fip file that has the firmware binaries of the total compute platform
 | "efi_capsule" is the name of capsule to be generated
@@ -504,9 +506,17 @@ The capsule generated using the above steps has to be loaded into memory during 
 
 ::
 
-       --data board.dram=<location of capsule>/efi_capsule@0x2000000
+    --data board.dram=<location of capsule>/efi_capsule@0x2000000
 
-This loads the capsule to be updated at address 0x82000000
+
+This loads the capsule to be updated at address 0x82000000.
+
+The final command to run the model for buildroot should look like the following:
+
+::
+
+    ./run-scripts/tc2/run_model.sh -m <model binary path> -d buildroot -e "--data board.dram=<location of capsule>/efi_capsule@0x2000000"
+
 
 Updating Firmware
 #################
@@ -515,7 +525,7 @@ During the normal boot of the platform, stop at the U-Boot prompt and execute th
 
 ::
 
-       TOTAL_COMPUTE# efidebug capsule update -v 0x82000000
+    TOTAL_COMPUTE# efidebug capsule update -v 0x82000000
 
 This will update the firmware. After it is completed, reboot the platform using the FVP GUI
 
