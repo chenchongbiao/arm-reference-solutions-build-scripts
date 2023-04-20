@@ -17,7 +17,7 @@ Prerequisites
 -------------
 
 These instructions assume that:
- * Your host PC is running a recent Ubuntu Linux.
+ * Your host PC is running a recent Ubuntu Linux (18.04 or 20.04)
  * You are running the provided scripts in a ``bash`` shell environment.
 
 To get the latest repo tool from google, run the following commands:
@@ -372,15 +372,6 @@ For running android with AVB enabled:
 ::
 
      ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-swr -a true
- 
-Run FVP model from docker container
-###################################
-
-To run FVP in docker container export required licenses and run:
-::
-
-    export MODEL_PATH=<Absolute path to model parent directory>
-    ./run_docker.sh run_model -m Absolute_path_to_model -d distro_opts
 
 When the script is run, three terminal instances will be launched.
 terminal_uart_ap used for TF-M firmware logs, terminal_s0 used for the SCP,
