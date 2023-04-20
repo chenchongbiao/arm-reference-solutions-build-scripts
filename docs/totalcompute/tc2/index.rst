@@ -12,6 +12,7 @@ Total Compute : TC2
    :maxdepth: 3
 
    tc2_sw_stack
-   change-log
-   release_notes
+   readme
    user-guide
+   release_notes
+   change-log

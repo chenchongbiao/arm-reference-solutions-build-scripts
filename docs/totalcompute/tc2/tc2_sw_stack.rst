@@ -9,7 +9,15 @@ Total Compute Platform Software Components
 .. figure:: tc2_sw_stack.png
    :alt: Total Compute Software Stack
 
-Hardware Root of Trust is enabled in TC2. It bootstraps SCP and AP by loading the below images.
+RSS Firmware
+------------
+Runtime Security Subsystem (RSS) serves as the Root of Trust for Total Compute platform.
+	
+RSS BL1 code is the first software that executes right after a cold reset or Power-on.
+	
+RSS initially boots from immutable code (BL1_1) in its internal ROM, before jumping to BL1_2, which is provisioned and hash-locked in RSS OTP.
+The updatable MCUBoot BL2 boot stage is loaded from the flash into RSS SRAM, where it is authenticated.
+BL2 loads and authenticates the TF-M runtime into RSS SRAM from host flash. BL2 is also responsible for loading initial boot code into other subsystems within Total Compute as below.
 
  #. SCP BL1
  #. AP BL1
@@ -78,7 +86,7 @@ Total Compute enables FEAT S-EL2 architectural extension, and it uses Hafnium as
 
 Secure Partitions
 .................
-Software image isolated using SPM is Secure Partition. Total Compute enables OP-TEE and Trusted Services as Secure Partitions.
+Software image isolated using SPM is Secure Partition. Total Compute enables OP-TEE and Trusted Services (Crypto, Internal Trusted Storage) as Secure Partitions.
 
 OP-TEE
 ++++++
@@ -86,7 +94,7 @@ OP-TEE Trusted OS is virtualized using Hafnium at S-EL2. OP-TEE OS for Total Com
 
 Trusted Services
 ++++++++++++++++
-Trusted Services like Crypto Service, Internal Trusted Storage and Firmware Update runs as S-EL0 Secure Partitions.
+Trusted Services like Crypto Service and Internal Trusted Storage runs as S-EL0 Secure Partitions using a Shim layer at S-EL1. These services along with S-EL1 Shim layer are built as a single image. The Shim layer forwards FF-A calls from S-EL0 to S-EL2.
 
 U-Boot
 ------

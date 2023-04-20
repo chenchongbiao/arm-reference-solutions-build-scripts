@@ -10,8 +10,7 @@ Notice
 ------
 
 The Total Compute 2022 (TC2) software stack uses bash scripts to build a Board
-Support Package (BSP) and a choice of Buildroot Linux distribution or Android
-userspace.
+Support Package (BSP) and a choice of Buildroot Linux distribution or Android.
 
 Prerequisites
 -------------
@@ -29,7 +28,7 @@ To get the latest repo tool from google, run the following commands:
     chmod a+x ~/bin/repo
     export PATH=~/bin:$PATH
 
-If syncing and building android, the minimum requirements for the host machine can be found at https://source.android.com/setup/build/requirements, These include:
+To build and run Android, the minimum requirements for the host machine can be found at https://source.android.com/setup/build/requirements, These include:
  * At least 250GB of free disk space to check out the code and an extra 150 GB to build it. If you conduct multiple builds, you need additional space.
  * At least 32 GB of available RAM/swap.
  * Git configured properly using "git config" otherwise it may throw error while fetching the code.
@@ -49,13 +48,15 @@ To manage Docker as a non-root user
     sudo usermod -aG docker $USER
     newgrp docker
 
-Syncing and building the source code
+Download the source code and build
 ------------------------------------
 
-There are two distros supported in the TC2 software stack: buildroot (a minimal distro containing busybox) and Android.
+There are two distros supported in the TC2 software stack:
+ * Buildroot (a minimal distro containing Busybox);
+ * Android.
 
-Syncing code
-############
+Download the source code
+########################
 
 Create a new folder that will be your workspace, which will henceforth be referred to as ``<tc2_workspace>``
 in these instructions.
@@ -63,21 +64,21 @@ in these instructions.
 
     mkdir <tc2_workspace>
     cd <tc2_workspace>
-    export TC2_RELEASE=refs/tags/TC2-2022.12.07
+    export TC2_RELEASE=refs/tags/TC2-2023.04.21
 
-To sync BSP only without Android, run the following repo command.
+To sync Buildroot source code, run the following repo command:
 ::
 
     repo init -u https://gitlab.arm.com/arm-reference-solutions/arm-reference-solutions-manifest -m tc2.xml -b ${TC2_RELEASE} -g bsp
     repo sync -j `nproc` --fetch-submodules
 
-To sync both the BSP and Android, run the following repo command.
+To sync Android source code, run the following repo command:
 ::
 
     repo init -u https://gitlab.arm.com/arm-reference-solutions/arm-reference-solutions-manifest -m tc2.xml -b ${TC2_RELEASE} -g android
     repo sync -j `nproc` --fetch-submodules
 
-The resulting files will have the following structure:
+Once the previous process finishes, the current <tc2_workspace> should have the following structure:
  - build-scripts/: the components build scripts
  - run-scripts/: scripts to run the FVP
  - src/: each component's git repository
@@ -93,23 +94,41 @@ Setting up a docker image involves pulling the prebuilt docker image from a dock
 
 To setup a docker image, patch the components, install the toolchains and build tools, run:
 
-For buildroot build:
+For the Buildroot build:
 ::
 
     export PLATFORM=tc2
     export FILESYSTEM=buildroot
     ./setup.sh
 
-For an Android build:
+For the Android build with hardware rendering:
 ::
 
     export PLATFORM=tc2
-    export FILESYSTEM=android-swr
+    export FILESYSTEM=android-fvp
+    export TC_GPU=true
+    export TC_TARGET_FLAVOR=fvp
+    export GPU_DDK_REPO=<PATH TO GPU DDK SOURCE CODE>
+    export GPU_DDK_VERSION=r40p0_01eac0
+    export LM_LICENSE_FILE=<LICENSE FILE>
+    export ARM_PRODUCT_DEF=<PATH TO ELMAP FILE IN ARMCLANG>
+    export ARMLMD_LICENSE_FILE=<LICENSE FILE>
+    export ANDROID_TEST_EXAMPLES=<PATH TO GPU DDK TEST EXAMPLES>
+    export ARMCLANG_TOOL=<PATH TO ARMCLANG TOOLCHAIN>
+    ./setup.sh
+
+For the Android build with software rendering:
+::
+
+    export PLATFORM=tc2
+    export TC_GPU=false
+    export TC_TARGET_FLAVOR=fvp
+    export FILESYSTEM=android-fvp
     ./setup.sh
 
 The various tools will be installed in the tools/ directory at the root of the workspace.
 
-To build Android with AVB (Android Verified Boot) enabled, run:
+To build Android with Android Verified Boot (AVB) enabled, run:
 ::
 
     export AVB=true
@@ -120,8 +139,25 @@ NOTES:
 
 * Most builds will be done in parallel using all the available cores by default. To change this number, run ``export PARALLELISM=<no of cores>``
 
-Board Support Package build
-############################
+Build options
+#############
+
+Android OS build
+****************
+
+* tc2_fvp with TC_GPU=false  : this supports Android display with swiftshader (software rendering);
+* tc2_fvp with TC_GPU=true   : this supports Android display with mali GPU (hardware rendering). GPU DDK source code is available only to licensee partners (support@arm.com).
+
+The Android images can be built with or without authentication enabled using Android Verified Boot (AVB).
+AVB build is done in userdebug mode and takes a longer time to boot as the images are verified.
+
+The ``-a`` option does not influence the way the system boots, rather it adds an optional sanity check on the prerequisite images.
+
+Android based stack takes considerable time to build, so start the build and go grab a cup of coffee!
+
+
+Build command
+#############
 
 To build the whole stack, simply run:
 ::
@@ -136,7 +172,7 @@ More about the build system
 ``build-all.sh`` will build all the components, but each component has its own script, allowing it to be built, cleaned and deployed separately.
 All scripts support the ``build``, ``clean``, ``deploy``, ``patch`` commands. ``build-all.sh`` also supports ``all``, to clean then rebuild all the stack.
 
-For example, to build, deploy, and clean SCP, run
+For example, to build, deploy, and clean SCP, run:
 ::
 
     ./run_docker.sh ./build-scp.sh build
@@ -146,14 +182,14 @@ For example, to build, deploy, and clean SCP, run
 The platform and filesystem used should be defined as described previously, but they can also be specified like so:
 ::
 
-    ./run_docker.sh ./build-all -p $PLATFORM -f $FILESYSTEM build
+    ./run_docker.sh ./build-all -p $PLATFORM -f $FILESYSTEM -t $TC_TARGET_FLAVOR -g $TC_GPU build
 
 Build Components and its dependencies
--------------------------------------
+#####################################
 
 A new dependency to a component can be added in the form of ``$component=$dependency`` in dependencies.txt file
 
-To build a component and rebuild those components that depend on it
+To build a component and rebuild those components that depend on it, run:
 ::
 
     ./run_docker.sh ./$filename build with_reqs
@@ -161,17 +197,6 @@ To build a component and rebuild those components that depend on it
 Additionally, Android Verified Boot (AVB) can be enabled with the ``-a`` option.
 Those options work for all the ``build-*.sh`` scripts.
 
-Android OS build
-#################
-
-* tc2_swr  : This supports Android display with swiftshader (software rendering).
-
-The android images can be built with or without authentication enabled using Android Verified Boot(AVB).
-AVB build is done in userdebug mode and takes a longer time to boot as the images are verified.
-
-The ``-a`` option does not influence the way the system boots rather it adds an optional sanity check on the prerequisite images.
-
-Android based stack takes considerable time to build, so start the build and go grab a cup of coffee!
 
 
 Provided components
@@ -348,10 +373,12 @@ the previously built images as arguments. Run the ``run_model.sh`` script:
     <path_to_run_model.sh> [OPTIONS]
     OPTIONS:
     -m, --model                      path to model
-    -d, --distro                     distro version, values supported [buildroot, android-swr]
+    -d, --distro                     distro version, values supported [buildroot, android-fvp]
     -a, --avb                        [OPTIONAL] avb boot, values supported [true, false], DEFAULT: false
     -t, --tap-interface              [OPTIONAL] enable TAP interface
-    -e, --extra-model-params	        [OPTIONAL] extra model parameters
+    -n, --networking                 [OPTIONAL] networking, values supported [user, tap, none]
+                                     DEFAULT: tap if tap interface provided, otherwise user
+    -e, --extra-model-params	     [OPTIONAL] extra model parameters
 
 Running Buildroot
 #################
@@ -363,21 +390,30 @@ Running Buildroot
 Running Android
 ###############
 
-For running android with AVB disabled:
+For running Android with AVB disabled:
 ::
  
-    ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-swr
+    ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-fvp
  
-For running android with AVB enabled:
+For running Android with AVB enabled:
 ::
 
-    ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-swr -a true
+    ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-fvp -a true
+
+For running Android with hardware rendering enabled:
+::
+
+    ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-fvp -e '--plugin=<crypto.so>'
+
+NOTE:
+Crypto.so is part of your FVP bundle.
+
 
 When the script is run, four terminal instances will be launched:
- * terminal_uart_ap used for U-boot and Linux bootlogs and normal shell prompt
- * terminal_uart1_ap used for TF-A, Hafnium, Trusty and OP-TEE core logs
- * terminal_s0 used for the SCP logs
- * terminal_s1 used by TF-M logs (no output by default)
+ * terminal_uart_ap used by the non-secure world components U-boot, Linux Kernel and filesystem (Buildroot/Android);
+ * terminal_uart1_ap used by the secure world components TF-A, Hafnium, Trusty and OP-TEE;
+ * terminal_s0 used for the SCP logs;
+ * terminal_s1 used by RSS logs (no output by default).
 
 Once the FVP is running, hardware Root of Trust will verify AP and SCP
 images, initialize various crypto services and then handover execution to the
@@ -442,6 +478,13 @@ To run all the tests in one go, use run_selftest.sh script. Tests can be run ind
 NOTE:
 
 KSM driver is not a part of the TC2 kernel. Hence, one of the MTE Kselftests will fail for check_ksm_options test.
+
+
+MPAM
+####
+
+The hardware and the software requirements required for the MPAM feature can be verified by running the command ``testing-mpam.sh`` on terminal_uart_ap (this script is only available on Buildroot distros).
+
 
 
 Debugging on Arm Development Studio
@@ -527,7 +570,7 @@ During the normal boot of the platform, stop at the U-Boot prompt and execute th
 
     TOTAL_COMPUTE# efidebug capsule update -v 0x82000000
 
-This will update the firmware. After it is completed, reboot the platform using the FVP GUI
+This will update the firmware. After it is completed, reboot the platform using the FVP GUI.
 
 
-*Copyright (c) 2023, Arm Limited. All rights reserved.*
+*Copyright (c) 2022-2023, Arm Limited. All rights reserved.*
