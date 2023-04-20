@@ -1,5 +1,5 @@
 ..
- # Copyright (c) 2022, Arm Limited.
+ # Copyright (c) 2022-2023, Arm Limited.
  #
  # SPDX-License-Identifier: MIT
 
@@ -11,8 +11,7 @@ Total Compute : TC2
    :titlesonly:
    :maxdepth: 3
 
-   change-log
-   readme
-   release_notes
    tc2_sw_stack
+   change-log
+   release_notes
    user-guide

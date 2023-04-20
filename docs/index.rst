@@ -2,7 +2,7 @@ Welcome to Total Compute documentation!
 ===================================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Total Compute:
 
-   totalcompute/index
+   totalcompute/tc2/index
