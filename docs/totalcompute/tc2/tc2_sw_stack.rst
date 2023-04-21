@@ -78,7 +78,7 @@ Total Compute enables FEAT S-EL2 architectural extension, and it uses Hafnium as
 
 Secure Partitions
 .................
-Software image isolated using SPM is Secure Partition. Total Compute enables OP-TEE and Trusted Services (Crypto, Internal Trusted Storage) as Secure Partitions.
+Software image isolated using SPM is Secure Partition. Total Compute enables OP-TEE and Trusted Services as Secure Partitions.
 
 OP-TEE
 ++++++
@@ -86,7 +86,7 @@ OP-TEE Trusted OS is virtualized using Hafnium at S-EL2. OP-TEE OS for Total Com
 
 Trusted Services
 ++++++++++++++++
-Trusted Services like Crypto Service and Internal Trusted Storage runs as S-EL0 Secure Partitions using a Shim layer at S-EL1. These services along with S-EL1 Shim layer are built as a single image. The Shim layer forwards FF-A calls from S-EL0 to S-EL2.
+Trusted Services like Crypto Service, Internal Trusted Storage and Firmware Update runs as S-EL0 Secure Partitions.
 
 U-Boot
 ------

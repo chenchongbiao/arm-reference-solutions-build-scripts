@@ -16,12 +16,13 @@ The TC2 software consists of firmware, kernel and file system components that ca
 Following are the Software components:
 
  #. SCP firmware – System initialization, Clock and Power control
+ #. RSS firmware – Hardware Root of Trust
  #. AP firmware – Trusted Firmware-A (TF-A)
  #. Secure Partition Manager
  #. Secure Partitions
 
     * OP-TEE Trusted OS in Buildroot
-    * Trusted Services with Shim layer in Buildroot
+    * Trusted Services in Buildroot
     * Trusty Trusted OS in Android
 
  #. U-Boot – loads and verifies the fitImage for buildroot boot, containing kernel and filesystem or boot Image for Android Verified Boot, containing kernel and ramdisk.

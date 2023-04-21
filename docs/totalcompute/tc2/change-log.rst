@@ -8,6 +8,21 @@ Change Log
 This document contains a summary of the new features, changes and
 fixes in each release of TC2 software stack.
 
+Version 2023.04.21
+------------------
+
+Features added
+~~~~~~~~~~~~~~
+- Added support for EAS
+- Added support for MPAM
+- Added support for Mali Titan GPU
+- Added support for Android Hardware Rendering
+
+Changes
+~~~~~~~
+- Updated to Android 13
+- GPU and DPU are using S1 translation with SMMU-600
+
 Version 2022.12.07
 ------------------
 
@@ -28,4 +43,4 @@ Features added
 - Updated Android to AOSP master
 - Microdroid based pVM support in Android
 
-*Copyright (c) 2022, Arm Limited. All rights reserved.*
+*Copyright (c) 2022-2023, Arm Limited. All rights reserved.*
