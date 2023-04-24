@@ -1,0 +1,29 @@
+From decd08f11277f9a506561d8e22530b1250e7acb0 Mon Sep 17 00:00:00 2001
+From: Ben Horgan <ben.horgan@arm.com>
+Date: Thu, 19 May 2022 08:46:47 +0000
+Subject: [PATCH] fix(spmd): Enable NS_TIMER_SWITCH
+
+Hafnium sets cntkctl and hence we need to save and restore it for
+the normal world.
+
+Signed-off-by: Ben Horgan <ben.horgan@arm.com>
+Change-Id: Iabb7694ca2d21073897baa64154a061dcaf8f119
+Upstream-Status: Inappropriate - unsupported option
+---
+ services/std_svc/spmd/spmd.mk | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/services/std_svc/spmd/spmd.mk b/services/std_svc/spmd/spmd.mk
+index 8efbdc868..0ea8f3ab9 100644
+--- a/services/std_svc/spmd/spmd.mk
++++ b/services/std_svc/spmd/spmd.mk
+@@ -24,3 +24,6 @@ NEED_BL32		:=	yes
+ # The SPMD component maps the SPMC DTB within BL31 virtual space.
+ PLAT_XLAT_TABLES_DYNAMIC :=	1
+ $(eval $(call add_define,PLAT_XLAT_TABLES_DYNAMIC))
++
++# Hafnium writes cntkctl_el1 so make sure it is saved and restored
++NS_TIMER_SWITCH		:=	1
+-- 
+2.25.1
+
