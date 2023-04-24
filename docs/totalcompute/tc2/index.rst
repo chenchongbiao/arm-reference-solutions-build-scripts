@@ -14,5 +14,6 @@ Total Compute : TC2
    tc2_sw_stack
    readme
    user-guide
+   expected-test-results
    release_notes
    change-log

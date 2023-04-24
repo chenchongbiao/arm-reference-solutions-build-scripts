@@ -16,7 +16,7 @@ Prerequisites
 -------------
 
 These instructions assume that:
- * Your host PC is running a recent Ubuntu Linux (18.04 or 20.04)
+ * Your host PC is running a recent Ubuntu Linux (18.04 or 20.04);
  * You are running the provided scripts in a ``bash`` shell environment.
 
 To get the latest repo tool from google, run the following commands:
@@ -33,15 +33,13 @@ To build and run Android, the minimum requirements for the host machine can be f
  * At least 32 GB of available RAM/swap.
  * Git configured properly using "git config" otherwise it may throw error while fetching the code.
 
-To install and allow access to docker
+To install and allow access to docker, run the following command:
 ::
 
     sudo apt install docker.io
     sudo chmod 777 /var/run/docker.sock
 
-NOTE:
-
-To manage Docker as a non-root user
+NOTE: to manage Docker as a non-root user, run the following command:
 ::
 
     sudo groupadd docker
@@ -78,21 +76,22 @@ To sync Android source code, run the following repo command:
     repo init -u https://gitlab.arm.com/arm-reference-solutions/arm-reference-solutions-manifest -m tc2.xml -b ${TC2_RELEASE} -g android
     repo sync -j `nproc` --fetch-submodules
 
-Once the previous process finishes, the current <tc2_workspace> should have the following structure:
- - build-scripts/: the components build scripts
- - run-scripts/: scripts to run the FVP
- - src/: each component's git repository
+
+Once the previous process finishes, the current ``<tc2_workspace>`` should have the following structure: 
+ * ``build-scripts/``: the components build scripts
+ * ``run-scripts/``: scripts to run the FVP
+ * ``src/``: each component's git repository
 
 Initial Setup
 #############
 
-Setup includes two parts:
- 1. Setup a Docker image
- 2. Setup the environmet to build TC images
+The setup includes two parts:
+ 1. setup a docker image;
+ 2. setup the environmet to build TC images.
 
 Setting up a docker image involves pulling the prebuilt docker image from a docker registry. If that fails, it will build a local docker image.
 
-To setup a docker image, patch the components, install the toolchains and build tools, run:
+To setup a docker image, patch the components, install the toolchains and build tools, run the following listed commands.
 
 For the Buildroot build:
 ::
@@ -126,7 +125,7 @@ For the Android build with software rendering:
     export FILESYSTEM=android-fvp
     ./setup.sh
 
-The various tools will be installed in the tools/ directory at the root of the workspace.
+The various tools will be installed in the ``tools/`` directory at the root of the workspace.
 
 To build Android with Android Verified Boot (AVB) enabled, run:
 ::
@@ -135,9 +134,9 @@ To build Android with Android Verified Boot (AVB) enabled, run:
 
 NOTES:
 
-* If running ``repo sync`` again is needed at some point, then the setup.sh script also needs to be run again, as repo sync can discard the patches.
+* If running ``repo sync`` again is needed at some point, then the ``setup.sh`` script also needs to be run again, as repo sync can discard the patches.
 
-* Most builds will be done in parallel using all the available cores by default. To change this number, run ``export PARALLELISM=<no of cores>``
+* Most builds will be done in parallel using all the available cores by default. To change this number, run ``export PARALLELISM=<number of cores>``
 
 Build options
 #############
@@ -145,13 +144,12 @@ Build options
 Android OS build
 ****************
 
-* tc2_fvp with TC_GPU=false  : this supports Android display with swiftshader (software rendering);
-* tc2_fvp with TC_GPU=true   : this supports Android display with mali GPU (hardware rendering). GPU DDK source code is available only to licensee partners (support@arm.com).
+* tc2_fvp with ``TC_GPU=false``  : this supports Android display with swiftshader (software rendering);
+* tc2_fvp with ``TC_GPU=true``  : this supports Android display with mali GPU (hardware rendering). GPU DDK source code is available only to licensee partners (please contact support@arm.com).
 
-The Android images can be built with or without authentication enabled using Android Verified Boot (AVB).
+The Android images can be built with or without authentication enabled using Android Verified Boot (AVB) through the use of the ``-a`` option.
 AVB build is done in userdebug mode and takes a longer time to boot as the images are verified.
-
-The ``-a`` option does not influence the way the system boots, rather it adds an optional sanity check on the prerequisite images.
+This option does not influence the way the system boots, rather it adds an optional sanity check on the prerequisite images.
 
 Android based stack takes considerable time to build, so start the build and go grab a cup of coffee!
 
@@ -164,12 +162,15 @@ To build the whole stack, simply run:
 
     ./run_docker.sh ./build-all.sh build
 
-Build files are stored in build-scripts/output/tmp_build/, final images will be placed in build-script/output/deploy/.
+
+Once the previous process finishes, the current ``<tc2_workspace>`` should have the following structure:
+ * build files are stored in ``<tc2_workspace>/build-scripts/output/tmp_build/``;
+ * final images will be placed in ``<tc2_workspace>/build-script/output/deploy/``.
 
 More about the build system
 ###########################
 
-``build-all.sh`` will build all the components, but each component has its own script, allowing it to be built, cleaned and deployed separately.
+The ``build-all.sh`` script will build all the components, but each component has its own script, allowing it to be built, cleaned and deployed separately.
 All scripts support the ``build``, ``clean``, ``deploy``, ``patch`` commands. ``build-all.sh`` also supports ``all``, to clean then rebuild all the stack.
 
 For example, to build, deploy, and clean SCP, run:
@@ -179,7 +180,7 @@ For example, to build, deploy, and clean SCP, run:
     ./run_docker.sh ./build-scp.sh deploy
     ./run_docker.sh ./build-scp.sh clean
 
-The platform and filesystem used should be defined as described previously, but they can also be specified like so:
+The platform and filesystem used should be defined as described previously, but they can also be specified as the following example:
 ::
 
     ./run_docker.sh ./build-all -p $PLATFORM -f $FILESYSTEM -t $TC_TARGET_FLAVOR -g $TC_GPU build
@@ -187,16 +188,14 @@ The platform and filesystem used should be defined as described previously, but 
 Build Components and its dependencies
 #####################################
 
-A new dependency to a component can be added in the form of ``$component=$dependency`` in dependencies.txt file
+A new dependency to a component can be added in the form of ``$component=$dependency`` in the ``dependencies.txt`` file
 
 To build a component and rebuild those components that depend on it, run:
 ::
 
     ./run_docker.sh ./$filename build with_reqs
 
-Additionally, Android Verified Boot (AVB) can be enabled with the ``-a`` option.
 Those options work for all the ``build-*.sh`` scripts.
-
 
 
 Provided components
@@ -406,14 +405,17 @@ For running Android with hardware rendering enabled:
     ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-fvp -e '--plugin=<crypto.so>'
 
 NOTE:
-Crypto.so is part of your FVP bundle.
+``crypto.so`` is part of your FVP bundle.
 
+
+Expected behaviour
+##################
 
 When the script is run, four terminal instances will be launched:
- * terminal_uart_ap used by the non-secure world components U-boot, Linux Kernel and filesystem (Buildroot/Android);
- * terminal_uart1_ap used by the secure world components TF-A, Hafnium, Trusty and OP-TEE;
- * terminal_s0 used for the SCP logs;
- * terminal_s1 used by RSS logs (no output by default).
+ * ``terminal_uart_ap`` used by the non-secure world components U-boot, Linux Kernel and filesystem (Buildroot/Android);
+ * ``terminal_uart1_ap`` used by the secure world components TF-A, Hafnium, Trusty and OP-TEE;
+ * ``terminal_s0`` used for the SCP logs;
+ * ``terminal_s1`` used by RSS logs (no output by default).
 
 Once the FVP is running, hardware Root of Trust will verify AP and SCP
 images, initialize various crypto services and then handover execution to the
@@ -425,101 +427,261 @@ U-Boot, and then Linux and Buildroot/Android.
 When booting Buildroot, the model will boot Linux and present a login prompt on terminal_uart_ap. Login
 using the username ``root``. You may need to hit Enter for the prompt to appear.
 
+When booting Android, the GUI window ``Fast Models - Total Compute 2 DP0`` shows the Android logo and on boot completion,
+the window will show the Android home screen.
+
+When booting Android with Android Verified Boot (``AVB=true``), the GUI window will display an error, as illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_bootAndroidAVB>` document section. This is expected with the current TC release.
+
 
 Running sanity tests
 -----------------------------------
 
-The OP-TEE and Trusted Services are initialized in Buildroot distribution. The functionality of OP-TEE and
-core set of trusted services such as Crypto and Internal Trusted Storage can be invoked only on Builroot distribution.
-
 OP-TEE
 ###############
 
-For OP-TEE, the TEE sanity test suite can be run using command ``xtest`` on terminal_uart_ap.
+For OP-TEE, the TEE sanity test suite can be run using command ``xtest`` on the ``terminal_uart_ap``.
 
-NOTE:
-This test suite will take some time to run all its related tests.
+Please be aware that this test suite will take some time to run all its related tests.
+
+NOTES: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_optee>` document section.
 
 
 Trusted Services and Client application
 ########################################
 
-For Trusted Services, run command ``ts-service-test -sg ItsServiceTests -sg PsaCryptoApiTests -sg CryptoServicePackedcTests -sg CryptoServiceProtobufTests -sg CryptoServiceLimitTests -v`` for Service API level tests, and run ``ts-demo`` for the demonstration of the client application.
+For Trusted Services, run the command ``ts-service-test -sg ItsServiceTests -sg PsaCryptoApiTests -sg CryptoServicePackedcTests -sg CryptoServiceProtobufTests -sg CryptoServiceLimitTests -v`` for Service API level tests, and run ``ts-demo`` for the demonstration of the client application.
+
+NOTES: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_ts>` document section.
 
 
 Trusty
 ###############
 
-On Android distribution, Trusty provides a Trusted Execution Environment (TEE).
-The functionality of Trusty IPC can be tested using command ``tipc-test -t ta2ta-ipc`` with root privilege.
-(Once Android boots to prompt, do ``su 0`` for root access)
+On the Android distribution, Trusty provides a Trusted Execution Environment (TEE).
+The functionality of Trusty IPC can be tested using the command ``tipc-test -t ta2ta-ipc`` with root privilege
+(once Android boots to prompt, run ``su 0`` for root access).
 
-While booting, GUI window - ``Fast Models - Total Compute 2 DP0`` shows Android logo and on boot completion,
-the window will show the Android home screen.
+NOTE: This test is specific to Android only. An example of the expected test result for this test is ilustrated in the :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_trusty>` document section.
 
-On Android distribution, Virtualization service provides support to run Microdroid based pVM (Protected VM).
-For running a demo Microdroid, boot TC FVP with Android distribution. Once the Android is completely up, run below command:
+
+Microdroid demo
+###############
+
+On the Android distribution, Virtualization service provides support to run Microdroid based pVM (Protected VM).
+For running a demo Microdroid, boot TC FVP with Android distribution. Once the Android is completely up, run the following command:
 
 ::
 
+    export ANDROID_PRODUCT_OUT=<tc2_workspace>/src/android/out/target/product/tc_fvp/
     ./run-scripts/tc2/run_microdroid_demo.sh
+
+NOTE: This test is specific to Android only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_microdroid>` document section.
 
 
 Kernel Selftest
 ###############
 
-Tests are located at /usr/bin/selftest on device
+Tests are located at ``/usr/bin/selftest`` on the device.
 
-To run all the tests in one go, use run_selftest.sh script. Tests can be run individually also.
+To run all the tests in one go, use ``run_kselftest.sh`` script. Tests can be run individually also.
 ::
 
-    ./run_kselftest --summary
+    ./run_kselftest.sh --summary
 
-NOTE:
+NOTE 1: KSM driver is not a part of the TC2 kernel. Hence, one of the MTE Kselftests will fail for ``check_ksm_options`` test.
 
-KSM driver is not a part of the TC2 kernel. Hence, one of the MTE Kselftests will fail for check_ksm_options test.
+NOTE 2: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_kernel>` document section.
 
 
 MPAM
 ####
 
-The hardware and the software requirements required for the MPAM feature can be verified by running the command ``testing-mpam.sh`` on terminal_uart_ap (this script is only available on Buildroot distros).
+The hardware and the software requirements required for the MPAM feature can be verified by running the command ``testing-mpam.sh`` on ``terminal_uart_ap`` (this script is only available on Buildroot distros).
 
+NOTES: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mpam>` document section.
+
+
+BTI
+###
+
+To run the BTI unit test, navigate to ``<tc2_workspace>`` and run:
+::
+
+    adb connect 127.0.0.1:5555
+    cd <tc2_workspace>/src/android/out/target/product/tc_fvp/testcases/bti-unit-tests/arm64
+    adb push bti-unit-tests /data/local/tmp
+    cd <tc2_workspace>/src/android/out/target
+    adb push ./product/tc_fvp/obj/SHARED_LIBRARIES/libbti_basic_function_intermediates/libbti_basic_function.so /data/local/tmp
+    
+On the ``terminal_uart_ap`` run:
+::
+
+    cd /data/local/tmp
+    ./bti-unit-tests
+        
+NOTES: This test is specific to Android only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_bti>` document section.
+
+
+MTE
+###
+
+To run the MTE unit test, navigate to ``<tc2_workspace>`` and run:
+::
+
+    adb connect 127.0.0.1:5555
+    cd <tc2_workspace>/src/android/out/target/product/tc_fvp/testcases/mte-unit-tests/arm64
+    adb push mte-unit-tests /data/local/tmp
+    
+On the ``terminal_uart_ap`` run:
+::
+
+    cd /data/local/tmp
+    ./mte-unit-tests
+
+NOTES: This test is specific to Android only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mte>` document section.
+
+    
+PAUTH
+#####
+
+To run the PAUTH unit test, navigate to ``<tc2_workspace>`` and run:
+::
+
+    adb connect 127.0.0.1:5555
+    cd <tc2_workspace>/src/android/out/target/product/tc_fvp/testcases/pauth-unit-tests/arm64
+    adb push pauth-unit-tests /data/local/tmp
+    
+On the ``terminal_uart_ap`` run:
+::
+
+    cd /data/local/tmp
+    ./pauth-unit-tests
+
+NOTES: This test is specific to Android only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_pauth>` document section.
+	
+	
+EAS with LISA
+#############
+
+This test requires Lisa to be installed. Please refer to the  `LISA documentation <https://lisa-linux-integrated-system-analysis.readthedocs.io/en/master/setup.html#installation>`_ to get more information about the requirements, dependencies and installation process of LISA on your system.
+
+To setup Lisa, please run the following commands:
+::
+
+    git clone https://github.com/ARM-software/lisa.git
+    cd lisa
+    sudo ./install_base.sh --install-all
+
+The following commands should be run each time LISA is run:
+::
+
+    source init_env
+    export TC_WORKSPACE=<tc2_workspace>
+
+
+For FVP with buildroot, boot the FVP model to buildroot as you normally would making user user networking is enabled.
+::
+
+	exekall run lisa.tests.scheduler.eas_behaviour  --conf <path to target_conf_linux.yml>
+
+
+The following excerpt illustrates the contents of the ``target_conf_buildroot.yml`` file:
+::
+
+    target-conf:
+      kind: linux
+      name: tc
+      host: localhost
+      port: 8022
+      username: root
+      password: ""
+      strict-host-check: false
+
+      kernel:
+        src: ${TC_WORKSPACE}/build-scripts/output/tmp_build/linux
+
+        modules:
+          make-variables:
+            CC: clang
+          build-env: alpine
+
+      wait-boot:
+        enable: false
+
+      devlib:
+        file-xfer: scp
+        max-async: 1
+
+
+NOTES: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_eas>` document section.
 
 
 Debugging on Arm Development Studio
 -----------------------------------
 
+This section describes the steps to debug the TC software stack using `Arm Development Studio <https://developer.arm.com/Tools%20and%20Software/Arm%20Development%20Studio>`_.
+
 Creating a new connection
 #########################
 
-#. File->new->model connection
-#. Name it and next
-#. Add a new model and select CADI interface
-#. Select ``Launch and select a specific model``
-#. Give TC2 FVP model path and Finish
-#. Close
+To create a new connection, please follow the next steps:
+
+#. Select ``File->New->Model Connection``;
+#. Provide the name for the new ``Debug Connection`` and click the ``next`` button;
+#. Click on the ``Add a new model...`` button;
+#. Select ``CADI`` as the model interface and click the ``next`` button;
+#. Select ``Launch and connect to specific model``;
+#. Select the location on your system containing the TC2 FVP model path and click the ``Finish`` button;
+#. Once the import process of the model finishes, you can close the ``Model Connection`` window (used to add the new model).
 
 Attach and Debug
 ################
 
-#. Build the target with debug enabled. ``build-scripts/config`` can be configured to enable debug.
-#. Run Buildroot/Android as described above.
+#. Build the target with debug enabled (the file ``<tc2_workspace>/build-scripts/config`` can be configured to enable debug);
+#. Run Buildroot/Android as described in the section ``Running the software on FVP`` with the extra parameters ``-e -S`` to attach to the debugger. The full command should look like the following:
+
+	::
+	
+	./run-scripts/tc2/run_model.sh -m <model binary path> -d <buildroot|android-fvp> -e -S
+
 #. Select the target created as mentioned in ``Creating a new connection`` and ``connect to target`` from debug control console.
-#. After connection, use options in debug control console (highlighted in the below diagram) or keyboard shortcuts to ``step``, ``run`` or ``halt``.
+#. After connection, use options in debug control console (highlighted in the below diagram) or the keyboard shortcuts to ``step``, ``run`` or ``halt``.
 #. To add debug symbols, right click on target -> ``Debug configurations`` and under ``files`` tab add path to ``elf`` files.
 #. Debug options such as ``break points``, ``variable watch``, ``memory view`` and so on can be used.
 
 .. figure:: Debug_control_console.png
 
+NOTE: There is a known issue in connecting all AP cores together. The Hunter ELP core is missing from the cluster view.  As a workaround, you can create two target connections as described in the ``Creating a new connection`` section: one for ELP core alone and the other one for the rest of AP cores.
+
+
 Switch between SCP and AP
 #########################
 
-#. Right click on target and select ``Debug Configurations``
-#. Under ``Connection``, select ``Cortex-M3`` for SCP and ``Arm-Hayes_x/Arm-Hunter_x`` for AP core x and then debug
+#. Right click on target and select ``Debug Configurations``;
+#. Under ``Connection``, select ``Cortex-M3`` for SCP and ``Arm-Hayes_x/Arm-Hunter_x`` for AP core x and then debug.
 
-.. figure:: Switch_Cores.png
+.. figure:: switch_cores.png
 
+Enable LLVM parser (for Dwarf5 support)
+#######################################
+
+To enable LLVM parser (with Dwarf5 support), please follow the next steps:
+
+#. Select ``Window->Preferences->Arm DS->Debugger->Dwarf Parser``;
+#. Tick the ``Use LLVM DWARF parser`` option;
+#. Click the ``Apply and Close`` button.
+
+.. figure:: enable_llvm.png
+
+
+Arm DS version
+##############
+
+The previous steps apply to the following Arm DS Platinum version/build:
+
+.. figure:: arm_ds_version.png
+
+NOTE: Arm DS Platinum is only available to licensee partners. Please contact Arm to have access (support@arm.com).
 
 
 Firmware Update
@@ -534,25 +696,28 @@ Firmware Update in the total compute platform uses the capsule update mechanism.
 has to be converted to a capsule. This can be done with ``GenerateCapsule`` which is present in ``BaseTools/BinWrappers/PosixLike``
 of the `edk2 project <https://github.com/tianocore/edk2>`__.
 
+To generate the capsule from the fip binary, run the following command:
 ::
 
        GenerateCapsule -e -o efi_capsule --fw-version 1 --lsv 0 --guid 0d5c011f-0776-5b38-8e81-36fbdf6743e2 --update-image-index 0 --verbose fip-tc.bin
 
-| "fip-tc.bin" is the input fip file that has the firmware binaries of the total compute platform
-| "efi_capsule" is the name of capsule to be generated
-| "0d5c011f-0776-5b38-8e81-36fbdf6743e2" is the image type UUID for the FIP image
+Command arguments explanation:
+ * ``fip-tc.bin`` is the input fip file that has the firmware binaries of the total compute platform;
+ * ``efi_capsule`` is the name of capsule to be generated;
+ * ``0d5c011f-0776-5b38-8e81-36fbdf6743e2`` is the image type UUID for the FIP image.
 
 Loading Capsule
 ###############
 
-The capsule generated using the above steps has to be loaded into memory during the execution of the model by providing the below FVP arguments.
+The capsule generated using the above steps has to be loaded into memory during the execution of the model by providing the below FVP arguments:
+
 
 ::
 
     --data board.dram=<location of capsule>/efi_capsule@0x2000000
 
 
-This loads the capsule to be updated at address 0x82000000.
+This will load the capsule to be updated at address 0x82000000.
 
 The final command to run the model for buildroot should look like the following:
 
@@ -564,7 +729,7 @@ The final command to run the model for buildroot should look like the following:
 Updating Firmware
 #################
 
-During the normal boot of the platform, stop at the U-Boot prompt and execute the below commands.
+During the normal boot of the platform, stop at the U-Boot prompt and execute the following command:
 
 ::
 

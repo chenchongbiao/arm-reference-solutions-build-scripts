@@ -39,8 +39,8 @@ Software Features
 -----------------
  - Buildroot distribution support.
  - Android 13 support.
- - Android Common Kernel 5.15
- - Android Hardware Rendering with Mali Titan GPU
+ - Android Common Kernel 5.15.41
+ - Android Hardware Rendering with Mali Titan GPU - DDK r40p0_01eac0
  - Android Software rendering with DRM Hardware Composer offloading composition to Mali D71 DPU.
  - KVM default mode of operation is set to ``protected``, thus effectively enabling pKVM on the system. This is a nVHE based mode with kernel running at EL1.
  - Microdroid based pVM support in Android
@@ -50,7 +50,7 @@ Software Features
  - Trusted Firmware-A v2.8
  - Hafnium v2.7
  - OP-TEE 3.20.0
- - Trusty with FF-A messaging
+ - Trusty with FF-A messaging - FF-A v1.0
  - CI700-PMU enabled for profiling
  - Support secure boot based on TBBR specification https://developer.arm.com/documentation/den0006/latest
  - System Control Processor (SCP) firmware v2.11
@@ -69,7 +69,6 @@ Software Features
  - Trusted Services (Crypto, Internal Trusted Storage and Firmware Update) running at S-EL0.
  - Trusted Services test suite added to Buildroot distribution.
  - Tracing - Added support for ETE and TRBE v1.0 in TF-A, kernel and simpleperf. Traces can be captured with simpleperf. However, to enable tracing, the libete plugin has to be loaded while executing the FVP with ``--plugin <path to plugin>/libete-plugin.so``
- - Example implementation of a HW Root of Trust based on the TF-M RSS subsystem. For non-RSS based boot, please refer to the TC0/TC1 boot flows.
  - Firmware update support
 
 Platform Support

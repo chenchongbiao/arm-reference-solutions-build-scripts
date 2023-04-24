@@ -18,7 +18,7 @@ Following are the Software components:
  #. SCP firmware – System initialization, Clock and Power control
  #. RSS firmware – Hardware Root of Trust
  #. AP firmware – Trusted Firmware-A (TF-A)
- #. Secure Partition Manager
+ #. Secure Partition Manager - Hafnium
  #. Secure Partitions
 
     * OP-TEE Trusted OS in Buildroot
@@ -35,5 +35,8 @@ Following are the Software components:
 
     * Supports PAC/MTE/BTI features
 
+ #. Buildroot
+ 
+ 
 :ref:`Total Compute Platform Software Components <docs/totalcompute/tc2/tc2_sw_stack>`
 

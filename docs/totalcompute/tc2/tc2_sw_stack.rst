@@ -50,8 +50,8 @@ It performs the following functions:
  #. Power Domain management
  #. Clock management
 
-Secure Software
----------------
+AP Secure World Software
+------------------------
 Secure software/firmware is a trusted software component that runs in the AP secure world. It mainly consists of AP firmware, Secure Partition Manager and Secure Partitions (OP-TEE, Trusted Services).
 
 AP firmware
@@ -86,7 +86,7 @@ Total Compute enables FEAT S-EL2 architectural extension, and it uses Hafnium as
 
 Secure Partitions
 .................
-Software image isolated using SPM is Secure Partition. Total Compute enables OP-TEE and Trusted Services (Crypto, Internal Trusted Storage) as Secure Partitions.
+Software image isolated using SPM is Secure Partition. Total Compute enables OP-TEE and Trusted Services as Secure Partitions.
 
 OP-TEE
 ++++++
@@ -94,17 +94,24 @@ OP-TEE Trusted OS is virtualized using Hafnium at S-EL2. OP-TEE OS for Total Com
 
 Trusted Services
 ++++++++++++++++
-Trusted Services like Crypto Service and Internal Trusted Storage runs as S-EL0 Secure Partitions using a Shim layer at S-EL1. These services along with S-EL1 Shim layer are built as a single image. The Shim layer forwards FF-A calls from S-EL0 to S-EL2.
+Trusted Services like Crypto Service, Internal Trusted Storage and Firmware Update runs as S-EL0 Secure Partitions.
+
+Trusty
+++++++
+Trusty is a secure Operating System (OS) that provides a Trusted Execution Environment (TEE) for Android. Trusty is virtualized using Hafnium at S-EL2. FFA support is added for Total Compute. Trusty runs as a Secure Partition running in an isolated address space managed by Hafnium. The Trusty kernel runs at S-EL1 with Trusted applications running at S-EL0.
+
+AP Non-Secure World Software
+----------------------------
 
 U-Boot
-------
+......
 TF-A BL31 passes execution control to U-boot bootloader (BL33). U-boot in Total Compute has support for multiple image formats:
 
  #. FitImage format: this contains the Linux kernel and Buildroot ramdisk which are authenticated and loaded in their respective positions in DRAM and execution is handed off to the kernel.
- #. Android boot image: This contains the Linux kernel and Android ramdisk. If using Android Verified Boot (AVB) boot.img is loaded from MMC to DRAM, authenticated and then execution is handed off to the kernel.
+ #. Android boot image: This contains the Linux kernel and Android ramdisk. If using Android Verified Boot (AVB) boot.img is loaded via virtio to DRAM, authenticated and then execution is handed off to the kernel.
 
-Kernel
-------
+Linux Kernel
+............
 Linux Kernel in Total Compute contains the subsystem-specific features that demonstrate the capabilities of Total Compute. Apart from default configuration, it enables:
 
  #. Arm MHUv2 controller driver
@@ -112,11 +119,22 @@ Linux Kernel in Total Compute contains the subsystem-specific features that demo
  #. OP-TEE driver with FF-A Transport Support
  #. Arm FF-A user space interface driver
  #. Trusty driver with FF-A Transport Support
+ #. Virtualization using pKVM
 
 Android
--------
+.......
 Total Compute has support for Android Open-Source Project (AOSP), which contains the Android framework, Native Libraries, Android Runtime and the Hardware Abstraction Layers (HALs) for Android Operating system.
 The Total Compute device profile defines the required variables for Android such as partition size and product packages and has support for the below configuration of Android:
 
  #. Software rendering: This profile has support for Android UI and boots Android to home screen. It uses SwiftShader to achieve this. Swiftshader is a CPU base implementation of the Vulkan graphics API by Google.
+
+ #. Hardware rendering: This profile also has support for Android UI and boots Android to home screen. The Mali Titan GPU model used for rendering.
+
+Microdroid
+++++++++++
+Microdroid is a lightweight version of Android that runs in a protected virtual machine (pVM) and is managed by Android using CrosVM.
+ 
+Buildroot
+.........
+A minimal rootfs that is useful for testing the bsp and boots quickly. The interface is text only and no graphics are supported.
 
