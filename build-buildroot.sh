@@ -51,7 +51,12 @@ do_clean() {
 
 do_deploy() {
     # Create FIT Image
-    $UBOOT_OUTDIR/tools/mkimage -f $BUILDROOT_CFG/fit-image.its $DEPLOY_DIR/$PLATFORM/tc-fitImage.bin
+    if [[ $TC_TARGET_FLAVOR == "fpga" ]]; then
+	    $UBOOT_OUTDIR/tools/mkimage -f $BUILDROOT_CFG/fit-image-fpga.its $DEPLOY_DIR/$PLATFORM/tc-fitImage.bin
+    else
+	    $UBOOT_OUTDIR/tools/mkimage -f $BUILDROOT_CFG/fit-image.its $DEPLOY_DIR/$PLATFORM/tc-fitImage.bin
+    fi
+
 }
 
 source "$(dirname ${BASH_SOURCE[0]})/framework.sh"
