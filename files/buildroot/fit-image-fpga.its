@@ -7,7 +7,7 @@
     images {
         kernel {
             description = "Linux Kernel";
-            data = /incbin/("../../output/tmp_build/linux/arch/arm64/boot/Image");
+            data = /incbin/("../../../output/buildroot/tmp_build/linux/arch/arm64/boot/Image");
             type = "kernel";
             arch = "arm64";
             os = "linux";
@@ -20,7 +20,7 @@
         };
         fdt-1 {
             description = "Flattened Device Tree blob";
-            data = /incbin/("../../output/tmp_build/tfa/build/tc/debug/fdts/tc_fpga.dtb");
+            data = /incbin/("../../../output/buildroot/tmp_build/tfa/build/tc/debug/fdts/tc_fpga.dtb");
             type = "flat_dt";
             arch = "arm64";
             load = <0x83000000>;
@@ -31,7 +31,7 @@
         };
         ramdisk {
             description = "ramdisk";
-            data = /incbin/("../../output/tmp_build/buildroot/images/rootfs.cpio.gz");
+            data = /incbin/("../../../output/buildroot/tmp_build/buildroot/images/rootfs.cpio.gz");
             type = "ramdisk";
             arch = "arm64";
             load = <0x88000000>;

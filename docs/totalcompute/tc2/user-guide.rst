@@ -58,12 +58,12 @@ The TC2 software stack supports the following distros:
 Download the source code
 ########################
 
-Create a new folder that will be your workspace, which will henceforth be referred to as ``<tc2_workspace>``
+Create a new folder that will be your workspace, which will henceforth be referred to as ``<TC2_WORKSPACE>``
 in these instructions.
 ::
 
-    mkdir <tc2_workspace>
-    cd <tc2_workspace>
+    mkdir <TC2_WORKSPACE>
+    cd <TC2_WORKSPACE>
     export TC2_RELEASE=refs/tags/TC2-2023.04.21
 
 To sync Buildroot source code, please run the following repo commands:
@@ -86,9 +86,9 @@ To sync Android source code, please run the following repo commands:
     repo sync -j `nproc` --fetch-submodules
 
 .. warning::
-    Synchronization of the Android code from Google servers may fail due to connection problems and/or to an enforced rate limit related with the maximum number of concurrent fetching jobs. The previous commands assume that the maximum number of jobs concurrently fetching code will be a perfect match of the number of CPU cores available, which should work fine most of the times. If experiencing constant errors on consecutive fetch code attempts, please do consider deleting your entire workspace (which will ensure a clean of the support ``.repo`` folder containing the previously partial fetched files), by running the command ``cd .. ; rm -rf <tc2_workspace>`` and repeat the previous commands listed in this section to recreate the workspace (optionally, also reducing the number of jobs, for example to a maximum of 4, by adopting the following command ``repo sync -j 4 --fetch-submodules``).
+    Synchronization of the Android code from Google servers may fail due to connection problems and/or to an enforced rate limit related with the maximum number of concurrent fetching jobs. The previous commands assume that the maximum number of jobs concurrently fetching code will be a perfect match of the number of CPU cores available, which should work fine most of the times. If experiencing constant errors on consecutive fetch code attempts, please do consider deleting your entire workspace (which will ensure a clean of the support ``.repo`` folder containing the previously partial fetched files), by running the command ``cd .. ; rm -rf <TC2_WORKSPACE>`` and repeat the previous commands listed in this section to recreate the workspace (optionally, also reducing the number of jobs, for example to a maximum of 4, by adopting the following command ``repo sync -j 4 --fetch-submodules``).
 
-Once the previous process finishes, the current ``<tc2_workspace>`` should have the following structure: 
+Once the previous process finishes, the current ``<TC2_WORKSPACE>`` should have the following structure: 
  * ``build-scripts/``: the components build scripts;
  * ``run-scripts/``: scripts to run the FVP;
  * ``src/``: each component's git repository.
@@ -226,11 +226,12 @@ For the Debian distro, there is currently no support for docker and as such, the
 ::
 
     ./build-all.sh
-    
-    
-Once the previous process finishes, the current ``<tc2_workspace>`` should have the following structure:
- * build files are stored in ``<tc2_workspace>/build-scripts/output/tmp_build/``;
- * final images will be placed in ``<tc2_workspace>/build-script/output/deploy/``.
+
+
+Once the previous process finishes, the previously defined environment variable ``$FILESYSTEM`` will be automatically used and the current ``<TC2_WORKSPACE>`` should have the following structure:
+ * build files are stored in ``<TC2_WORKSPACE>/output/<$FILESYSTEM>/tmp_build/``;
+ * final images will be placed in ``<TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/``.
+
 
 More about the build system
 ###########################
@@ -275,10 +276,10 @@ Trusted Firmware-A
 Based on `Trusted Firmware-A <https://trustedfirmware-a.readthedocs.io/en/latest/>`__
 
 +--------+------------------------------------------------------------------------------------------------------------+
-| Script | <tc2_workspace>/build-scripts/build-tfa.sh                                                                 |
+| Script | <TC2_WORKSPACE>/build-scripts/build-tfa.sh                                                                 |
 +--------+------------------------------------------------------------------------------------------------------------+
-| Files  | * <tc2_workspace>/build-scripts/output/deploy/tc2/bl1-tc.bin                                               |
-|        | * <tc2_workspace>/build-scripts/output/deploy/tc2/fip-tc.bin                                               |
+| Files  | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/bl1-tc.bin                                               |
+|        | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/fip-tc.bin                                               |
 +--------+------------------------------------------------------------------------------------------------------------+
 
 
@@ -288,10 +289,10 @@ System Control Processor (SCP)
 Based on `SCP Firmware <https://github.com/ARM-software/SCP-firmware>`__
 
 +--------+------------------------------------------------------------------------------------------------+
-| Script | <tc2_workspace>/build-scripts/build-scp.sh                                                     |
+| Script | <TC2_WORKSPACE>/build-scripts/build-scp.sh                                                     |
 +--------+------------------------------------------------------------------------------------------------+
-| Files  | * <tc2_workspace>/build-scripts/output/deploy/tc2/scp_ramfw.bin                                |
-|        | * <tc2_workspace>/build-scripts/output/deploy/tc2/scp_romfw.bin                                |
+| Files  | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/scp_ramfw.bin                                |
+|        | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/scp_romfw.bin                                |
 +--------+------------------------------------------------------------------------------------------------+
 
 
@@ -301,9 +302,9 @@ U-Boot
 Based on `U-Boot gitlab <https://gitlab.denx.de/u-boot/u-boot>`__
 
 +--------+---------------------------------------------------------------------------------------+
-| Script | <tc2_workspace>/build-scripts/build-u-boot.sh                                         |
+| Script | <TC2_WORKSPACE>/build-scripts/build-u-boot.sh                                         |
 +--------+---------------------------------------------------------------------------------------+
-| Files  | * <tc2_workspace>/build-scripts/output/deploy/tc2/u-boot.bin                          |
+| Files  | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/u-boot.bin                          |
 +--------+---------------------------------------------------------------------------------------+
 
 
@@ -313,9 +314,9 @@ Hafnium
 Based on `Hafnium <https://www.trustedfirmware.org/projects/hafnium>`__
 
 +--------+--------------------------------------------------------------------------------------+
-| Script | <tc2_workspace>/build-scripts/build-hafnium.sh                                       |
+| Script | <TC2_WORKSPACE>/build-scripts/build-hafnium.sh                                       |
 +--------+--------------------------------------------------------------------------------------+
-| Files  | * <tc2_workspace>/build-scripts/output/deploy/tc2/hafnium.bin                        |
+| Files  | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/hafnium.bin                        |
 +--------+--------------------------------------------------------------------------------------+
 
 
@@ -325,9 +326,9 @@ OP-TEE
 Based on `OP-TEE <https://github.com/OP-TEE/optee_os>`__
 
 +--------+------------------------------------------------------------------------------------------+
-| Script | <tc2_workspace>/build-scripts/build-optee-os.sh                                          |
+| Script | <TC2_WORKSPACE>/build-scripts/build-optee-os.sh                                          |
 +--------+------------------------------------------------------------------------------------------+
-| Files  | * <tc2_workspace>/build-scripts/output/tmp_build/tfa_sp/tee-pager_v2.bin                 |
+| Files  | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/tmp_build/tfa_sp/tee-pager_v2.bin                 |
 +--------+------------------------------------------------------------------------------------------+
 
 
@@ -337,10 +338,10 @@ S-EL0 trusted-services
 Based on `Trusted Services <https://www.trustedfirmware.org/projects/trusted-services/>`__
 
 +--------+-----------------------------------------------------------------------------------------------+
-| Script | <tc2_workspace>/build-scripts/build-trusted-services.sh                                       |
+| Script | <TC2_WORKSPACE>/build-scripts/build-trusted-services.sh                                       |
 +--------+-----------------------------------------------------------------------------------------------+
-| Files  | * <tc2_workspace>/build-scripts/output/tmp_build/tfa_sp/crypto-sp.bin                         |
-|        | * <tc2_workspace>/build-scripts/output/tmp_build/tfa_sp/internal-trusted-storage.bin          |
+| Files  | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/tmp_build/tfa_sp/crypto-sp.bin                         |
+|        | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/tmp_build/tfa_sp/internal-trusted-storage.bin          |
 +--------+-----------------------------------------------------------------------------------------------+
 
 Linux
@@ -349,9 +350,9 @@ Linux
 The component responsible for building a 5.15 version of the Android Common kernel (`ACK <https://android.googlesource.com/kernel/common/>`__).
 
 +--------+-----------------------------------------------------------------------------------------------+
-| Script | <tc2_workspace>/build-scripts/build-linux.sh                                                  |
+| Script | <TC2_WORKSPACE>/build-scripts/build-linux.sh                                                  |
 +--------+-----------------------------------------------------------------------------------------------+
-| Files  | * <tc2_workspace>/build-scripts/output/deploy/tc2/Image                                       |
+| Files  | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/Image                                       |
 +--------+-----------------------------------------------------------------------------------------------+
 
 Trusty
@@ -360,9 +361,9 @@ Trusty
 Based on `Trusty <https://source.android.com/security/trusty>`__
 
 +--------+---------------------------------------------------------------------------+
-| Script | <tc2_workspace>/build-scripts/build-trusty.sh                             |
+| Script | <TC2_WORKSPACE>/build-scripts/build-trusty.sh                             |
 +--------+---------------------------------------------------------------------------+
-| Files  | * <tc2_workspace>/build-scripts/output/deploy/tc2/lk.bin                  |
+| Files  | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/lk.bin                  |
 +--------+---------------------------------------------------------------------------+
 
 Distributions
@@ -375,39 +376,39 @@ The layer is based on the `buildroot <https://github.com/buildroot/buildroot/>`_
 The provided distribution is based on BusyBox and built using glibc.
 
 +--------+-------------------------------------------------------------------------------------------------+
-| Script | <tc2_workspace>/build-scripts/build-buildroot.sh                                                |
+| Script | <TC2_WORKSPACE>/build-scripts/build-buildroot.sh                                                |
 +--------+-------------------------------------------------------------------------------------------------+
-| Files  | * <tc2_workspace>/build-scripts/output/deploy/tc2/tc-fitImage.bin                               |
+| Files  | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/tc-fitImage.bin                               |
 +--------+-------------------------------------------------------------------------------------------------+
 
 Debian Linux distro
 *******************
 
 +--------+-------------------------------------------------------------------------------------------------+
-| Script | <tc2_workspace>/build-scripts/build-debian.sh                                                   |
+| Script | <TC2_WORKSPACE>/build-scripts/build-debian.sh                                                   |
 +--------+-------------------------------------------------------------------------------------------------+
-| Files  | * <tc2_workspace>/build-scripts/output/deploy/tc2/debian_fs.img                                 |
+| Files  | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/debian_fs.img                                 |
 +--------+-------------------------------------------------------------------------------------------------+
 
 Android
 *******
 
 +--------+-------------------------------------------------------------------------+
-| Script | <tc2_workspace>/build-scripts/build-android.sh                          |
+| Script | <TC2_WORKSPACE>/build-scripts/build-android.sh                          |
 +--------+-------------------------------------------------------------------------+
-| Files  | * <tc2_workspace>/build-scripts/output/deploy/tc2/android.img           |
-|        | * <tc2_workspace>/build-scripts/output/deploy/tc2/ramdisk_uboot.img     |
-|        | * <tc2_workspace>/build-scripts/output/deploy/tc2/system.img            |
-|        | * <tc2_workspace>/build-scripts/output/deploy/tc2/userdata.img          |
-|        | * <tc2_workspace>/build-scripts/output/deploy/tc2/boot.img (AVB only)   |
-|        | * <tc2_workspace>/build-scripts/output/deploy/tc2/vbmeta.img (AVB only) |
+| Files  | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/android.img           |
+|        | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/ramdisk_uboot.img     |
+|        | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/system.img            |
+|        | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/userdata.img          |
+|        | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/boot.img (AVB only)   |
+|        | * <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/vbmeta.img (AVB only) |
 +--------+-------------------------------------------------------------------------+
 
 
 Run scripts
 ###########
 
-Within the ``<tc2_workspace>/run-scripts/`` there are several convenience functions for testing the software
+Within the ``<TC2_WORKSPACE>/run-scripts/`` there are several convenience functions for testing the software
 stack. Usage descriptions for the various scripts are provided in the following sections.
 
 
@@ -435,7 +436,7 @@ The run-scripts structure is as follows:
 Ensure that all dependencies are met by running the FVP: ``./path/to/FVP_TC2``. You should see
 the FVP launch, presenting a graphical interface showing information about the current state of the FVP.
 
-The ``run_model.sh`` script in ``<tc2_workspace>/run-scripts/tc2`` will launch the FVP, providing
+The ``run_model.sh`` script in ``<TC2_WORKSPACE>/run-scripts/tc2`` will launch the FVP, providing
 the previously built images as arguments. Run the ``./run_model.sh`` script:
 
 ::
@@ -543,11 +544,11 @@ This can be achieved by following the next steps:
         ssh -p 8022 root@localhost
         password: root
 
- * push the files from ``<tc2_workspace>/build-scripts/output/deploy/tc2/ddk/`` to the new created path, using the following command:
+ * push the files from ``<TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/ddk/`` to the new created path, using the following command:
 
     ::
 
-        scp -P 8022 <tc2_workspace>/build-scripts/output/deploy/tc2/ddk/lib/aarch64-linux-gnu/mali.tar.xz root@localhost:/lib/aarch64-linux-gnu/
+        scp -P 8022 <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/ddk/lib/aarch64-linux-gnu/mali.tar.xz root@localhost:/lib/aarch64-linux-gnu/
 
 Launch Weston
 *************
@@ -607,7 +608,7 @@ For running a demo Microdroid, boot TC FVP with Android distribution. Once the A
 
 ::
 
-    export ANDROID_PRODUCT_OUT=<tc2_workspace>/src/android/out/target/product/tc_fvp/
+    export ANDROID_PRODUCT_OUT=<TC2_WORKSPACE>/src/android/out/target/product/tc_fvp/
     ./run-scripts/tc2/run_microdroid_demo.sh
 
 .. note::
@@ -643,13 +644,13 @@ The hardware and the software requirements required for the MPAM feature can be 
 BTI
 ###
 
-To run the BTI unit test, navigate to ``<tc2_workspace>`` and run:
+To run the BTI unit test, navigate to ``<TC2_WORKSPACE>`` and run:
 ::
 
     adb connect 127.0.0.1:5555
-    cd <tc2_workspace>/src/android/out/target/product/tc_fvp/testcases/bti-unit-tests/arm64
+    cd <TC2_WORKSPACE>/src/android/out/target/product/tc_fvp/testcases/bti-unit-tests/arm64
     adb push bti-unit-tests /data/local/tmp
-    cd <tc2_workspace>/src/android/out/target
+    cd <TC2_WORKSPACE>/src/android/out/target
     adb push ./product/tc_fvp/obj/SHARED_LIBRARIES/libbti_basic_function_intermediates/libbti_basic_function.so /data/local/tmp
 
 On the ``terminal_uart_ap`` run:
@@ -665,11 +666,11 @@ On the ``terminal_uart_ap`` run:
 MTE
 ###
 
-To run the MTE unit test, navigate to ``<tc2_workspace>`` and run:
+To run the MTE unit test, navigate to ``<TC2_WORKSPACE>`` and run:
 ::
 
     adb connect 127.0.0.1:5555
-    cd <tc2_workspace>/src/android/out/target/product/tc_fvp/testcases/mte-unit-tests/arm64
+    cd <TC2_WORKSPACE>/src/android/out/target/product/tc_fvp/testcases/mte-unit-tests/arm64
     adb push mte-unit-tests /data/local/tmp
 
 On the ``terminal_uart_ap`` run:
@@ -685,11 +686,11 @@ On the ``terminal_uart_ap`` run:
 PAUTH
 #####
 
-To run the PAUTH unit test, navigate to ``<tc2_workspace>`` and run:
+To run the PAUTH unit test, navigate to ``<TC2_WORKSPACE>`` and run:
 ::
 
     adb connect 127.0.0.1:5555
-    cd <tc2_workspace>/src/android/out/target/product/tc_fvp/testcases/pauth-unit-tests/arm64
+    cd <TC2_WORKSPACE>/src/android/out/target/product/tc_fvp/testcases/pauth-unit-tests/arm64
     adb push pauth-unit-tests /data/local/tmp
 
 On the ``terminal_uart_ap`` run:
@@ -718,7 +719,7 @@ The following commands should be run each time LISA is run:
 ::
 
     source init_env
-    export TC_WORKSPACE=<tc2_workspace>
+    export TC_WORKSPACE=<TC2_WORKSPACE>
 
 
 For FVP with buildroot, boot the FVP model to buildroot as you normally would making user user networking is enabled.
@@ -740,7 +741,7 @@ The following excerpt illustrates the contents of the ``target_conf_buildroot.ym
       strict-host-check: false
 
       kernel:
-        src: ${TC_WORKSPACE}/build-scripts/output/tmp_build/linux
+        src: ${TC_WORKSPACE}/output/${FILESYSTEM}/tmp_build/linux
 
         modules:
           make-variables:
@@ -780,7 +781,7 @@ To create a new connection, please follow the next steps:
 Attach and Debug
 ################
 
-#. Build the target with debug enabled (the file ``<tc2_workspace>/build-scripts/config`` can be configured to enable debug);
+#. Build the target with debug enabled (the file ``<TC2_WORKSPACE>/build-scripts/config`` can be configured to enable debug);
 #. Run Buildroot/Android as described in the section ``Running the software on FVP`` with the extra parameters ``-e -S`` to attach to the debugger. The full command should look like the following:
 
 	::
