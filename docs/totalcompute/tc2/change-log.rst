@@ -15,7 +15,7 @@ Features added
 ~~~~~~~~~~~~~~
 - Added support for EAS
 - Added support for MPAM
-- Added support for Mali Titan GPU
+- Added support for Mali TTIx GPU
 - Added support for Android Hardware Rendering
 
 Changes

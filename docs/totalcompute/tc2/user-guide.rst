@@ -145,7 +145,7 @@ Android OS build
 ****************
 
 * tc2_fvp with ``TC_GPU=false``  : this supports Android display with swiftshader (software rendering);
-* tc2_fvp with ``TC_GPU=true``  : this supports Android display with mali GPU (hardware rendering). GPU DDK source code is available only to licensee partners (please contact support@arm.com).
+* tc2_fvp with ``TC_GPU=true``  : this supports Android display with Mali GPU (hardware rendering). GPU DDK source code is available only to licensee partners (please contact support@arm.com).
 
 The Android images can be built with or without authentication enabled using Android Verified Boot (AVB) through the use of the ``-a`` option.
 AVB build is done in userdebug mode and takes a longer time to boot as the images are verified.

@@ -26,7 +26,7 @@ Hardware Features
 -----------------
  - Booker CI with Memory Tagging Unit(MTU) support driver in SCP firmware.
  - GIC Clayton Initialization in Trusted Firmware-A.
- - Mali Titan GPU
+ - Mali TTIx GPU
  - Mali-D71 DPU and virtual encoder support for display in Linux.
  - MHUv2 Driver for SCP and AP communication.
  - UARTs, Timers, Flash, PIK, Clock drivers.
@@ -40,7 +40,7 @@ Software Features
  - Buildroot distribution support.
  - Android 13 support.
  - Android Common Kernel 5.15.41
- - Android Hardware Rendering with Mali Titan GPU - DDK r40p0_01eac0
+ - Android Hardware Rendering with Mali TTIx GPU - DDK r40p0_01eac0
  - Android Software rendering with DRM Hardware Composer offloading composition to Mali D71 DPU.
  - KVM default mode of operation is set to ``protected``, thus effectively enabling pKVM on the system. This is a nVHE based mode with kernel running at EL1.
  - Microdroid based pVM support in Android

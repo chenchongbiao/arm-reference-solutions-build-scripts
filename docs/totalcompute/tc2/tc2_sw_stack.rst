@@ -128,7 +128,7 @@ The Total Compute device profile defines the required variables for Android such
 
  #. Software rendering: This profile has support for Android UI and boots Android to home screen. It uses SwiftShader to achieve this. Swiftshader is a CPU base implementation of the Vulkan graphics API by Google.
 
- #. Hardware rendering: This profile also has support for Android UI and boots Android to home screen. The Mali Titan GPU model used for rendering.
+ #. Hardware rendering: This profile also has support for Android UI and boots Android to home screen. The Mali TTIx GPU model used for rendering.
 
 Microdroid
 ++++++++++
