@@ -1,4 +1,4 @@
-From fbab1aba2938787f1722c3ce37f7f2af28c9d960 Mon Sep 17 00:00:00 2001
+From c0d39d7025660da529d4fc40f4385ccf8a0345c0 Mon Sep 17 00:00:00 2001
 From: Davidson K <davidson.kumaresan@arm.com>
 Date: Wed, 12 Apr 2023 17:22:57 +0530
 Subject: [PATCH] Add Total compute FPGA support
@@ -10,7 +10,7 @@ specific to FPGA.
 
 Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
 ---
- fdts/tc_fpga.dts                              | 445 ++++++++++++++++++
+ fdts/tc_fpga.dts                              | 499 ++++++++++++++++++
  include/arch/aarch64/arch_features.h          |   4 +
  include/plat/arm/board/common/board_css_def.h |   4 +
  include/plat/arm/board/common/v2m_def.h       |   5 +
@@ -25,15 +25,15 @@ Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
  plat/arm/board/tc/tc_security.c               |   4 +
  plat/arm/common/arm_common.c                  |   5 +
  plat/arm/common/arm_nor_psci_mem_protect.c    |   9 +
- 15 files changed, 546 insertions(+), 15 deletions(-)
+ 15 files changed, 600 insertions(+), 15 deletions(-)
  create mode 100644 fdts/tc_fpga.dts
 
 diff --git a/fdts/tc_fpga.dts b/fdts/tc_fpga.dts
 new file mode 100644
-index 000000000..3b176dace
+index 000000000..10fdd35b9
 --- /dev/null
 +++ b/fdts/tc_fpga.dts
-@@ -0,0 +1,445 @@
+@@ -0,0 +1,499 @@
 +/*
 + * Copyright (c) 2023, Arm Limited. All rights reserved.
 + *
@@ -167,6 +167,60 @@ index 000000000..3b176dace
 +		};
 +
 +	};
++
++        ete0 {
++                compatible = "arm,embedded-trace-extension";
++                cpu = <&CPU0>;
++        };
++
++        ete1 {
++                compatible = "arm,embedded-trace-extension";
++                cpu = <&CPU1>;
++        };
++
++        ete2 {
++                compatible = "arm,embedded-trace-extension";
++                cpu = <&CPU2>;
++        };
++
++        ete3 {
++                compatible = "arm,embedded-trace-extension";
++                cpu = <&CPU3>;
++        };
++
++        ete4 {
++                compatible = "arm,embedded-trace-extension";
++                cpu = <&CPU4>;
++        };
++
++        ete5 {
++                compatible = "arm,embedded-trace-extension";
++                cpu = <&CPU5>;
++        };
++
++        ete6 {
++                compatible = "arm,embedded-trace-extension";
++                cpu = <&CPU6>;
++        };
++
++        ete7 {
++                compatible = "arm,embedded-trace-extension";
++                cpu = <&CPU7>;
++        };
++
++        trbe0 {
++                compatible = "arm,trace-buffer-extension";
++                interrupts = <1 2 4>;
++        };
++
++        /*
++         * L3 cache in the DSU is the Memory System Component (MSC)
++         * The MPAM registers are accessed through utility bus in the DSU
++         */
++        msc0 {
++                compatible = "arm,mpam-msc";
++                reg = <0x1 0x00010000 0x0 0x2000>;
++        };
 +
 +	cpu-pmu {
 +		compatible = "arm,armv8-pmuv3";
@@ -618,7 +672,7 @@ index b4b6ba8e4..e16bb1ab3 100644
  /* SoC NIC-400 Global Programmers View (GPV) */
  #define SOC_CSS_NIC400_BASE		0x7fd00000
 diff --git a/plat/arm/board/tc/include/platform_def.h b/plat/arm/board/tc/include/platform_def.h
-index 34b0b1c0f..be56d7a7f 100644
+index 34b0b1c0f..a0e5defdc 100644
 --- a/plat/arm/board/tc/include/platform_def.h
 +++ b/plat/arm/board/tc/include/platform_def.h
 @@ -200,7 +200,7 @@
@@ -626,7 +680,7 @@ index 34b0b1c0f..be56d7a7f 100644
  #define PLAT_ARM_NSTIMER_FRAME_ID	0
  
 -#if (TARGET_PLATFORM >= 2)
-+#if (TARGET_VERSION >= 2)
++#if (defined (TARGET_PLATFORM_FVP) && TARGET_VERSION >= 2)
  #define PLAT_ARM_TRUSTED_ROM_BASE	0x1000
  #else
  #define PLAT_ARM_TRUSTED_ROM_BASE	0x0
