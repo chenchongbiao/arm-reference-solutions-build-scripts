@@ -66,6 +66,10 @@ apt-get -y install bc \
                    zip \
                    zstd
 
+#Get wayland 1.18.0 for debian
+wget https://launchpad.net/ubuntu/+archive/primary/+sourcefiles/wayland/1.18.0-1/wayland_1.18.0.orig.tar.gz
+tar -xvzf wayland_1.18.0.orig.tar.gz
+
 # Install ubuntu packages based on ubuntu versions - Refer to the user guide for more info
 U_VER_22_04=22.04
 U_VER_20_04=20.04

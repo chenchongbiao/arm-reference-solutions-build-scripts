@@ -84,13 +84,17 @@ else
 	       -e GPU_DDK_VERSION=$GPU_DDK_VERSION \
 	       -e LM_LICENSE_FILE=$LM_LICENSE_FILE \
 	       -e ARMLMD_LICENSE_FILE=$ARMLMD_LICENSE_FILE \
-	       -e ARMCLANG_TOOL=$ARMCLANG_TOOL"
-
+               -e ARM_PRODUCT_DEF=$ARM_PRODUCT_DEF"
 
     if [ $PARALLELISM ];then
         env_opts+=" -e PARALLELISM=$PARALLELISM"
     fi
 
+    #netrc file contains artifactory credentials for cloning ddk code and PATH variable has armclang tool path
+    if [[ $FILESYSTEM == "debian" ]]; then
+         env_opts+=" -e PATH=$PATH \
+                     -v $HOME/.netrc:$HOME/.netrc"
+    fi
     #Start docker container
     echo -e "${BLUE}INFO: ENTERING DOCKER CONTAINER ${NC}"
 

@@ -8,6 +8,7 @@ readonly FILESYSTEM_OPTIONS=(
     "buildroot"
     "android-fvp"
     "android-fpga"
+    "debian"
 )
 
 readonly PLATFORM_OPTIONS=(

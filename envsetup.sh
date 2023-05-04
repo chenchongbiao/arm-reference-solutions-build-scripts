@@ -42,6 +42,7 @@ if [[ -z "${FILESYSTEM:-}" ]] ; then
     echo "Filesystem options:"
     echo "    - buildroot"
     echo "    - android-swr"
+    echo "    - debian"
     exit 1
 fi
 
@@ -54,6 +55,7 @@ pushd $SCRIPT_DIR/../tools/
 mkdir -p downloads
 
 GCC_VERSION="11.2-2022.02"
+GCC_VERSION_GPU="8.3-2019.03"
 
 # Remove obsolete gcc versions
 gcc_old=$(find . -type d -name "gcc-arm-*-x86_64-*" \( ! -iname "gcc-arm-$GCC_VERSION-x86_64-*" \))
@@ -71,6 +73,12 @@ fi
 if [ ! -d gcc-arm-$GCC_VERSION-x86_64-aarch64-none-linux-gnu ]; then
     wget https://developer.arm.com/-/media/Files/downloads/gnu/$GCC_VERSION/binrel/gcc-arm-$GCC_VERSION-x86_64-aarch64-none-linux-gnu.tar.xz -P downloads
     tar xf downloads/gcc-arm-$GCC_VERSION-x86_64-aarch64-none-linux-gnu.tar.xz
+fi
+
+# gcc8 is required to build GPU DDK
+if [ ! -d gcc-arm-$GCC_VERSION_GPU-x86_64-aarch64-linux-gnu ]; then
+    wget https://developer.arm.com/-/media/Files/downloads/gnu-a/$GCC_VERSION_GPU/binrel/gcc-arm-$GCC_VERSION_GPU-x86_64-aarch64-linux-gnu.tar.xz -P downloads
+    tar xf downloads/gcc-arm-$GCC_VERSION_GPU-x86_64-aarch64-linux-gnu.tar.xz
 fi
 
 # Builds tools
@@ -171,6 +179,9 @@ pip3 install --upgrade pip
 pip3 install pyelftools
 pip3 install ply
 
+# DDK requirement
+pip3 install ply
+
 # RSS requirements
 pushd $SCRIPT_DIR/../src/rss
 pip3 install -r tools/requirements.txt
@@ -207,6 +218,12 @@ to_patch=(
 if [ -d "$SCRIPT_DIR/../src/trusty" ]; then
     to_patch+=(
          "build-trusty.sh"
+    )
+fi
+
+if [ "$FILESYSTEM" == "debian" ]; then
+    to_patch+=(
+         "build-debian.sh"
     )
 fi
 
