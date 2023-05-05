@@ -496,7 +496,7 @@ NOTE 2: This test is specific to Buildroot only. An example of the expected test
 MPAM
 ####
 
-The hardware and the software requirements required for the MPAM feature can be verified by running the command ``testing-mpam.sh`` on ``terminal_uart_ap`` (this script is only available on Buildroot distros).
+The hardware and the software requirements required for the MPAM feature can be verified by running the command ``testing_mpam.sh`` on ``terminal_uart_ap`` (this script is only available on Buildroot distros).
 
 NOTES: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mpam>` document section.
 
