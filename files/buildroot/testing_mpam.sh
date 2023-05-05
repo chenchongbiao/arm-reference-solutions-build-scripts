@@ -36,8 +36,8 @@ else
 	echo -e "Fail\n"
 fi
 
-echo "Partition 0 is the default partition to which all tasks will be assigned.  Checking if task 5 is assigned to partition 0"
-if grep -Fxq "5" /sys/fs/mpam/partitions/0/tasks
+echo "Partition 0 is the default partition to which all tasks will be assigned.  Checking if task 1 is assigned to partition 0"
+if grep -Fxq "1" /sys/fs/mpam/partitions/0/tasks
 then
     echo -e "Pass\n"
 else
