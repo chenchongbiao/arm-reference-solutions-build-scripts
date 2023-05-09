@@ -69,11 +69,15 @@ Software Features
  - Trusted Services (Crypto, Internal Trusted Storage and Firmware Update) running at S-EL0.
  - Trusted Services test suite added to Buildroot distribution.
  - Tracing - Added support for ETE and TRBE v1.0 in TF-A, kernel and simpleperf. Traces can be captured with simpleperf. However, to enable tracing, the libete plugin has to be loaded while executing the FVP with ``--plugin <path to plugin>/libete-plugin.so``
- - Firmware update support
+ - Firmware update support.
 
 Platform Support
 ----------------
  - This software release is tested on TC2 Fast Model platform (FVP) version 11.21.20.
+
+Tools Support
+-------------
+ - This software release introduces docker support (at the moment supporting only the "image building process").
 
 Known issues or Limitations
 ---------------------------

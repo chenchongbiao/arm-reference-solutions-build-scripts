@@ -127,16 +127,19 @@ For the Android build with software rendering:
 
 The various tools will be installed in the ``tools/`` directory at the root of the workspace.
 
-To build Android with Android Verified Boot (AVB) enabled, run:
+To build Android with Android Verified Boot (AVB) enabled, run the following command to enable the corresponding flag in addition to any of the two previous Android command variants (please note that this needs to be run before running `./setup.sh`):
 ::
 
     export AVB=true
 
 NOTES:
 
+* If building the TC2 software stack for more than one target, please ensure you run a clean build between each different build to avoid setup/building errors (refer to the next section "*More about the build system*" for command usage examples on how to do this).
+
 * If running ``repo sync`` again is needed at some point, then the ``setup.sh`` script also needs to be run again, as repo sync can discard the patches.
 
 * Most builds will be done in parallel using all the available cores by default. To change this number, run ``export PARALLELISM=<number of cores>``
+
 
 Build options
 #############
@@ -157,7 +160,7 @@ Android based stack takes considerable time to build, so start the build and go 
 Build command
 #############
 
-To build the whole stack, simply run:
+To build the whole TC2 software stack, simply run:
 ::
 
     ./run_docker.sh ./build-all.sh build
@@ -171,7 +174,7 @@ More about the build system
 ###########################
 
 The ``build-all.sh`` script will build all the components, but each component has its own script, allowing it to be built, cleaned and deployed separately.
-All scripts support the ``build``, ``clean``, ``deploy``, ``patch`` commands. ``build-all.sh`` also supports ``all``, to clean then rebuild all the stack.
+All scripts support the ``build``, ``clean``, ``deploy``, ``patch`` commands. ``build-all.sh`` also supports ``all``, which performs a clean followed by a rebuild of all the stack.
 
 For example, to build, deploy, and clean SCP, run:
 ::
@@ -183,7 +186,7 @@ For example, to build, deploy, and clean SCP, run:
 The platform and filesystem used should be defined as described previously, but they can also be specified as the following example:
 ::
 
-    ./run_docker.sh ./build-all -p $PLATFORM -f $FILESYSTEM -t $TC_TARGET_FLAVOR -g $TC_GPU build
+    ./run_docker.sh ./build-all.sh -p $PLATFORM -f $FILESYSTEM -t $TC_TARGET_FLAVOR -g $TC_GPU build
 
 Build Components and its dependencies
 #####################################
@@ -363,7 +366,7 @@ Ensure that all dependencies are met by running the FVP: ``./path/to/FVP_TC2``. 
 the FVP launch, presenting a graphical interface showing information about the current state of the FVP.
 
 The ``run_model.sh`` script in ``<tc2_workspace>/run-scripts/tc2`` will launch the FVP, providing
-the previously built images as arguments. Run the ``run_model.sh`` script:
+the previously built images as arguments. Run the ``./run_model.sh`` script:
 
 ::
 
@@ -443,7 +446,7 @@ For OP-TEE, the TEE sanity test suite can be run using command ``xtest`` on the 
 
 Please be aware that this test suite will take some time to run all its related tests.
 
-NOTES: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_optee>` document section.
+NOTE: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_optee>` document section.
 
 
 Trusted Services and Client application
@@ -451,7 +454,7 @@ Trusted Services and Client application
 
 For Trusted Services, run the command ``ts-service-test -sg ItsServiceTests -sg PsaCryptoApiTests -sg CryptoServicePackedcTests -sg CryptoServiceProtobufTests -sg CryptoServiceLimitTests -v`` for Service API level tests, and run ``ts-demo`` for the demonstration of the client application.
 
-NOTES: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_ts>` document section.
+NOTE: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_ts>` document section.
 
 
 Trusty
@@ -483,7 +486,7 @@ Kernel Selftest
 
 Tests are located at ``/usr/bin/selftest`` on the device.
 
-To run all the tests in one go, use ``run_kselftest.sh`` script. Tests can be run individually also.
+To run all the tests in one go, use ``./run_kselftest.sh`` script. Tests can be run individually also.
 ::
 
     ./run_kselftest.sh --summary
@@ -496,9 +499,9 @@ NOTE 2: This test is specific to Buildroot only. An example of the expected test
 MPAM
 ####
 
-The hardware and the software requirements required for the MPAM feature can be verified by running the command ``testing_mpam.sh`` on ``terminal_uart_ap`` (this script is only available on Buildroot distros).
+The hardware and the software requirements required for the MPAM feature can be verified by running the command ``testing_mpam.sh`` on ``terminal_uart_ap`` (this script is located inside the `/bin` folder, which is part of the default `$PATH` environment variable, allowing this command to be executed from any location in the device filesystem).
 
-NOTES: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mpam>` document section.
+NOTE: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mpam>` document section.
 
 
 BTI
@@ -512,14 +515,14 @@ To run the BTI unit test, navigate to ``<tc2_workspace>`` and run:
     adb push bti-unit-tests /data/local/tmp
     cd <tc2_workspace>/src/android/out/target
     adb push ./product/tc_fvp/obj/SHARED_LIBRARIES/libbti_basic_function_intermediates/libbti_basic_function.so /data/local/tmp
-    
+
 On the ``terminal_uart_ap`` run:
 ::
 
     cd /data/local/tmp
     ./bti-unit-tests
-        
-NOTES: This test is specific to Android only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_bti>` document section.
+
+NOTE: This test is specific to Android builds with hardware rendering configuration enabled (i.e. `TC_GPU=true`). An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_bti>` document section.
 
 
 MTE
@@ -531,16 +534,16 @@ To run the MTE unit test, navigate to ``<tc2_workspace>`` and run:
     adb connect 127.0.0.1:5555
     cd <tc2_workspace>/src/android/out/target/product/tc_fvp/testcases/mte-unit-tests/arm64
     adb push mte-unit-tests /data/local/tmp
-    
+
 On the ``terminal_uart_ap`` run:
 ::
 
     cd /data/local/tmp
     ./mte-unit-tests
 
-NOTES: This test is specific to Android only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mte>` document section.
+NOTE: This test is specific to Android builds with hardware rendering configuration enabled (i.e. `TC_GPU=true`). An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mte>` document section.
 
-    
+
 PAUTH
 #####
 
@@ -550,14 +553,14 @@ To run the PAUTH unit test, navigate to ``<tc2_workspace>`` and run:
     adb connect 127.0.0.1:5555
     cd <tc2_workspace>/src/android/out/target/product/tc_fvp/testcases/pauth-unit-tests/arm64
     adb push pauth-unit-tests /data/local/tmp
-    
+
 On the ``terminal_uart_ap`` run:
 ::
 
     cd /data/local/tmp
     ./pauth-unit-tests
 
-NOTES: This test is specific to Android only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_pauth>` document section.
+NOTE: This test is specific to Android builds with hardware rendering configuration enabled (i.e. `TC_GPU=true`). An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_pauth>` document section.
 	
 	
 EAS with LISA
@@ -613,7 +616,7 @@ The following excerpt illustrates the contents of the ``target_conf_buildroot.ym
         max-async: 1
 
 
-NOTES: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_eas>` document section.
+NOTE: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_eas>` document section.
 
 
 Debugging on Arm Development Studio
@@ -699,7 +702,7 @@ of the `edk2 project <https://github.com/tianocore/edk2>`__.
 To generate the capsule from the fip binary, run the following command:
 ::
 
-       GenerateCapsule -e -o efi_capsule --fw-version 1 --lsv 0 --guid 0d5c011f-0776-5b38-8e81-36fbdf6743e2 --update-image-index 0 --verbose fip-tc.bin
+    ./GenerateCapsule -e -o efi_capsule --fw-version 1 --lsv 0 --guid 0d5c011f-0776-5b38-8e81-36fbdf6743e2 --update-image-index 0 --verbose fip-tc.bin
 
 Command arguments explanation:
  * ``fip-tc.bin`` is the input fip file that has the firmware binaries of the total compute platform;
