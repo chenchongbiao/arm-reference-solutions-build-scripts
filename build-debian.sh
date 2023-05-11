@@ -29,24 +29,27 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 do_build() {
-    info_echo "For custom build debian image, please follow $DEBIAN_README"
+    info_echo "Downloading compressed Debian image from Artifactory"
+    curl --netrc --retry 5 --retry-delay 3 --output $DEPLOY_DIR/tc2/$DEBIAN_ARTIFACTORY_FILE $DEBIAN_ARTIFACTORY_PATH/$DEBIAN_ARTIFACTORY_FILE
+    info_echo "Extracting debian.img ..."
+    pushd $DEPLOY_DIR/tc2
+    tar -xvf $DEBIAN_ARTIFACTORY_FILE
+    $SCRIPT_DIR/create_mmc_image.sh
+    popd
 }
 
 do_clean() {
-    info_echo "Cleaning debian filesystem..."
-    rm -rf $DEBIAN_OUT_DIR
+    info_echo "Cleaning debian"
+    rm -rf $DEPLOY_DIR/tc2/debian_fs.img
 }
 
 do_patch() {
-    info_echo "Patching TC to build it with Debian filesystem and DDK..."
-    PATCHES_DIR=$FILES_DIR/debian/$PLATFORM/
-
-    with_default_shell_opts patching $PATCHES_DIR/ $SRC_DIR/trusted-firmware-a
-    with_default_shell_opts patching $PATCHES_DIR/ $SRC_DIR/u-boot
+    info_echo "Patching for debian"
+    # This is not to patch debian filesystem.
+    # use it to patch TC components to support booting debian, if any.
 }
 
 do_deploy() {
-	info_echo "Deploying debian"
-	info_echo "Mount the prebuilt debian to virtIO disk, please follow $DEBIAN_README"
+    info_echo "Deploying debian"
 }
 source "$(dirname ${BASH_SOURCE[0]})/framework.sh"

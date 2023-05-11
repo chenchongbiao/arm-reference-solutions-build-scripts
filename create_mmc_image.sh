@@ -28,32 +28,40 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-do_build() {
-    info_echo "Creating an empty disk image..."
+set -e
 
-    if [ ! -d $DEB_VIRTIO_IMAGE_PATH ]; then
-        mkdir -p $DEB_VIRTIO_IMAGE_PATH
-        dd if=/dev/zero of=$DEB_VIRTIO_IMAGE_PATH/$DEB_VIRTIO_IMAGE_NAME bs=$DEB_VIRTIO_RW_BYTES_SIZE count=$DEB_VIRTIO_BLOCK_COUNT
+echo "Creating MMC bootable debian image"
 
-        info_echo "Formatting the disk image (ext4) ..."
-        mkfs.ext4 $DEB_VIRTIO_IMAGE_PATH/$DEB_VIRTIO_IMAGE_NAME
-    else
-        info_echo "disk already exists!"
-    fi
+# MMC Bootable image
+OUT_IMG=${OUT_IMG:-debian_fs.img}
+
+size_in_mb() {
+        local size_in_bytes
+        size_in_bytes=$(wc -c $1)
+        size_in_bytes=${size_in_bytes%% *}
+        echo $((size_in_bytes / 1024 / 1024 + 1))
 }
 
-do_clean() {
-    info_echo "Destroying the disk image..."
-    rm -rf $DEB_VIRTIO_IMAGE_PATH
-    rm -f $DEPLOY_DIR/$PLATFORM/$DEB_VIRTIO_IMAGE_NAME
-}
+# Debian Raw filesystem
+DEBIAN_IMG=${DEBIAN_IMG:-debian.img}
+DEBIAN_SIZE=$(size_in_mb ${DEBIAN_IMG})
+IMAGE_LEN=$((DEBIAN_SIZE + 2 ))
 
-do_deploy() {
-    info_echo "Deploying the disk image"
-    if [ ! -f $DEPLOY_DIR/$PLATFORM/debian_disk_image ]; then
-	ln -s $DEB_VIRTIO_IMAGE_PATH/$DEB_VIRTIO_IMAGE_NAME $DEPLOY_DIR/$PLATFORM/debian_disk_image
-    fi
-    info_echo "Please follow $DEBIAN_README to mount debian filesystem to virtIO disk image."
-}
+# measured in MBytes
+PART1_START=1
+PART1_END=$((PART1_START + DEBIAN_SIZE))
 
-source "$(dirname ${BASH_SOURCE[0]})/framework.sh"
+PARTED="parted -a min "
+
+# Create an empty disk image file
+dd if=/dev/zero of=$OUT_IMG bs=1M count=3K
+
+# Create a partition table
+$PARTED $OUT_IMG unit s mktable gpt
+
+# Create partitions
+SEC_PER_MB=$((1024*2))
+$PARTED $OUT_IMG unit s mkpart debian ext4 $((PART1_START * SEC_PER_MB)) $((PART1_END * SEC_PER_MB - 1))
+
+# Assemble all the images into one final image (There is one debian image as of Today)
+dd if=$DEBIAN_IMG of=$OUT_IMG bs=1M seek=${PART1_START} conv=notrunc

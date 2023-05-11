@@ -31,12 +31,12 @@
 do_build() {
     if [ -z "$DEB_DDK_REPO" ]; then
 	info_echo "{RED}DDK REPO URL is missing...exiting!"
-        exit
+        exit 1
     fi
 
     if [ -z "$DEB_DDK_VERSION" ]; then
 	info_echo "{RED}DDK VERSION is missing...exiting!"
-        exit
+        exit 1
     fi
 
     info_echo "Cloning DDK..."
@@ -54,6 +54,15 @@ do_build() {
     cd $SRC_DIR/mali
     export KERNEL_DIR=$LINUX_OUTDIR
     export TARGET_GNU_PREFIX=$DEB_DDK_GNU_PREFIX
+
+    if [[ -z $ARM_PRODUCT_DEF || -z $LM_LICENSE_FILE || -z $ARMLMD_LICENSE_FILE ]]; then
+            info_echo "Please export ARM_PRODUCT_DEF, LM_LICENSE_FILE and ARMLMD_LICENSE_FILE variabless to build GPU DDK"
+            exit 1
+    fi
+    export PATH=$SCRIPT_DIR/../tools/armclang/bin:$PATH
+    export ARM_PRODUCT_DEF=$ARM_PRODUCT_DEF
+    export LM_LICENSE_FILE=$LM_LICENSE_FILE
+    export ARMLMD_LICENSE_FILE=$ARMLMD_LICENSE_FILE
 
     # Build DDK modules
     cd product && bldsys/git_binaries.py -u
@@ -91,12 +100,15 @@ do_clean() {
 
 do_deploy() {
 	info_echo "deploying DDK..."
-	mkdir -p $DEB_DDK_CSF_FW_DIR && mkdir -p $DEB_DDK_WAYLAND_DIR
-	cp $DEB_DDK_INSTALL_DIR/bin/mali_csffw.bin $DEB_DDK_CSF_FW_DIR
+	mkdir -p $DEB_DDK_WAYLAND_DIR
 	cp -r $DEB_DDK_INSTALL_DIR/lib/* $DEB_DDK_WAYLAND_DIR
+	cp -r $DEB_DDK_INSTALL_DIR/bin $DEB_DDK_WAYLAND_DIR
 	cp $DEB_DDK_MALI_KBASE_MODULE/mali_kbase.ko $DEB_DDK_WAYLAND_DIR 
 	chmod 777 $DEBIAN_WESTON_RUNSCRIPT/run_weston.sh
 	cp $DEBIAN_WESTON_RUNSCRIPT/run_weston.sh $DEB_DDK_WAYLAND_DIR
+	pushd $DEB_DDK_MALI_DIR/../
+	tar -zcvf mali.tar.xz mali
+	popd
 }
 
 source "$(dirname ${BASH_SOURCE[0]})/framework.sh"

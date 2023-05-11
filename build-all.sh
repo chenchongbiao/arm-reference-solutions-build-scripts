@@ -43,12 +43,11 @@ fi
         ;;
     ("debian")
         scripts+=(
-            "create-virtIO-img.sh"
             "build-debian.sh"
         )
         if [ "$TC_GPU" == "true" ]; then
             info_echo "Debian will be built with Mali DDK!"
-            scripts+=("build-ddk.sh")
+            scripts+=("build-debian-ddk.sh")
         else
             info_echo "Debian will be built without Mali DDK!"
         fi

@@ -12,6 +12,10 @@ export XDG_RUNTIME_DIR=/tmp/wayland/
 export LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu/mali/wayland/
 export WAYLAND_DISPLAY=wayland-0
 
+echo "Copy csf firmware binary to the default path"
+mkdir -p /lib/firmware
+cp /usr/lib/aarch64-linux-gnu/mali/wayland/firmware/* /lib/firmware/
+
 echo "Launching weston..."
 LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu/mali/wayland/ XDG_RUNTIME_DIR=/tmp/wayland weston --backend=drm-backend.so --tty=1 --idle-time=0 --drm-device=card0&
 
