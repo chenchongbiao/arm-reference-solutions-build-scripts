@@ -16,7 +16,7 @@ Prerequisites
 -------------
 
 These instructions assume that:
- * Your host PC is running a recent Ubuntu Linux (18.04 or 20.04);
+ * Your host PC is running Ubuntu Linux 20.04;
  * You are running the provided scripts in a ``bash`` shell environment.
 
 To get the latest repo tool from google, run the following commands:
@@ -37,6 +37,8 @@ To install and allow access to docker, run the following command:
 ::
 
     sudo apt install docker.io
+    # ensure docker service is properly started and running
+    sudo systemctl restart docker
     sudo chmod 777 /var/run/docker.sock
 
 NOTE: to manage Docker as a non-root user, run the following command:
@@ -76,6 +78,7 @@ To sync Android source code, run the following repo command:
     repo init -u https://gitlab.arm.com/arm-reference-solutions/arm-reference-solutions-manifest -m tc2.xml -b ${TC2_RELEASE} -g android
     repo sync -j `nproc` --fetch-submodules
 
+NOTE: synchronization of the Android code from Google servers may fail due to connection problems and/or to an enforced rate limit related with the maximum number of concurrent fetching jobs. The previous commands assume that the maximum number of jobs concurrently fetching code will be a perfect match of the number of CPU cores available, which should work fine most of the times. If experiencing constant errors on consecutive fetch code attempts, please do consider deleting your entire workspace (which will ensure a clean of the support ``.repo`` folder containing the previously partial fetched files), by running the command ``cd .. ; rm -rf <tc2_workspace>`` and repeat the previous commands listed in this section to recreate the workspace (optionally, also reducing the number of jobs, for example to a maximum of 4, by adopting the following command ``repo sync -j 4 --fetch-submodules``).
 
 Once the previous process finishes, the current ``<tc2_workspace>`` should have the following structure: 
  * ``build-scripts/``: the components build scripts
