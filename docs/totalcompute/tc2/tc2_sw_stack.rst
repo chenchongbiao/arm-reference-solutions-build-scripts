@@ -1,7 +1,5 @@
 .. _docs/totalcompute/tc2/tc2_sw_stack:
 
-.. section-numbering::
-    :suffix: .
 
 Total Compute Platform Software Components
 ==========================================

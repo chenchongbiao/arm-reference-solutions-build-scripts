@@ -1,7 +1,5 @@
 .. _docs/totalcompute/tc2/readme:
 
-.. section-numbering::
-    :suffix: .
 
 Instructions: Obtaining Total Compute software deliverables
 -----------------------------------------------------------
