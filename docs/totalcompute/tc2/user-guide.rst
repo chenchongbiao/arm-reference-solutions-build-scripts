@@ -10,7 +10,7 @@ Notice
 ------
 
 The Total Compute 2022 (TC2) software stack uses bash scripts to build a Board
-Support Package (BSP) and a choice of Buildroot Linux distribution or Android.
+Support Package (BSP) and a choice of three possible distributions including Buildroot, Debian or Android.
 
 Prerequisites
 -------------
@@ -19,8 +19,7 @@ These instructions assume that:
  * Your host PC is running Ubuntu Linux 20.04;
  * You are running the provided scripts in a ``bash`` shell environment.
 
-To get the latest repo tool from google, run the following commands:
-
+To get the latest repo tool from Google, please run the following commands:
 ::
 
     mkdir -p ~/bin
@@ -28,12 +27,12 @@ To get the latest repo tool from google, run the following commands:
     chmod a+x ~/bin/repo
     export PATH=~/bin:$PATH
 
-To build and run Android, the minimum requirements for the host machine can be found at https://source.android.com/setup/build/requirements, These include:
+To build and run Android, the minimum requirements for the host machine can be found at https://source.android.com/setup/build/requirements. These include:
  * At least 250GB of free disk space to check out the code and an extra 150 GB to build it. If you conduct multiple builds, you need additional space.
  * At least 32 GB of available RAM/swap.
- * Git configured properly using "git config" otherwise it may throw error while fetching the code.
+ * Git configured properly using ``git config`` otherwise it may throw error while fetching the code.
 
-To install and allow access to docker, run the following command:
+To install and allow access to docker, please run the following commands:
 ::
 
     sudo apt install docker.io
@@ -41,7 +40,7 @@ To install and allow access to docker, run the following command:
     sudo systemctl restart docker
     sudo chmod 777 /var/run/docker.sock
 
-NOTE: to manage Docker as a non-root user, run the following command:
+To manage Docker as a non-root user, please run the following commands:
 ::
 
     sudo groupadd docker
@@ -51,9 +50,10 @@ NOTE: to manage Docker as a non-root user, run the following command:
 Download the source code and build
 ------------------------------------
 
-There are two distros supported in the TC2 software stack:
+The TC2 software stack supports the following distros:
  * Buildroot (a minimal distro containing Busybox);
- * Android.
+ * Debian (based on Debian 11 Bullseye);
+ * Android (based on Android 13).
 
 Download the source code
 ########################
@@ -66,24 +66,32 @@ in these instructions.
     cd <tc2_workspace>
     export TC2_RELEASE=refs/tags/TC2-2023.04.21
 
-To sync Buildroot source code, run the following repo command:
+To sync Buildroot source code, please run the following repo commands:
 ::
 
-    repo init -u https://gitlab.arm.com/arm-reference-solutions/arm-reference-solutions-manifest -m tc2.xml -b ${TC2_RELEASE} -g bsp
+    repo init -u ssh://git@git.gitlab.oss.arm.com/engineering/tc/manifests -m tc2.xml -b ${TC2_RELEASE} -g bsp
     repo sync -j `nproc` --fetch-submodules
 
-To sync Android source code, run the following repo command:
+To sync Debian source code, please run the following repo commands:
 ::
 
-    repo init -u https://gitlab.arm.com/arm-reference-solutions/arm-reference-solutions-manifest -m tc2.xml -b ${TC2_RELEASE} -g android
+    export TC_DEBIAN=debian
+    repo init -u ssh://git@git.gitlab.oss.arm.com/engineering/tc/manifests -m tc2.xml -b ${TC_DEBIAN} -g bsp
     repo sync -j `nproc` --fetch-submodules
 
-NOTE: synchronization of the Android code from Google servers may fail due to connection problems and/or to an enforced rate limit related with the maximum number of concurrent fetching jobs. The previous commands assume that the maximum number of jobs concurrently fetching code will be a perfect match of the number of CPU cores available, which should work fine most of the times. If experiencing constant errors on consecutive fetch code attempts, please do consider deleting your entire workspace (which will ensure a clean of the support ``.repo`` folder containing the previously partial fetched files), by running the command ``cd .. ; rm -rf <tc2_workspace>`` and repeat the previous commands listed in this section to recreate the workspace (optionally, also reducing the number of jobs, for example to a maximum of 4, by adopting the following command ``repo sync -j 4 --fetch-submodules``).
+To sync Android source code, please run the following repo commands:
+::
+
+    repo init -u ssh://git@git.gitlab.oss.arm.com/engineering/tc/manifests -m tc2.xml -b ${TC2_RELEASE} -g android
+    repo sync -j `nproc` --fetch-submodules
+
+.. warning::
+    Synchronization of the Android code from Google servers may fail due to connection problems and/or to an enforced rate limit related with the maximum number of concurrent fetching jobs. The previous commands assume that the maximum number of jobs concurrently fetching code will be a perfect match of the number of CPU cores available, which should work fine most of the times. If experiencing constant errors on consecutive fetch code attempts, please do consider deleting your entire workspace (which will ensure a clean of the support ``.repo`` folder containing the previously partial fetched files), by running the command ``cd .. ; rm -rf <tc2_workspace>`` and repeat the previous commands listed in this section to recreate the workspace (optionally, also reducing the number of jobs, for example to a maximum of 4, by adopting the following command ``repo sync -j 4 --fetch-submodules``).
 
 Once the previous process finishes, the current ``<tc2_workspace>`` should have the following structure: 
- * ``build-scripts/``: the components build scripts
- * ``run-scripts/``: scripts to run the FVP
- * ``src/``: each component's git repository
+ * ``build-scripts/``: the components build scripts;
+ * ``run-scripts/``: scripts to run the FVP;
+ * ``src/``: each component's git repository.
 
 Initial Setup
 #############
@@ -94,16 +102,66 @@ The setup includes two parts:
 
 Setting up a docker image involves pulling the prebuilt docker image from a docker registry. If that fails, it will build a local docker image.
 
-To setup a docker image, patch the components, install the toolchains and build tools, run the following listed commands.
+To setup a docker image, patch the components, install the toolchains and build tools, please run the following listed commands according to the distro and variant of interest.
 
-For the Buildroot build:
+The various tools will be installed in the ``tools/`` directory at the root of the workspace.
+
+
+Buildroot build
+***************
+
+To build the Buildroot distro, please run the following commands:
 ::
 
     export PLATFORM=tc2
     export FILESYSTEM=buildroot
+    cd build-scripts
     ./setup.sh
 
-For the Android build with hardware rendering:
+
+Debian build
+************
+
+Debian can be built with or without GPU hardware rendering support by setting the ``TC_GPU`` environment variable accordingly as described in the following command usage examples.
+
+Debian build with hardware rendering support
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To build the Debian distro with hardware rendering, please run the following commands:
+::
+
+    export PLATFORM=tc2
+    export FILESYSTEM=debian
+    export TC_GPU=true
+    export GPU_DDK_REPO=<PATH TO GPU DDK SOURCE CODE>
+    export GPU_DDK_VERSION=r40p0_01eac0
+    export LM_LICENSE_FILE=<LICENSE FILE>
+    export ARMLMD_LICENSE_FILE=<LICENSE FILE>
+    export ARMCLANG_TOOL=<PATH TO ARMCLANG TOOLCHAIN>
+    cd build-scripts
+    ./setup.sh
+
+Debian build with software rendering support
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To build the Debian distro with software rendering, please run the following commands:
+::
+
+    export PLATFORM=tc2
+    export FILESYSTEM=debian
+    export TC_GPU=false
+    cd build-scripts
+    ./setup.sh
+
+Android build
+*************
+
+Android can be built with or without GPU hardware rendering support by setting the ``TC_GPU`` environment variable accordingly as described in the following command usage examples.
+
+Android build with hardware rendering support
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To build the Android distro with hardware rendering, please run the following commands:
 ::
 
     export PLATFORM=tc2
@@ -117,31 +175,37 @@ For the Android build with hardware rendering:
     export ARMLMD_LICENSE_FILE=<LICENSE FILE>
     export ANDROID_TEST_EXAMPLES=<PATH TO GPU DDK TEST EXAMPLES>
     export ARMCLANG_TOOL=<PATH TO ARMCLANG TOOLCHAIN>
+    cd build-scripts
     ./setup.sh
 
-For the Android build with software rendering:
+Android build with software rendering support
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To build the Android distro with software rendering, please run the following commands:
 ::
 
     export PLATFORM=tc2
     export TC_GPU=false
     export TC_TARGET_FLAVOR=fvp
     export FILESYSTEM=android-fvp
+    cd build-scripts
     ./setup.sh
 
-The various tools will be installed in the ``tools/`` directory at the root of the workspace.
 
-To build Android with Android Verified Boot (AVB) enabled, run the following command to enable the corresponding flag in addition to any of the two previous Android command variants (please note that this needs to be run before running `./setup.sh`):
+
+To build Android with Android Verified Boot (AVB) enabled, please run the following command to enable the corresponding flag in addition to any of the two previous Android command variants (please note that this needs to be run before running ``./setup.sh``):
 ::
 
     export AVB=true
 
-NOTES:
+.. warning::
+    If building the TC2 software stack for more than one target, please ensure you run a clean build between each different build to avoid setup/building errors (refer to the next section "*More about the build system*" for command usage examples on how to do this).
 
-* If building the TC2 software stack for more than one target, please ensure you run a clean build between each different build to avoid setup/building errors (refer to the next section "*More about the build system*" for command usage examples on how to do this).
+.. warning::
+    If running ``repo sync`` again is needed at some point, then the ``setup.sh`` script also needs to be run again, as ``repo sync`` can discard the patches.
 
-* If running ``repo sync`` again is needed at some point, then the ``setup.sh`` script also needs to be run again, as repo sync can discard the patches.
-
-* Most builds will be done in parallel using all the available cores by default. To change this number, run ``export PARALLELISM=<number of cores>``
+.. note::
+    Most builds will be done in parallel using all the available cores by default. To change this number, run ``export PARALLELISM=<number of cores>``
 
 
 Build options
@@ -157,7 +221,8 @@ The Android images can be built with or without authentication enabled using And
 AVB build is done in userdebug mode and takes a longer time to boot as the images are verified.
 This option does not influence the way the system boots, rather it adds an optional sanity check on the prerequisite images.
 
-Android based stack takes considerable time to build, so start the build and go grab a cup of coffee!
+.. note::
+    Android based stack takes considerable time to build, so start the build and go grab a cup of coffee!
 
 
 Build command
@@ -321,6 +386,14 @@ The provided distribution is based on BusyBox and built using glibc.
 | Files  | * <tc2_workspace>/build-scripts/output/deploy/tc2/tc-fitImage.bin                               |
 +--------+-------------------------------------------------------------------------------------------------+
 
+Debian Linux distro
+*******************
+
++--------+-------------------------------------------------------------------------------------------------+
+| Script | <tc2_workspace>/build-scripts/build-debian.sh                                                   |
++--------+-------------------------------------------------------------------------------------------------+
+| Files  | * <tc2_workspace>/build-scripts/output/deploy/tc2/debian_fs.img                                 |
++--------+-------------------------------------------------------------------------------------------------+
 
 Android
 *******
@@ -378,7 +451,7 @@ the previously built images as arguments. Run the ``./run_model.sh`` script:
     <path_to_run_model.sh> [OPTIONS]
     OPTIONS:
     -m, --model                      path to model
-    -d, --distro                     distro version, values supported [buildroot, android-fvp]
+    -d, --distro                     distro version, values supported [buildroot, android-fvp, debian]
     -a, --avb                        [OPTIONAL] avb boot, values supported [true, false], DEFAULT: false
     -t, --tap-interface              [OPTIONAL] enable TAP interface
     -n, --networking                 [OPTIONAL] networking, values supported [user, tap, none]
@@ -392,33 +465,50 @@ Running Buildroot
 
     ./run-scripts/tc2/run_model.sh -m <model binary path> -d buildroot
 
+Running Debian
+##############
+
+::
+
+    ./run-scripts/tc2/run_model.sh -m <model binary path> -d debian
+
 Running Android
 ###############
 
-For running Android with AVB disabled:
+Android with AVB disabled
+*************************
+
+To run Android with AVB disabled, please run the following command:
 ::
  
     ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-fvp
- 
-For running Android with AVB enabled:
+
+Android with AVB enabled
+************************
+
+To run Android with AVB enabled, please run the following command:
 ::
 
     ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-fvp -a true
 
-For running Android with hardware rendering enabled:
+Android with hardware rendering enabled
+***************************************
+
+To run Android with hardware rendering enabled, please run the following command:
 ::
 
     ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-fvp -e '--plugin=<crypto.so>'
 
-NOTE:
-``crypto.so`` is part of your FVP bundle.
+
+.. note::
+    ``crypto.so`` is part of your FVP bundle.
 
 
 Expected behaviour
 ##################
 
 When the script is run, four terminal instances will be launched:
- * ``terminal_uart_ap`` used by the non-secure world components U-boot, Linux Kernel and filesystem (Buildroot/Android);
+ * ``terminal_uart_ap`` used by the non-secure world components U-boot, Linux Kernel and filesystem (Buildroot/Debian/Android);
  * ``terminal_uart1_ap`` used by the secure world components TF-A, Hafnium, Trusty and OP-TEE;
  * ``terminal_s0`` used for the SCP logs;
  * ``terminal_s1`` used by RSS logs (no output by default).
@@ -442,6 +532,76 @@ When booting Android with Android Verified Boot (``AVB=true``), the GUI window w
 Running sanity tests
 -----------------------------------
 
+
+Testing Weston on Debian
+########################
+
+With hardware rendering
+***********************
+
+Prerequisite
+^^^^^^^^^^^^
+
+If GPU is enabled then GPU files will need to be pushed into the device using secure copy (scp).
+This can be achieved by following the next steps:
+
+ * login to the device using username ``root`` and password ``root`` as follows:
+
+    ::
+
+        ssh -p 8022 root@localhost
+        password: root
+
+
+ * create a path inside the device, for e.g. using the following command:
+
+    ::
+
+        mkdir -p /usr/lib/aarch64-linux-gnu/mali/wayland/
+
+ * push the files from ``<tc2_workspace>/build-scripts/output/deploy/tc2/ddk/`` to the new created path, using the following command:
+
+    ::
+
+        scp -P 8022 <tc2_workspace>/build-scripts/output/deploy/tc2/ddk/lib/aarch64-linux-gnu/mali* root@localhost:/lib/aarch64-linux-gnu/
+
+Launch Weston
+^^^^^^^^^^^^^
+
+Using ``terminal_uart_ap``, login to the device/FVP model running TC and run the following commands:
+
+::
+
+    cd /lib/aarch64-linux-gnu/
+    tar -xvf mali.tar.xz
+    # once extraction completes, to free some space, delete the tar file
+    rm -rf mali.tar.xz
+    ./mali/run_weston.sh
+
+Once the ``Fast Models - Total Compute 2 DP0`` display is up (grey screen), run ``weston-flower`` to render the image. You can also run various unit tests available under ``/lib/aarch64-linux-gnu/mali/wayland/bin``.
+
+
+.. note::
+    This test is specific to Debian only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_weston>` document section.
+
+
+With software rendering
+***********************
+
+Launch Weston
+^^^^^^^^^^^^^
+
+Using ``terminal_uart_ap``, login to the device/FVP model running TC and run the following commands:
+
+::
+
+    cd /lib/aarch64-linux-gnu/
+    ./mali/run_weston.sh
+
+.. note::
+    This test is specific to Debian only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_weston>` document section.
+
+
 OP-TEE
 ###############
 
@@ -449,15 +609,17 @@ For OP-TEE, the TEE sanity test suite can be run using command ``xtest`` on the 
 
 Please be aware that this test suite will take some time to run all its related tests.
 
-NOTE: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_optee>` document section.
+.. note::
+    This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_optee>` document section.
 
 
 Trusted Services and Client application
 ########################################
 
-For Trusted Services, run the command ``ts-service-test -sg ItsServiceTests -sg PsaCryptoApiTests -sg CryptoServicePackedcTests -sg CryptoServiceProtobufTests -sg CryptoServiceLimitTests -v`` for Service API level tests, and run ``ts-demo`` for the demonstration of the client application.
+For Trusted Services, please run the command ``ts-service-test -sg ItsServiceTests -sg PsaCryptoApiTests -sg CryptoServicePackedcTests -sg CryptoServiceProtobufTests -sg CryptoServiceLimitTests -v`` for Service API level tests, and run ``ts-demo`` for the demonstration of the client application.
 
-NOTE: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_ts>` document section.
+.. note::
+    This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_ts>` document section.
 
 
 Trusty
@@ -467,21 +629,23 @@ On the Android distribution, Trusty provides a Trusted Execution Environment (TE
 The functionality of Trusty IPC can be tested using the command ``tipc-test -t ta2ta-ipc`` with root privilege
 (once Android boots to prompt, run ``su 0`` for root access).
 
-NOTE: This test is specific to Android only. An example of the expected test result for this test is ilustrated in the :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_trusty>` document section.
+.. note::
+    This test is specific to Android only. An example of the expected test result for this test is ilustrated in the :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_trusty>` document section.
 
 
 Microdroid demo
 ###############
 
 On the Android distribution, Virtualization service provides support to run Microdroid based pVM (Protected VM).
-For running a demo Microdroid, boot TC FVP with Android distribution. Once the Android is completely up, run the following command:
+For running a demo Microdroid, boot TC FVP with Android distribution. Once the Android is completely up, please run the following commands:
 
 ::
 
     export ANDROID_PRODUCT_OUT=<tc2_workspace>/src/android/out/target/product/tc_fvp/
     ./run-scripts/tc2/run_microdroid_demo.sh
 
-NOTE: This test is specific to Android only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_microdroid>` document section.
+.. note::
+    This test is specific to Android only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_microdroid>` document section.
 
 
 Kernel Selftest
@@ -494,9 +658,11 @@ To run all the tests in one go, use ``./run_kselftest.sh`` script. Tests can be 
 
     ./run_kselftest.sh --summary
 
-NOTE 1: KSM driver is not a part of the TC2 kernel. Hence, one of the MTE Kselftests will fail for ``check_ksm_options`` test.
+.. warning::
+    KSM driver is not a part of the TC2 kernel. Hence, one of the MTE Kselftests will fail for the ``check_ksm_options`` test.
 
-NOTE 2: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_kernel>` document section.
+.. note::
+    This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_kernel>` document section.
 
 
 MPAM
@@ -504,7 +670,8 @@ MPAM
 
 The hardware and the software requirements required for the MPAM feature can be verified by running the command ``testing_mpam.sh`` on ``terminal_uart_ap`` (this script is located inside the `/bin` folder, which is part of the default `$PATH` environment variable, allowing this command to be executed from any location in the device filesystem).
 
-NOTE: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mpam>` document section.
+.. note::
+    This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mpam>` document section.
 
 
 BTI
@@ -525,7 +692,8 @@ On the ``terminal_uart_ap`` run:
     cd /data/local/tmp
     ./bti-unit-tests
 
-NOTE: This test is specific to Android builds with hardware rendering configuration enabled (i.e. `TC_GPU=true`). An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_bti>` document section.
+.. note::
+    This test is specific to Android builds with hardware rendering configuration enabled (i.e. `TC_GPU=true`). An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_bti>` document section.
 
 
 MTE
@@ -544,7 +712,8 @@ On the ``terminal_uart_ap`` run:
     cd /data/local/tmp
     ./mte-unit-tests
 
-NOTE: This test is specific to Android builds with hardware rendering configuration enabled (i.e. `TC_GPU=true`). An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mte>` document section.
+.. note::
+    This test is specific to Android builds with hardware rendering configuration enabled (i.e. `TC_GPU=true`). An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mte>` document section.
 
 
 PAUTH
@@ -563,7 +732,8 @@ On the ``terminal_uart_ap`` run:
     cd /data/local/tmp
     ./pauth-unit-tests
 
-NOTE: This test is specific to Android builds with hardware rendering configuration enabled (i.e. `TC_GPU=true`). An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_pauth>` document section.
+.. note::
+    This test is specific to Android builds with hardware rendering configuration enabled (i.e. `TC_GPU=true`). An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_pauth>` document section.
 	
 	
 EAS with LISA
@@ -619,7 +789,8 @@ The following excerpt illustrates the contents of the ``target_conf_buildroot.ym
         max-async: 1
 
 
-NOTE: This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_eas>` document section.
+.. note::
+    This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_eas>` document section.
 
 
 Debugging on Arm Development Studio
@@ -657,7 +828,8 @@ Attach and Debug
 
 .. figure:: Debug_control_console.png
 
-NOTE: There is a known issue in connecting all AP cores together. The Hunter ELP core is missing from the cluster view.  As a workaround, you can create two target connections as described in the ``Creating a new connection`` section: one for ELP core alone and the other one for the rest of AP cores.
+.. warning::
+    There is a known issue in connecting all AP cores together. The Hunter ELP core is missing from the cluster view.  As a workaround, you can create two target connections as described in the ``Creating a new connection`` section: one for ELP core alone and the other one for the rest of AP cores.
 
 
 Switch between SCP and AP
@@ -687,7 +859,8 @@ The previous steps apply to the following Arm DS Platinum version/build:
 
 .. figure:: arm_ds_version.png
 
-NOTE: Arm DS Platinum is only available to licensee partners. Please contact Arm to have access (support@arm.com).
+.. note::
+    Arm DS Platinum is only available to licensee partners. Please contact Arm to have access (support@arm.com).
 
 
 Firmware Update
@@ -723,7 +896,7 @@ The capsule generated using the above steps has to be loaded into memory during 
     --data board.dram=<location of capsule>/efi_capsule@0x2000000
 
 
-This will load the capsule to be updated at address 0x82000000.
+This will load the capsule to be updated at address ``0x82000000``.
 
 The final command to run the model for buildroot should look like the following:
 
@@ -743,5 +916,7 @@ During the normal boot of the platform, stop at the U-Boot prompt and execute th
 
 This will update the firmware. After it is completed, reboot the platform using the FVP GUI.
 
+
+--------------
 
 *Copyright (c) 2022-2023, Arm Limited. All rights reserved.*

@@ -717,6 +717,16 @@ EAS with Lisa unit tests
 	workload will result in overutilized status for all possible task 
 	placement, making it unsuitable to test EAS on this platform
 
+.. _docs/totalcompute/tc2/expected-test-results_weston:
+
+
+Testing Weston on Debian
+------------------------
+
+.. figure:: weston_rendered_img.png
+    :alt: Image rendered with Weston
+
+
 .. _docs/totalcompute/tc2/expected-test-results_bootAndroidAVB:
 
 
@@ -724,7 +734,7 @@ Booting Android with AVB
 ------------------------
 
 .. figure:: bootAndroidWithFVP_error.png
-
+    :alt: Error shown when booting Android with AVB
 
 --------------
 

@@ -136,3 +136,11 @@ Buildroot
 .........
 A minimal rootfs that is useful for testing the bsp and boots quickly. The interface is text only and no graphics are supported.
 
+Debian
+.........
+This variant is based on the Debian filesystem and supports hardware or software rendering.
+
+
+--------------
+
+*Copyright (c) 2022-2023, Arm Limited. All rights reserved.*

@@ -6,5 +6,4 @@ Welcome to Total Compute documentation!
    :caption: Total Compute:
 
    totalcompute/tc2/index
-
-   totalcompute/tc2/index_old_tc_releases
+   totalcompute/tc2/index_previous_tc_releases

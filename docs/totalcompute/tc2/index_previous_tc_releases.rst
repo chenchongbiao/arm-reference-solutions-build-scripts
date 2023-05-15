@@ -1,17 +1,10 @@
-.. _docs/totalcompute/tc2/index_old_tc_releases:
+.. _docs/totalcompute/tc2/index_previous_tc_releases:
 
 ###################
-Old releases
+Previous releases
 ###################
 
-
-Total Compute Platform
-======================
-
-Total Compute is an approach to moving beyond optimizing individual IP to take a system-level solution view of the SoC that puts use cases and experiences at the heart of the designs.
-
-Total Compute focuses on optimizing Performance, Security, and Developer Access across Arm’s IP, software, and tools. This means higher-performing, more immersive, and more secure experiences on devices coupled with an easier app and software development process.
-
+This web page provides a list of all the TotalCompute Software Stack releases, cataloged by major version, which can be used for easy historical reference.
 
 
 Latest TC release
@@ -24,7 +17,6 @@ TC2 release tags
 `TC2-2022.12.07 <https://arm-reference-solutions-docs.readthedocs.io/en/tc2-2022.12.07/docs/totalcompute/tc2/readme.html>`__
 
 `TC2-2022.08.12 <https://arm-reference-solutions-docs.readthedocs.io/en/tc2-2022.08.12/docs/totalcompute/tc2/readme.html>`__
-
 
 
 TC1 release tags
@@ -46,5 +38,7 @@ TC0 release tags
 
 `TC0-2021.02.09 <https://gitlab.arm.com/arm-reference-solutions/arm-reference-solutions-docs/-/tree/TC0-2021.02.09/docs/totalcompute/tc0>`__
 
+
+--------------
 
 *Copyright (c) 2022-2023, Arm Limited. All rights reserved.*

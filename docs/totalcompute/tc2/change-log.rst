@@ -13,34 +13,37 @@ Version 2023.04.21
 
 Features added
 ~~~~~~~~~~~~~~
-- Added support for EAS
-- Added support for MPAM
-- Added support for Mali TTIx GPU
-- Added support for Android Hardware Rendering
+- Added support for EAS;
+- Added support for MPAM;
+- Added support for Mali TTIx GPU;
+- Added support for Android Hardware Rendering.
 
 Changes
 ~~~~~~~
-- Updated to Android 13
-- GPU and DPU are using S1 translation with SMMU-600
+- Updated to Android 13;
+- GPU and DPU are using S1 translation with SMMU-600.
 
 Version 2022.12.07
 ------------------
 
 Features added
 ~~~~~~~~~~~~~~
-- Added support for MTE3/EPAN
-- Added support for Firmware Update
-- Enabled VHE support in Hafnium to support S-EL0 partitions
-- Enabled S2 translation for GPU and DPU using SMMU-700
-- Enabled protected nVHE support for pKVM hypervisor
+- Added support for MTE3/EPAN;
+- Added support for Firmware Update;
+- Enabled VHE support in Hafnium to support S-EL0 partitions;
+- Enabled S2 translation for GPU and DPU using SMMU-700;
+- Enabled protected nVHE support for pKVM hypervisor.
 
 Version 2022.08.12
 ------------------
 
 Features added
 ~~~~~~~~~~~~~~
-- Hardware Root of Trust
-- Updated Android to AOSP master
-- Microdroid based pVM support in Android
+- Hardware Root of Trust;
+- Updated Android to AOSP master;
+- Microdroid based pVM support in Android.
+
+
+--------------
 
 *Copyright (c) 2022-2023, Arm Limited. All rights reserved.*
