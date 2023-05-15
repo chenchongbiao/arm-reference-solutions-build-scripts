@@ -163,18 +163,23 @@ build_gpu_ddk() {
     ./android/gralloc/configure
     mmm android/gralloc
     mm
-    popd
-    pushd vendor/arm/examples
-    m mte-unit-tests
-    m bti-unit-tests
-    m pauth-unit-tests
-    m userdataimage-nodeps
-    popd
     pushd $ANDROID_SRC/vendor/arm/mali/product
     pushd kernel/drivers/gpu/arm/midgard
     cp  -rf mali_kbase.ko $ANDROID_SRC/out/target/product/$TARGET_PRODUCT/vendor/etc
     popd
     popd
+}
+
+build_test()
+{
+	info_echo "Build Unit Test"
+	pushd $ANDROID_SRC
+	pushd vendor/arm/examples
+	m mte-unit-tests
+	m bti-unit-tests
+	m pauth-unit-tests
+	m userdataimage-nodeps
+	popd
 }
 
 do_build() {
@@ -262,6 +267,7 @@ do_build() {
                     lunch tc_$TC_TARGET_FLAVOR-eng;
                 fi
             fi
+            build_test
             ;;
         *) error_echo "bad option for distro $3"; incorrect_script_use
             ;;
