@@ -717,11 +717,11 @@ EAS with Lisa unit tests
 	workload will result in overutilized status for all possible task 
 	placement, making it unsuitable to test EAS on this platform
 
-.. _docs/totalcompute/tc2/expected-test-results_weston:
+.. _docs/totalcompute/tc2/expected-test-results_gpuDebian:
 
 
-Testing Weston on Debian
-------------------------
+Testing GPU with Debian
+-----------------------
 
 .. figure:: weston_rendered_img.png
     :alt: Image rendered with Weston

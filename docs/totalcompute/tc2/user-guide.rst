@@ -122,7 +122,7 @@ To build the Buildroot distro, please run the following commands:
 Debian build
 ************
 
-Debian can be built with or without GPU hardware rendering support by setting the ``TC_GPU`` environment variable accordingly as described in the following command usage examples.
+Debian build supports GPU hardware rendering by setting the ``TC_GPU=true`` environment variable accordingly as described in the following command usage examples.
 
 Debian build with hardware rendering support
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -141,17 +141,6 @@ To build the Debian distro with hardware rendering, please run the following com
     cd build-scripts
     ./setup.sh
 
-Debian build with software rendering support
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-To build the Debian distro with software rendering, please run the following commands:
-::
-
-    export PLATFORM=tc2
-    export FILESYSTEM=debian
-    export TC_GPU=false
-    cd build-scripts
-    ./setup.sh
 
 Android build
 *************
@@ -533,14 +522,11 @@ Running sanity tests
 -----------------------------------
 
 
-Testing Weston on Debian
+Testing GPU with Debian
 ########################
 
-With hardware rendering
-***********************
-
 Prerequisite
-^^^^^^^^^^^^
+************
 
 If GPU is enabled then GPU files will need to be pushed into the device using secure copy (scp).
 This can be achieved by following the next steps:
@@ -552,21 +538,14 @@ This can be achieved by following the next steps:
         ssh -p 8022 root@localhost
         password: root
 
-
- * create a path inside the device, for e.g. using the following command:
-
-    ::
-
-        mkdir -p /usr/lib/aarch64-linux-gnu/mali/wayland/
-
  * push the files from ``<tc2_workspace>/build-scripts/output/deploy/tc2/ddk/`` to the new created path, using the following command:
 
     ::
 
-        scp -P 8022 <tc2_workspace>/build-scripts/output/deploy/tc2/ddk/lib/aarch64-linux-gnu/mali* root@localhost:/lib/aarch64-linux-gnu/
+        scp -P 8022 <tc2_workspace>/build-scripts/output/deploy/tc2/ddk/lib/aarch64-linux-gnu/mali.tar.xz root@localhost:/lib/aarch64-linux-gnu/
 
 Launch Weston
-^^^^^^^^^^^^^
+*************
 
 Using ``terminal_uart_ap``, login to the device/FVP model running TC and run the following commands:
 
@@ -580,26 +559,8 @@ Using ``terminal_uart_ap``, login to the device/FVP model running TC and run the
 
 Once the ``Fast Models - Total Compute 2 DP0`` display is up (grey screen), run ``weston-flower`` to render the image. You can also run various unit tests available under ``/lib/aarch64-linux-gnu/mali/wayland/bin``.
 
-
 .. note::
-    This test is specific to Debian only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_weston>` document section.
-
-
-With software rendering
-***********************
-
-Launch Weston
-^^^^^^^^^^^^^
-
-Using ``terminal_uart_ap``, login to the device/FVP model running TC and run the following commands:
-
-::
-
-    cd /lib/aarch64-linux-gnu/
-    ./mali/run_weston.sh
-
-.. note::
-    This test is specific to Debian only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_weston>` document section.
+    This test is specific to Debian only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_gpuDebian>` document section.
 
 
 OP-TEE
