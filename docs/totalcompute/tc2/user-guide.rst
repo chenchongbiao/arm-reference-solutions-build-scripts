@@ -75,7 +75,7 @@ To sync Buildroot source code, please run the following repo commands:
 To sync Debian source code, please run the following repo commands:
 ::
 
-    export TC_DEBIAN=debian
+    export TC_DEBIAN=refs/tags/TC2-2023.05.16
     repo init -u ssh://git@git.gitlab.oss.arm.com/engineering/tc/manifests -m tc2.xml -b ${TC_DEBIAN} -g bsp
     repo sync -j `nproc` --fetch-submodules
 
@@ -217,12 +217,17 @@ This option does not influence the way the system boots, rather it adds an optio
 Build command
 #############
 
-To build the whole TC2 software stack, simply run:
+To build the whole TC2 software stack for Buildroot or Android distros, simply run:
 ::
 
     ./run_docker.sh ./build-all.sh build
 
+For the Debian distro, there is currently no support for docker and as such, the build script needs to be invoked as follows:
+::
 
+    ./build-all.sh
+    
+    
 Once the previous process finishes, the current ``<tc2_workspace>`` should have the following structure:
  * build files are stored in ``<tc2_workspace>/build-scripts/output/tmp_build/``;
  * final images will be placed in ``<tc2_workspace>/build-script/output/deploy/``.
