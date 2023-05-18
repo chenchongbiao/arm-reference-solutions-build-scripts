@@ -1,0 +1,704 @@
+From a5f3376b7f49739d627bedf7bbbcdf40d4703391 Mon Sep 17 00:00:00 2001
+From: Tintu Thomas <tintu.thomas@arm.com>
+Date: Mon, 3 Apr 2023 13:50:19 +0100
+Subject: [PATCH] tc2-fpga: Add superset CPU support
+
+* Added support for the Hunter-ELP min cores
+* Added CPU8 to CPU13
+* With this, TC2 FPGA has 4xHayes, 5xHunter, 3xHunter-ELP min and 2xHunter-ELP cores
+
+Signed-off-by: Tintu Thomas <tintu.thomas@arm.com>
+---
+ module/ppu_v1/src/mod_ppu_v1.c            |   4 +
+ product/tc2/include/clock_soc.h           |  17 ++++
+ product/tc2/include/cpu_pik.h             |   4 +
+ product/tc2/include/scp_mmap.h            |   1 +
+ product/tc2/include/tc2_core.h            |   5 ++
+ product/tc2/include/tc2_dvfs.h            |   3 +
+ product/tc2/include/tc2_mock_psu.h        |   3 +
+ product/tc2/include/tc2_psu.h             |   3 +
+ product/tc2/include/tc2_timer.h           |   3 +
+ product/tc2/scp_ramfw/config_clock.c      |  14 +++
+ product/tc2/scp_ramfw/config_css_clock.c  | 104 ++++++++++++++++++++++
+ product/tc2/scp_ramfw/config_dvfs.c       |  68 +++++++++++++-
+ product/tc2/scp_ramfw/config_mock_psu.c   |  16 ++++
+ product/tc2/scp_ramfw/config_pik_clock.c  |  99 +++++++++++++++++++-
+ product/tc2/scp_ramfw/config_psu.c        |  12 +++
+ product/tc2/scp_ramfw/config_scmi_perf.c  |  26 ++++++
+ product/tc2/scp_ramfw/config_system_pll.c |  15 ++++
+ 17 files changed, 392 insertions(+), 5 deletions(-)
+
+diff --git a/module/ppu_v1/src/mod_ppu_v1.c b/module/ppu_v1/src/mod_ppu_v1.c
+index e1278f31..6a7de19f 100644
+--- a/module/ppu_v1/src/mod_ppu_v1.c
++++ b/module/ppu_v1/src/mod_ppu_v1.c
+@@ -32,7 +32,11 @@
+ #include <stdbool.h>
+ #include <stddef.h>
+ 
++#if defined(PLAT_FVP)
+ #define CORE_PER_CLUSTER_COUNT_MAX 8
++#else
++#define CORE_PER_CLUSTER_COUNT_MAX 14
++#endif
+ 
+ /* Power domain context */
+ struct ppu_v1_pd_ctx {
+diff --git a/product/tc2/include/clock_soc.h b/product/tc2/include/clock_soc.h
+index 2ca49fe2..674932b8 100644
+--- a/product/tc2/include/clock_soc.h
++++ b/product/tc2/include/clock_soc.h
+@@ -19,6 +19,9 @@
+ enum clock_pll_idx {
+     CLOCK_PLL_IDX_CPU_HAYES,
+     CLOCK_PLL_IDX_CPU_HUNTER,
++#if !defined(PLAT_FVP)
++    CLOCK_PLL_IDX_CPU_HUNTER_ELP_MIN,
++#endif
+     CLOCK_PLL_IDX_CPU_HUNTER_ELP,
+     CLOCK_PLL_IDX_SYS,
+ #if !defined(PLAT_FVP)
+@@ -45,6 +48,14 @@ enum clock_pik_idx {
+     CLOCK_PIK_IDX_CLUS0_CPU5,
+     CLOCK_PIK_IDX_CLUS0_CPU6,
+     CLOCK_PIK_IDX_CLUS0_CPU7,
++#if !defined(PLAT_FVP)
++    CLOCK_PIK_IDX_CLUS0_CPU8,
++    CLOCK_PIK_IDX_CLUS0_CPU9,
++    CLOCK_PIK_IDX_CLUS0_CPU10,
++    CLOCK_PIK_IDX_CLUS0_CPU11,
++    CLOCK_PIK_IDX_CLUS0_CPU12,
++    CLOCK_PIK_IDX_CLUS0_CPU13,
++#endif
+     CLOCK_PIK_IDX_GIC,
+     CLOCK_PIK_IDX_PCLKSCP,
+     CLOCK_PIK_IDX_SYSPERCLK,
+@@ -79,6 +90,9 @@ enum mod_clusclock_source_tc2 {
+ enum clock_css_idx {
+     CLOCK_CSS_IDX_CPU_GROUP_HAYES,
+     CLOCK_CSS_IDX_CPU_GROUP_HUNTER,
++#if !defined(PLAT_FVP)
++    CLOCK_CSS_IDX_CPU_GROUP_HUNTER_ELP_MIN,
++#endif
+     CLOCK_CSS_IDX_CPU_GROUP_HUNTER_ELP,
+     CLOCK_CSS_IDX_DPU,
+     CLOCK_CSS_IDX_COUNT
+@@ -93,6 +107,9 @@ enum clock_idx {
+ #endif
+     CLOCK_IDX_CPU_GROUP_HAYES,
+     CLOCK_IDX_CPU_GROUP_HUNTER,
++#if !defined(PLAT_FVP)
++    CLOCK_IDX_CPU_GROUP_HUNTER_ELP_MIN,
++#endif
+     CLOCK_IDX_CPU_GROUP_HUNTER_ELP,
+     CLOCK_IDX_DPU,
+     CLOCK_IDX_PIXEL_0,
+diff --git a/product/tc2/include/cpu_pik.h b/product/tc2/include/cpu_pik.h
+index 041bbbce..1dd4195d 100644
+--- a/product/tc2/include/cpu_pik.h
++++ b/product/tc2/include/cpu_pik.h
+@@ -14,7 +14,11 @@
+ 
+ #include <stdint.h>
+ 
++#if defined(PLAT_FVP)
+ #define MAX_PIK_SUPPORTED_CPUS 10
++#else
++#define MAX_PIK_SUPPORTED_CPUS 14
++#endif
+ 
+ /*!
+  * \brief PE Static Configuration register definitions
+diff --git a/product/tc2/include/scp_mmap.h b/product/tc2/include/scp_mmap.h
+index 365badca..4a1214b2 100644
+--- a/product/tc2/include/scp_mmap.h
++++ b/product/tc2/include/scp_mmap.h
+@@ -102,6 +102,7 @@
+ #define SCP_PLL_CPU0 (SCP_PLL_BASE + 0x00000100)
+ #define SCP_PLL_CPU1 (SCP_PLL_BASE + 0x00000104)
+ #define SCP_PLL_CPU2 (SCP_PLL_BASE + 0x00000108)
++#define SCP_PLL_CPU3 (SCP_PLL_BASE + 0x0000010C)
+ 
+ /* AP Context Area */
+ #define SCP_AP_CONTEXT_BASE \
+diff --git a/product/tc2/include/tc2_core.h b/product/tc2/include/tc2_core.h
+index 2ff1e138..d945d05b 100644
+--- a/product/tc2/include/tc2_core.h
++++ b/product/tc2/include/tc2_core.h
+@@ -10,7 +10,12 @@
+ 
+ #include <fwk_assert.h>
+ 
++#if defined(PLAT_FVP)
+ #define CORES_PER_CLUSTER  8
++#else
++#define CORES_PER_CLUSTER  14
++#endif
++
+ #define NUMBER_OF_CLUSTERS 1
+ 
+ static inline unsigned int tc2_core_get_cluster_count(void)
+diff --git a/product/tc2/include/tc2_dvfs.h b/product/tc2/include/tc2_dvfs.h
+index b8cdcd7a..75e079ab 100644
+--- a/product/tc2/include/tc2_dvfs.h
++++ b/product/tc2/include/tc2_dvfs.h
+@@ -14,6 +14,9 @@
+ enum dvfs_element_idx {
+     DVFS_ELEMENT_IDX_HAYES,
+     DVFS_ELEMENT_IDX_HUNTER,
++#if !defined(PLAT_FVP)
++    DVFS_ELEMENT_IDX_HUNTER_ELP_MIN,
++#endif
+     DVFS_ELEMENT_IDX_HUNTER_ELP,
+     DVFS_ELEMENT_IDX_COUNT
+ };
+diff --git a/product/tc2/include/tc2_mock_psu.h b/product/tc2/include/tc2_mock_psu.h
+index 571a7fe0..a571ca3a 100644
+--- a/product/tc2/include/tc2_mock_psu.h
++++ b/product/tc2/include/tc2_mock_psu.h
+@@ -14,6 +14,9 @@
+ enum mock_psu_id {
+     MOCK_PSU_ELEMENT_IDX_HAYES,
+     MOCK_PSU_ELEMENT_IDX_HUNTER,
++#if !defined(PLAT_FVP)
++    MOCK_PSU_ELEMENT_IDX_HUNTER_ELP_MIN,
++#endif
+     MOCK_PSU_ELEMENT_IDX_HUNTER_ELP,
+     MOCK_PSU_ELEMENT_IDX_COUNT,
+ };
+diff --git a/product/tc2/include/tc2_psu.h b/product/tc2/include/tc2_psu.h
+index 9e8bba65..16288053 100644
+--- a/product/tc2/include/tc2_psu.h
++++ b/product/tc2/include/tc2_psu.h
+@@ -14,6 +14,9 @@
+ enum psu_id {
+     PSU_ELEMENT_IDX_HAYES,
+     PSU_ELEMENT_IDX_HUNTER,
++#if !defined(PLAT_FVP)
++    PSU_ELEMENT_IDX_HUNTER_ELP_MIN,
++#endif
+     PSU_ELEMENT_IDX_HUNTER_ELP,
+     PSU_ELEMENT_IDX_COUNT,
+ };
+diff --git a/product/tc2/include/tc2_timer.h b/product/tc2/include/tc2_timer.h
+index b3d340ef..2436163f 100644
+--- a/product/tc2/include/tc2_timer.h
++++ b/product/tc2/include/tc2_timer.h
+@@ -11,6 +11,9 @@
+ enum config_timer_refclk_sub_element_idx {
+     TC2_CONFIG_TIMER_DVFS_CPU_HAYES,
+     TC2_CONFIG_TIMER_DVFS_CPU_HUNTER,
++#if !defined(PLAT_FVP)
++    TC2_CONFIG_TIMER_DVFS_CPU_HUNTER_ELP_MIN,
++#endif
+     TC2_CONFIG_TIMER_DVFS_CPU_HUNTER_ELP,
+ #ifdef BUILD_HAS_SCMI_PERF_FAST_CHANNELS
+     TC2_CONFIG_TIMER_FAST_CHANNEL_TIMER_IDX,
+diff --git a/product/tc2/scp_ramfw/config_clock.c b/product/tc2/scp_ramfw/config_clock.c
+index 1969f5f8..4587045f 100644
+--- a/product/tc2/scp_ramfw/config_clock.c
++++ b/product/tc2/scp_ramfw/config_clock.c
+@@ -58,6 +58,20 @@ static const struct fwk_element clock_dev_desc_table[CLOCK_IDX_COUNT + 1] = {
+                     MOD_CSS_CLOCK_API_TYPE_CLOCK),
+             }),
+         },
++#if !defined(PLAT_FVP)
++    [CLOCK_IDX_CPU_GROUP_HUNTER_ELP_MIN] =
++        {
++            .name = "CPU_GROUP_HUNTER_ELP_MIN",
++            .data = &((struct mod_clock_dev_config){
++                .driver_id = FWK_ID_ELEMENT_INIT(
++                    FWK_MODULE_IDX_CSS_CLOCK,
++                    CLOCK_CSS_IDX_CPU_GROUP_HUNTER_ELP_MIN),
++                .api_id = FWK_ID_API_INIT(
++                    FWK_MODULE_IDX_CSS_CLOCK,
++                    MOD_CSS_CLOCK_API_TYPE_CLOCK),
++            }),
++        },
++#endif
+     [CLOCK_IDX_CPU_GROUP_HUNTER_ELP] =
+         {
+             .name = "CPU_GROUP_HUNTER_ELP",
+diff --git a/product/tc2/scp_ramfw/config_css_clock.c b/product/tc2/scp_ramfw/config_css_clock.c
+index 9f6ff764..dd4e27bf 100644
+--- a/product/tc2/scp_ramfw/config_css_clock.c
++++ b/product/tc2/scp_ramfw/config_css_clock.c
+@@ -123,6 +123,62 @@ static const struct mod_css_clock_rate rate_table_cpu_group_hunter[5] = {
+     },
+ };
+ 
++#if !defined(PLAT_FVP)
++//todo: update with correct values
++static const struct mod_css_clock_rate rate_table_cpu_group_hunter_elp_min[5] = {
++    {
++        /* Super Underdrive */
++        .rate = 1088 * FWK_MHZ,
++        .pll_rate = 1088 * FWK_MHZ,
++        .clock_source = MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL2,
++        .clock_div_type = MOD_PIK_CLOCK_MSCLOCK_DIVIDER_DIV_EXT,
++        .clock_div = 1,
++        .clock_mod_numerator = 1,
++        .clock_mod_denominator = 1,
++    },
++    {
++        /* Underdrive */
++        .rate = 1632 * FWK_MHZ,
++        .pll_rate = 1632 * FWK_MHZ,
++        .clock_source = MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL2,
++        .clock_div_type = MOD_PIK_CLOCK_MSCLOCK_DIVIDER_DIV_EXT,
++        .clock_div = 1,
++        .clock_mod_numerator = 1,
++        .clock_mod_denominator = 1,
++    },
++    {
++        /* Nominal */
++        .rate = 2176 * FWK_MHZ,
++        .pll_rate = 2176 * FWK_MHZ,
++        .clock_source = MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL2,
++        .clock_div_type = MOD_PIK_CLOCK_MSCLOCK_DIVIDER_DIV_EXT,
++        .clock_div = 1,
++        .clock_mod_numerator = 1,
++        .clock_mod_denominator = 1,
++    },
++    {
++        /* Overdrive */
++        .rate = 2612 * FWK_MHZ,
++        .pll_rate = 2612 * FWK_MHZ,
++        .clock_source = MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL2,
++        .clock_div_type = MOD_PIK_CLOCK_MSCLOCK_DIVIDER_DIV_EXT,
++        .clock_div = 1,
++        .clock_mod_numerator = 1,
++        .clock_mod_denominator = 1,
++    },
++    {
++        /* Super Overdrive */
++        .rate = 3047 * FWK_MHZ,
++        .pll_rate = 3047 * FWK_MHZ,
++        .clock_source = MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL2,
++        .clock_div_type = MOD_PIK_CLOCK_MSCLOCK_DIVIDER_DIV_EXT,
++        .clock_div = 1,
++        .clock_mod_numerator = 1,
++        .clock_mod_denominator = 1,
++    },
++};
++#endif
++
+ static const struct mod_css_clock_rate rate_table_cpu_group_hunter_elp[5] = {
+     {
+         /* Super Underdrive */
+@@ -183,6 +239,26 @@ static const fwk_id_t member_table_cpu_group_hayes[4] = {
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU3),
+ };
+ 
++#if !defined(PLAT_FVP)
++static const fwk_id_t member_table_cpu_group_hunter[5] = {
++    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU4),
++    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU5),
++    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU6),
++    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU7),
++    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU8),
++};
++
++static const fwk_id_t member_table_cpu_group_hunter_elp_min[3] = {
++    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU9),
++    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU10),
++    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU11),
++};
++
++static const fwk_id_t member_table_cpu_group_hunter_elp[2] = {
++    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU12),
++    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU13),
++};
++#else
+ static const fwk_id_t member_table_cpu_group_hunter[3] = {
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU4),
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU5),
+@@ -192,6 +268,7 @@ static const fwk_id_t member_table_cpu_group_hunter[3] = {
+ static const fwk_id_t member_table_cpu_group_hunter_elp[1] = {
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU7),
+ };
++#endif
+ 
+ static const fwk_id_t member_table_dpu[1] = {
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_DPU),
+@@ -247,6 +324,33 @@ static const struct fwk_element css_clock_element_table[
+                 .modulation_supported = true,
+             }),
+         },
++#if !defined(PLAT_FVP)
++    [CLOCK_CSS_IDX_CPU_GROUP_HUNTER_ELP_MIN] =
++        {
++            .name = "CPU_GROUP_HUNTER_ELP_MIN",
++            .data = &((struct mod_css_clock_dev_config){
++                .clock_type = MOD_CSS_CLOCK_TYPE_INDEXED,
++                .rate_table = rate_table_cpu_group_hunter_elp_min,
++                .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp_min),
++                .clock_switching_source =
++                    MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL2,
++                .pll_id = FWK_ID_ELEMENT_INIT(
++                    FWK_MODULE_IDX_SYSTEM_PLL,
++                    CLOCK_PLL_IDX_CPU_HUNTER_ELP_MIN),
++                .pll_api_id = FWK_ID_API_INIT(
++                    FWK_MODULE_IDX_SYSTEM_PLL,
++                    MOD_SYSTEM_PLL_API_TYPE_DEFAULT),
++                .member_table = member_table_cpu_group_hunter_elp_min,
++                .member_count =
++                    FWK_ARRAY_SIZE(member_table_cpu_group_hunter_elp_min),
++                .member_api_id = FWK_ID_API_INIT(
++                    FWK_MODULE_IDX_PIK_CLOCK,
++                    MOD_PIK_CLOCK_API_TYPE_CSS),
++                .initial_rate = 2176 * FWK_MHZ,
++                .modulation_supported = true,
++            }),
++        },
++#endif
+     [CLOCK_CSS_IDX_CPU_GROUP_HUNTER_ELP] =
+         {
+             .name = "CPU_GROUP_HUNTER_ELP",
+diff --git a/product/tc2/scp_ramfw/config_dvfs.c b/product/tc2/scp_ramfw/config_dvfs.c
+index cb2f42f9..ec1592e1 100644
+--- a/product/tc2/scp_ramfw/config_dvfs.c
++++ b/product/tc2/scp_ramfw/config_dvfs.c
+@@ -31,9 +31,10 @@
+  */
+ 
+ /* dynamic-power-coeffient/1000 */
+-#define HAYES_DPC      0.230
+-#define HUNTER_DPC     0.495
+-#define HUNTER_ELP_DPC 1.054
++#define HAYES_DPC          0.230
++#define HUNTER_DPC         0.495
++#define HUNTER_ELP_MIN_DPC 1.054
++#define HUNTER_ELP_DPC     1.054
+ 
+ static struct mod_dvfs_opp operating_points_hayes[6] = {
+     {
+@@ -103,6 +104,42 @@ static struct mod_dvfs_opp operating_points_hunter[6] = {
+     { 0 }
+ };
+ 
++#if !defined(PLAT_FVP)
++static struct mod_dvfs_opp operating_points_hunter_elp_min[6] = {
++    {
++        .level = 1088 * 1000000UL,
++        .frequency = 1088 * FWK_KHZ,
++        .voltage = 550,
++        .power = (uint32_t)(HUNTER_ELP_MIN_DPC * 1088 * 0.550 * 0.550),
++    },
++    {
++        .level = 1632 * 1000000UL,
++        .frequency = 1632 * FWK_KHZ,
++        .voltage = 650,
++        .power = (uint32_t)(HUNTER_ELP_MIN_DPC * 1632 * 0.650 * 0.650),
++    },
++    {
++        .level = 2176 * 1000000UL,
++        .frequency = 2176 * FWK_KHZ,
++        .voltage = 750,
++        .power = (uint32_t)(HUNTER_ELP_MIN_DPC * 2176 * 0.750 * 0.750),
++    },
++    {
++        .level = 2612 * 1000000UL,
++        .frequency = 2612 * FWK_KHZ,
++        .voltage = 850,
++        .power = (uint32_t)(HUNTER_ELP_MIN_DPC * 2612 * 0.850 * 0.850),
++    },
++    {
++        .level = 3047 * 1000000UL,
++        .frequency = 3047 * FWK_KHZ,
++        .voltage = 950,
++        .power = (uint32_t)(HUNTER_ELP_MIN_DPC * 3047 * 0.950 * 0.950),
++    },
++    { 0 }
++};
++#endif
++
+ static struct mod_dvfs_opp operating_points_hunter_elp[6] = {
+     {
+         .level = 1088 * 1000000UL,
+@@ -165,6 +202,24 @@ static const struct mod_dvfs_domain_config cpu_group_hunter = {
+     .opps = operating_points_hunter,
+ };
+ 
++#if !defined(PLAT_FVP)
++static const struct mod_dvfs_domain_config cpu_group_hunter_elp_min = {
++    .psu_id =
++        FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PSU, PSU_ELEMENT_IDX_HUNTER_ELP_MIN),
++    .clock_id = FWK_ID_ELEMENT_INIT(
++        FWK_MODULE_IDX_CLOCK,
++        CLOCK_IDX_CPU_GROUP_HUNTER_ELP_MIN),
++    .alarm_id = FWK_ID_SUB_ELEMENT_INIT(
++        FWK_MODULE_IDX_TIMER,
++        0,
++        TC2_CONFIG_TIMER_DVFS_CPU_HUNTER_ELP_MIN),
++    .retry_ms = 1,
++    .latency = 1200,
++    .sustained_idx = 2,
++    .opps = operating_points_hunter_elp_min,
++};
++#endif
++
+ static const struct mod_dvfs_domain_config cpu_group_hunter_elp = {
+     .psu_id =
+         FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PSU, PSU_ELEMENT_IDX_HUNTER_ELP),
+@@ -192,6 +247,13 @@ static const struct fwk_element element_table[DVFS_ELEMENT_IDX_COUNT + 1] = {
+             .name = "CPU_GROUP_HUNTER",
+             .data = &cpu_group_hunter,
+         },
++#if !defined(PLAT_FVP)
++    [DVFS_ELEMENT_IDX_HUNTER_ELP_MIN] =
++        {
++            .name = "CPU_GROUP_HUNTER_ELP_MIN",
++            .data = &cpu_group_hunter_elp_min,
++        },
++#endif
+     [DVFS_ELEMENT_IDX_HUNTER_ELP] =
+         {
+             .name = "CPU_GROUP_HUNTER_ELP",
+diff --git a/product/tc2/scp_ramfw/config_mock_psu.c b/product/tc2/scp_ramfw/config_mock_psu.c
+index 50bd1f5b..1f7bdabc 100644
+--- a/product/tc2/scp_ramfw/config_mock_psu.c
++++ b/product/tc2/scp_ramfw/config_mock_psu.c
+@@ -41,6 +41,22 @@ static const struct fwk_element element_table[MOCK_PSU_ELEMENT_IDX_COUNT + 1] =
+                 .default_voltage = 550,
+             },
+     },
++#if !defined(PLAT_FVP)
++    [MOCK_PSU_ELEMENT_IDX_HUNTER_ELP_MIN] = {
++        .name = "DVFS_GROUP_HUNTER_ELP_MIN",
++        .data =
++            &(const struct mod_mock_psu_element_cfg){
++                .async_alarm_id = FWK_ID_NONE_INIT,
++                .async_alarm_api_id = FWK_ID_NONE_INIT,
++
++                .async_response_id = FWK_ID_NONE_INIT,
++                .async_response_api_id = FWK_ID_NONE_INIT,
++
++                .default_enabled = true,
++                .default_voltage = 550,
++            },
++    },
++#endif
+     [MOCK_PSU_ELEMENT_IDX_HUNTER_ELP] = {
+         .name = "DVFS_GROUP_HUNTER_ELP",
+         .data =
+diff --git a/product/tc2/scp_ramfw/config_pik_clock.c b/product/tc2/scp_ramfw/config_pik_clock.c
+index 19613eb7..6ca587f6 100644
+--- a/product/tc2/scp_ramfw/config_pik_clock.c
++++ b/product/tc2/scp_ramfw/config_pik_clock.c
+@@ -49,6 +49,16 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_hunter_elp[1] = {
+ };
+ 
+ #if !defined(PLAT_FVP)
++//todo: update with correct value
++static const struct mod_pik_clock_rate rate_table_cpu_group_hunter_elp_min[1] = {
++    {
++        .rate = 2176 * FWK_MHZ,
++        .source = MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL2,
++        .divider_reg = MOD_PIK_CLOCK_MSCLOCK_DIVIDER_DIV_EXT,
++        .divider = 1, /* Rate adjusted via CPU PLL */
++    },
++};
++
+ static const struct mod_pik_clock_rate rate_table_sys_intclk[] = {
+     {
+         .rate = 2000 * FWK_MHZ,
+@@ -191,6 +201,7 @@ static const struct fwk_element pik_clock_element_table[
+             .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter),
+         }),
+     },
++#if defined(PLAT_FVP)
+     [CLOCK_PIK_IDX_CLUS0_CPU7] = {
+         .name = "CLUS0_CPU7",
+         .data = &((struct mod_pik_clock_dev_config) {
+@@ -203,7 +214,91 @@ static const struct fwk_element pik_clock_element_table[
+             .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp),
+         }),
+     },
+-#if !defined(PLAT_FVP)
++#else
++    [CLOCK_PIK_IDX_CLUS0_CPU7] = {
++        .name = "CLUS0_CPU7",
++        .data = &((struct mod_pik_clock_dev_config) {
++            .type = MOD_PIK_CLOCK_TYPE_CLUSTER,
++            .is_group_member = true,
++            .control_reg = &CLUSTER_PIK_PTR->CORECLK[7].CTRL,
++            .divext_reg = &CLUSTER_PIK_PTR->CORECLK[7].DIV,
++            .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[7].MOD,
++            .rate_table = rate_table_cpu_group_hunter,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter),
++        }),
++    },
++    [CLOCK_PIK_IDX_CLUS0_CPU8] = {
++        .name = "CLUS0_CPU8",
++        .data = &((struct mod_pik_clock_dev_config) {
++            .type = MOD_PIK_CLOCK_TYPE_CLUSTER,
++            .is_group_member = true,
++            .control_reg = &CLUSTER_PIK_PTR->CORECLK[8].CTRL,
++            .divext_reg = &CLUSTER_PIK_PTR->CORECLK[8].DIV,
++            .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[8].MOD,
++            .rate_table = rate_table_cpu_group_hunter,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter),
++        }),
++    },
++    [CLOCK_PIK_IDX_CLUS0_CPU9] = {
++        .name = "CLUS0_CPU9",
++        .data = &((struct mod_pik_clock_dev_config) {
++            .type = MOD_PIK_CLOCK_TYPE_CLUSTER,
++            .is_group_member = true,
++            .control_reg = &CLUSTER_PIK_PTR->CORECLK[9].CTRL,
++            .divext_reg = &CLUSTER_PIK_PTR->CORECLK[9].DIV,
++            .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[9].MOD,
++            .rate_table = rate_table_cpu_group_hunter_elp_min,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp_min),
++        }),
++    },
++    [CLOCK_PIK_IDX_CLUS0_CPU10] = {
++        .name = "CLUS0_CPU10",
++        .data = &((struct mod_pik_clock_dev_config) {
++            .type = MOD_PIK_CLOCK_TYPE_CLUSTER,
++            .is_group_member = true,
++            .control_reg = &CLUSTER_PIK_PTR->CORECLK[10].CTRL,
++            .divext_reg = &CLUSTER_PIK_PTR->CORECLK[10].DIV,
++            .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[10].MOD,
++            .rate_table = rate_table_cpu_group_hunter_elp_min,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp_min),
++        }),
++    },
++    [CLOCK_PIK_IDX_CLUS0_CPU11] = {
++        .name = "CLUS0_CPU11",
++        .data = &((struct mod_pik_clock_dev_config) {
++            .type = MOD_PIK_CLOCK_TYPE_CLUSTER,
++            .is_group_member = true,
++            .control_reg = &CLUSTER_PIK_PTR->CORECLK[11].CTRL,
++            .divext_reg = &CLUSTER_PIK_PTR->CORECLK[11].DIV,
++            .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[11].MOD,
++            .rate_table = rate_table_cpu_group_hunter_elp_min,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp_min),
++        }),
++    },
++    [CLOCK_PIK_IDX_CLUS0_CPU12] = {
++        .name = "CLUS0_CPU12",
++        .data = &((struct mod_pik_clock_dev_config) {
++            .type = MOD_PIK_CLOCK_TYPE_CLUSTER,
++            .is_group_member = true,
++            .control_reg = &CLUSTER_PIK_PTR->CORECLK[12].CTRL,
++            .divext_reg = &CLUSTER_PIK_PTR->CORECLK[12].DIV,
++            .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[12].MOD,
++            .rate_table = rate_table_cpu_group_hunter_elp,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp),
++        }),
++    },
++    [CLOCK_PIK_IDX_CLUS0_CPU13] = {
++        .name = "CLUS0_CPU13",
++        .data = &((struct mod_pik_clock_dev_config) {
++            .type = MOD_PIK_CLOCK_TYPE_CLUSTER,
++            .is_group_member = true,
++            .control_reg = &CLUSTER_PIK_PTR->CORECLK[13].CTRL,
++            .divext_reg = &CLUSTER_PIK_PTR->CORECLK[13].DIV,
++            .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[13].MOD,
++            .rate_table = rate_table_cpu_group_hunter_elp,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp),
++        }),
++    },
+     [CLOCK_PIK_IDX_INTERCONNECT] = {
+         .name = "INTERCONNECT",
+         .data = &((struct mod_pik_clock_dev_config) {
+@@ -216,7 +311,7 @@ static const struct fwk_element pik_clock_element_table[
+             .initial_rate = 2000 * FWK_MHZ,
+         }),
+     },
+-#endif    
++#endif
+     [CLOCK_PIK_IDX_GIC] = {
+         .name = "GIC",
+         .data = &((struct mod_pik_clock_dev_config) {
+diff --git a/product/tc2/scp_ramfw/config_psu.c b/product/tc2/scp_ramfw/config_psu.c
+index 4fa8778e..2d34e20e 100644
+--- a/product/tc2/scp_ramfw/config_psu.c
++++ b/product/tc2/scp_ramfw/config_psu.c
+@@ -36,6 +36,18 @@ static const struct fwk_element element_table[PSU_ELEMENT_IDX_COUNT + 1] = {
+                     FWK_MODULE_IDX_MOCK_PSU,
+                     MOD_MOCK_PSU_API_IDX_DRIVER) },
+     },
++#if !defined(PLAT_FVP)
++    [PSU_ELEMENT_IDX_HUNTER_ELP_MIN] = {
++        .name = "PSU_GROUP_HUNTER_ELP_MIN",
++        .data =
++            &(const struct mod_psu_element_cfg){
++                .driver_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_MOCK_PSU,
++                    MOCK_PSU_ELEMENT_IDX_HUNTER_ELP_MIN),
++                .driver_api_id = FWK_ID_API_INIT(
++                    FWK_MODULE_IDX_MOCK_PSU,
++                    MOD_MOCK_PSU_API_IDX_DRIVER) },
++    },
++#endif
+     [PSU_ELEMENT_IDX_HUNTER_ELP] = {
+         .name = "PSU_GROUP_HUNTER_ELP",
+         .data =
+diff --git a/product/tc2/scp_ramfw/config_scmi_perf.c b/product/tc2/scp_ramfw/config_scmi_perf.c
+index bd99f60d..f3b5c3be 100644
+--- a/product/tc2/scp_ramfw/config_scmi_perf.c
++++ b/product/tc2/scp_ramfw/config_scmi_perf.c
+@@ -104,6 +104,32 @@ static const struct mod_scmi_perf_domain_config
+         },
+ #endif
+         },
++#if !defined(PLAT_FVP)
++        [DVFS_ELEMENT_IDX_HUNTER_ELP_MIN] = {
++#ifdef BUILD_HAS_SCMI_PERF_FAST_CHANNELS
++         .fast_channels_addr_scp = (uint64_t[]) {
++            [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_SET] =
++                FC_LEVEL_SET_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
++            [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_SET] =
++                FC_LIMIT_SET_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
++            [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_GET] =
++                FC_LEVEL_GET_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
++            [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_GET] =
++                FC_LIMIT_GET_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
++        },
++         .fast_channels_addr_ap = (uint64_t[]) {
++            [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_SET] =
++                FC_LEVEL_SET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
++            [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_SET] =
++                FC_LIMIT_SET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
++            [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_GET] =
++                FC_LEVEL_GET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
++            [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_GET] =
++                FC_LIMIT_GET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
++        },
++#endif
++        },
++#endif
+         [DVFS_ELEMENT_IDX_HUNTER_ELP] = {
+ #ifdef BUILD_HAS_SCMI_PERF_FAST_CHANNELS
+          .fast_channels_addr_scp = (uint64_t[]) {
+diff --git a/product/tc2/scp_ramfw/config_system_pll.c b/product/tc2/scp_ramfw/config_system_pll.c
+index 239e342c..a0da05c8 100644
+--- a/product/tc2/scp_ramfw/config_system_pll.c
++++ b/product/tc2/scp_ramfw/config_system_pll.c
+@@ -45,6 +45,21 @@ static const struct fwk_element system_pll_element_table[
+                     .min_step = MOD_SYSTEM_PLL_MIN_INTERVAL,
+                 }),
+             },
++#if !defined(PLAT_FVP)
++        [CLOCK_PLL_IDX_CPU_HUNTER_ELP_MIN] =
++            {
++                .name = "CPU_PLL_HUNTER_ELP_MIN",
++                .data = &((struct mod_system_pll_dev_config){
++                    .control_reg = (void *)SCP_PLL_CPU3,
++                    .status_reg = (void *)&SCP_PIK_PTR->PLL_STATUS[1],
++                    .lock_flag_mask = PLL_STATUS_CPUPLL_LOCK(4),
++                    .initial_rate = 1893 * FWK_MHZ,
++                    .min_rate = MOD_SYSTEM_PLL_MIN_RATE,
++                    .max_rate = MOD_SYSTEM_PLL_MAX_RATE,
++                    .min_step = MOD_SYSTEM_PLL_MIN_INTERVAL,
++                }),
++            },
++#endif
+         [CLOCK_PLL_IDX_CPU_HUNTER_ELP] =
+             {
+                 .name = "CPU_PLL_HUNTER_ELP",
+-- 
+2.34.1
+

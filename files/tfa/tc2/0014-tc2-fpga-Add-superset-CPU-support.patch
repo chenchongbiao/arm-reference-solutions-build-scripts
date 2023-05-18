@@ -1,0 +1,217 @@
+From e26b84f377507a1e36f7f6aec14dea28a1dde10a Mon Sep 17 00:00:00 2001
+From: Tintu Thomas <tintu.thomas@arm.com>
+Date: Tue, 4 Apr 2023 09:54:54 +0100
+Subject: [PATCH] tc2-fpga: Add superset CPU support
+
+* Added core8 to core13.
+* Added support for Hunter-ELP min cores
+* With this, TC2 FPGA has 4xHayes, 5xHunter, 3xHunter-ELP min and 2xHunter-ELP cores
+* GIC redistributor (GICR) range increased
+* Buildroot boot completed with all 14 CPUs up
+
+Signed-off-by: Tintu Thomas <tintu.thomas@arm.com>
+---
+ fdts/tc_fpga.dts                         | 107 ++++++++++++++++++++++-
+ plat/arm/board/tc/include/platform_def.h |  10 +++
+ plat/arm/board/tc/tc_topology.c          |   8 ++
+ 3 files changed, 123 insertions(+), 2 deletions(-)
+
+diff --git a/fdts/tc_fpga.dts b/fdts/tc_fpga.dts
+index 10fdd35b9..b5f759b5f 100644
+--- a/fdts/tc_fpga.dts
++++ b/fdts/tc_fpga.dts
+@@ -50,6 +50,24 @@
+ 				core7 {
+ 					cpu = <&CPU7>;
+ 				};
++				core8 {
++					cpu = <&CPU8>;
++				};
++				core9 {
++					cpu = <&CPU9>;
++				};
++				core10 {
++					cpu = <&CPU10>;
++				};
++				core11 {
++					cpu = <&CPU11>;
++				};
++				core12 {
++					cpu = <&CPU12>;
++				};
++				core13 {
++					cpu = <&CPU13>;
++				};
+ 			};
+ 		};
+ 
+@@ -126,7 +144,61 @@
+ 			compatible = "arm,armv8";
+ 			reg = <0x700>;
+ 			enable-method = "psci";
++			clocks = <&scmi_dvfs 1>;
++			capacity-dmips-mhz = <775>;
++		};
++
++		CPU8:cpu@800 {
++			device_type = "cpu";
++			compatible = "arm,armv8";
++			reg = <0x800>;
++			enable-method = "psci";
++			clocks = <&scmi_dvfs 1>;
++			capacity-dmips-mhz = <775>;
++		};
++
++		CPU9:cpu@900 {
++			device_type = "cpu";
++			compatible = "arm,armv8";
++			reg = <0x900>;
++			enable-method = "psci";
+ 			clocks = <&scmi_dvfs 2>;
++			capacity-dmips-mhz = <930>;
++		};
++
++		CPU10:cpu@A00 {
++			device_type = "cpu";
++			compatible = "arm,armv8";
++			reg = <0xA00>;
++			enable-method = "psci";
++			clocks = <&scmi_dvfs 2>;
++			capacity-dmips-mhz = <930>;
++		};
++
++		CPU11:cpu@B00 {
++			device_type = "cpu";
++			compatible = "arm,armv8";
++			reg = <0xB00>;
++			enable-method = "psci";
++			clocks = <&scmi_dvfs 2>;
++			capacity-dmips-mhz = <930>;
++		};
++
++		CPU12:cpu@C00 {
++			device_type = "cpu";
++			compatible = "arm,armv8";
++			reg = <0xC00>;
++			enable-method = "psci";
++			clocks = <&scmi_dvfs 3>;
++			capacity-dmips-mhz = <1024>;
++		};
++
++		CPU13:cpu@D00 {
++			device_type = "cpu";
++			compatible = "arm,armv8";
++			reg = <0xD00>;
++			enable-method = "psci";
++			clocks = <&scmi_dvfs 3>;
+ 			capacity-dmips-mhz = <1024>;
+ 		};
+ 
+@@ -172,6 +244,36 @@
+                 cpu = <&CPU7>;
+         };
+ 
++        ete8 {
++                compatible = "arm,embedded-trace-extension";
++                cpu = <&CPU8>;
++        };
++
++        ete9 {
++                compatible = "arm,embedded-trace-extension";
++                cpu = <&CPU9>;
++        };
++
++        ete10 {
++                compatible = "arm,embedded-trace-extension";
++                cpu = <&CPU10>;
++        };
++
++        ete11 {
++                compatible = "arm,embedded-trace-extension";
++                cpu = <&CPU11>;
++        };
++
++        ete12 {
++                compatible = "arm,embedded-trace-extension";
++                cpu = <&CPU12>;
++        };
++
++        ete13 {
++                compatible = "arm,embedded-trace-extension";
++                cpu = <&CPU13>;
++        };
++
+         trbe0 {
+                 compatible = "arm,trace-buffer-extension";
+                 interrupts = <1 2 4>;
+@@ -189,7 +291,8 @@
+ 	cpu-pmu {
+ 		compatible = "arm,armv8-pmuv3";
+ 		interrupts = <0x1 7 0x4>;
+-		interrupt-affinity = <&CPU0>, <&CPU1>, <&CPU2>, <&CPU3>, <&CPU4>, <&CPU5>, <&CPU6>, <&CPU7>;
++		interrupt-affinity = <&CPU0>, <&CPU1>, <&CPU2>, <&CPU3>, <&CPU4>, <&CPU5>, <&CPU6>, <&CPU7>,
++					 <&CPU8>, <&CPU9>, <&CPU10>, <&CPU11>, <&CPU12>, <&CPU13>;
+ 	};
+ 
+ 	memory@80000000 {
+@@ -292,7 +395,7 @@
+ 		ranges;
+ 		interrupt-controller;
+ 		reg = <0x0 0x30000000 0 0x10000>, /* GICD */
+-		      <0x0 0x30080000 0 0x200000>; /* GICR */
++		      <0x0 0x30080000 0 0x1000000>; /* GICR */
+ 		interrupts = <0x1 0x9 0x4>;
+ 	};
+ 
+diff --git a/plat/arm/board/tc/include/platform_def.h b/plat/arm/board/tc/include/platform_def.h
+index a0e5defdc..556308864 100644
+--- a/plat/arm/board/tc/include/platform_def.h
++++ b/plat/arm/board/tc/include/platform_def.h
+@@ -17,7 +17,11 @@
+ #include <plat/arm/soc/common/soc_css_def.h>
+ #include <plat/common/common_def.h>
+ 
++#ifdef TARGET_PLATFORM_FVP
+ #define PLATFORM_CORE_COUNT		8
++#else
++#define PLATFORM_CORE_COUNT		14
++#endif
+ 
+ #define PLAT_ARM_TRUSTED_SRAM_SIZE	0x00080000	/* 512 KB */
+ 
+@@ -244,7 +248,13 @@
+ #define PLAT_ARM_SCMI_CHANNEL_COUNT	1
+ 
+ #define PLAT_ARM_CLUSTER_COUNT		U(1)
++
++#ifdef TARGET_PLATFORM_FVP
+ #define PLAT_MAX_CPUS_PER_CLUSTER	U(8)
++#else
++#define PLAT_MAX_CPUS_PER_CLUSTER	U(14)
++#endif
++
+ #define PLAT_MAX_PE_PER_CPU		U(1)
+ 
+ /* Message Handling Unit (MHU) base addresses */
+diff --git a/plat/arm/board/tc/tc_topology.c b/plat/arm/board/tc/tc_topology.c
+index 9e18da6de..60dec398e 100644
+--- a/plat/arm/board/tc/tc_topology.c
++++ b/plat/arm/board/tc/tc_topology.c
+@@ -36,6 +36,14 @@ const uint32_t plat_css_core_pos_to_scmi_dmn_id_map[] = {
+ 	(SET_SCMI_CHANNEL_ID(0x0) | SET_SCMI_DOMAIN_ID(0x5)),
+ 	(SET_SCMI_CHANNEL_ID(0x0) | SET_SCMI_DOMAIN_ID(0x6)),
+ 	(SET_SCMI_CHANNEL_ID(0x0) | SET_SCMI_DOMAIN_ID(0x7)),
++#ifdef TARGET_PLATFORM_FPGA
++	(SET_SCMI_CHANNEL_ID(0x0) | SET_SCMI_DOMAIN_ID(0x8)),
++	(SET_SCMI_CHANNEL_ID(0x0) | SET_SCMI_DOMAIN_ID(0x9)),
++	(SET_SCMI_CHANNEL_ID(0x0) | SET_SCMI_DOMAIN_ID(0xA)),
++	(SET_SCMI_CHANNEL_ID(0x0) | SET_SCMI_DOMAIN_ID(0xB)),
++	(SET_SCMI_CHANNEL_ID(0x0) | SET_SCMI_DOMAIN_ID(0xC)),
++	(SET_SCMI_CHANNEL_ID(0x0) | SET_SCMI_DOMAIN_ID(0xD)),
++#endif
+ };
+ 
+ /*******************************************************************************
+-- 
+2.34.1
+
