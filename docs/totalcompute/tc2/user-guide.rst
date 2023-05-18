@@ -451,7 +451,7 @@ the previously built images as arguments. Run the ``./run_model.sh`` script:
     -t, --tap-interface              [OPTIONAL] enable TAP interface
     -n, --networking                 [OPTIONAL] networking, values supported [user, tap, none]
                                      DEFAULT: tap if tap interface provided, otherwise user
-    -e, --extra-model-params	     [OPTIONAL] extra model parameters
+    --	                             [OPTIONAL] After -- pass all further options directly to the model
 
 Running Buildroot
 #################
@@ -492,11 +492,11 @@ Android with hardware rendering enabled
 To run Android with hardware rendering enabled, please run the following command:
 ::
 
-    ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-fvp -e '--plugin=<crypto.so>'
+    ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-fvp -- --plugin=<Crypto.so>
 
 
 .. note::
-    ``crypto.so`` is part of your FVP bundle.
+    ``Crypto.so`` is part of your FVP bundle.
 
 
 Expected behaviour
@@ -513,7 +513,7 @@ images, initialize various crypto services and then handover execution to the
 SCP. SCP will bring the AP out of reset. The AP will start booting from its
 ROM and then proceed to boot Trusted Firmware-A, Hafnium,
 Secure Partitions (OP-TEE, Trusted Services in Buildroot and Trusty in Android) then
-U-Boot, and then Linux and Buildroot/Android.
+U-Boot, and finally the corresponding Linux Kernel distro.
 
 When booting Buildroot, the model will boot Linux and present a login prompt on terminal_uart_ap. Login
 using the username ``root``. You may need to hit Enter for the prompt to appear.
@@ -722,7 +722,7 @@ The following commands should be run each time LISA is run:
     export TC_WORKSPACE=<TC2_WORKSPACE>
 
 
-For FVP with buildroot, boot the FVP model to buildroot as you normally would making user user networking is enabled.
+For FVP with buildroot, boot the FVP model to buildroot as you normally would, making sure user networking is enabled:
 ::
 
 	exekall run lisa.tests.scheduler.eas_behaviour  --conf <path to target_conf_linux.yml>
@@ -782,11 +782,11 @@ Attach and Debug
 ################
 
 #. Build the target with debug enabled (the file ``<TC2_WORKSPACE>/build-scripts/config`` can be configured to enable debug);
-#. Run Buildroot/Android as described in the section ``Running the software on FVP`` with the extra parameters ``-e -S`` to attach to the debugger. The full command should look like the following:
+#. Run the distro as described in the section ``Running the software on FVP`` with the extra parameters ``-- -S`` to attach to the debugger. The full command should look like the following:
 
 	::
 	
-	./run-scripts/tc2/run_model.sh -m <model binary path> -d <buildroot|android-fvp> -e -S
+	./run-scripts/tc2/run_model.sh -m <model binary path> -d <distro> -- -S
 
 #. Select the target created as mentioned in ``Creating a new connection`` and ``connect to target`` from debug control console.
 #. After connection, use options in debug control console (highlighted in the below diagram) or the keyboard shortcuts to ``step``, ``run`` or ``halt``.
@@ -869,7 +869,7 @@ The final command to run the model for buildroot should look like the following:
 
 ::
 
-    ./run-scripts/tc2/run_model.sh -m <model binary path> -d buildroot -e "--data board.dram=<location of capsule>/efi_capsule@0x2000000"
+    ./run-scripts/tc2/run_model.sh -m <model binary path> -d buildroot -- --data board.dram=<location of capsule>/efi_capsule@0x2000000
 
 
 Updating Firmware
