@@ -79,7 +79,7 @@ build_gpu_ddk() {
             build_cfw/buildme csffw
             mkdir -p firmware_prebuilt/ttix
             cp build_cfw/install/bin/mali_csffw.bin firmware_prebuilt/ttix
-            ./setup_android ANDROID=y CSFFW=n EGL=y GPU_TTIX=y RELEASE=y DEBUG=n SYMBOLS=n GLES=y CL=n VULKAN=y INSTRUMENTATION_GFX=y KERNEL_CC=$ANDROID_SRC/prebuilts/clang/host/linux-x86/clang-r450784d/bin/clang USES_REFERENCE_GRALLOC=y REFERENCE_GRALLOC_XML=y KERNEL_COMPILER=$LINUX_COMPILER-
+            ./setup_android ANDROID=y CSFFW=n EGL=y GPU_TTIX=y RELEASE=y DEBUG=n SYMBOLS=n USE_SHA1_HARDWARE=n GLES=y CL=n VULKAN=y INSTRUMENTATION_GFX=y KERNEL_CC=$ANDROID_SRC/prebuilts/clang/host/linux-x86/clang-r450784d/bin/clang USES_REFERENCE_GRALLOC=y REFERENCE_GRALLOC_XML=y KERNEL_COMPILER=$LINUX_COMPILER-
             ./android/gralloc/configure
             mmm android/gralloc
             mm
