@@ -30,8 +30,8 @@
 
 clone_gpu_ddk() {
             info_echo "Clone GPU DDK source"
-	    if [[ -z $GPU_DDK_REPO || -z $GPU_DDK_VERSION || -z $ANDROID_TEST_EXAMPLES ]] ; then
-		    info_echo "Please export GPU_DDK_REPO, GPU_DDK_VERSION and ANDROID_TEST_EXAMPLES variables to sync"
+	    if [[ -z $GPU_DDK_REPO || -z $GPU_DDK_VERSION ]] ; then
+		    info_echo "Please export GPU_DDK_REPO and GPU_DDK_VERSION variables to sync"
 		    exit 1
 	    fi
 
@@ -49,7 +49,6 @@ clone_gpu_ddk() {
                     git checkout $GPU_DDK_VERSION
                     git submodule update --init --recursive
                     popd
-                    git clone $ANDROID_TEST_EXAMPLES
                     popd
             else
 		    info_echo "Mali source already exists, cloning skipped!"

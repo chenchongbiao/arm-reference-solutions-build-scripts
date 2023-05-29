@@ -126,18 +126,6 @@ if [ $TC_GPU == true ]; then
     popd
 fi
 
-# if building android
-if [[ $FILESYSTEM == android-fvp || $FILESYSTEM == android-fpga ]]; then
-    TC_DEVICE_PROFILE_PATH=$SCRIPT_DIR/../src/android/device
-    TC_DEVICE_PROFILE_VERSION=development
-    pushd $TC_DEVICE_PROFILE_PATH
-        if [ ! -d arm ]; then
-            git clone git@git.gitlab.oss.arm.com:engineering/tc/android/device/arm.git arm
-	    cd arm && git checkout $TC_DEVICE_PROFILE_VERSION
-        fi
-    popd
-fi
-
 # OpenSSL 3.0 (needed by TF-A)
 OPENSSL_DIR=$SCRIPT_DIR/../tools/openssl
 
