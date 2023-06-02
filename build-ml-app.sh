@@ -158,7 +158,7 @@ function do_clean() {
     # Clean files from install location.
     info_echo "Removing applications from ${ML_APP_INSTALL_PREFIX}."
     for ML_APP_TARGET in "${ML_APP_TARGET_LIST[@]}"; do
-        BIN_FILES_FOUND=$(find "${ML_APP_INSTALL_PREFIX}" -name "${ML_APP_TARGET}" -type f)
+        BIN_FILES_FOUND=$(find "${ML_APP_INSTALL_PREFIX}" -name "${ML_APP_TARGET}" -type f 2>/dev/null)
         for ML_APP_BIN_PATH in ${BIN_FILES_FOUND}; do
             if [[ -f "${ML_APP_BIN_PATH}" ]]; then
                 rm "${ML_APP_BIN_PATH}"
@@ -185,7 +185,7 @@ function do_deploy() {
     local ML_APP_BIN_PATH_LIST
     local ML_APP_BIN_PATH
     for ML_APP_TARGET in "${ML_APP_TARGET_LIST[@]}"; do
-        ML_APP_BIN_PATH_LIST="$(realpath $(find "${ML_APP_BUILD_DIR}" -name "${ML_APP_TARGET}" -type f))"
+        ML_APP_BIN_PATH_LIST="$(realpath $(find "${ML_APP_BUILD_DIR}" -name "${ML_APP_TARGET}" -type f 2>/dev/null))"
         for ML_APP_BIN_PATH in ${ML_APP_BIN_PATH_LIST}; do
             if [[ -f ${ML_APP_BIN_PATH} ]]; then
                 ln -svf "${ML_APP_BIN_PATH}" "$DEPLOY_DIR/$PLATFORM"

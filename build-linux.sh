@@ -48,7 +48,10 @@ do_build() {
     make O=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- olddefconfig
     make O=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- -j $PARALLELISM $LINUX_IMAGE_TYPE
     make O=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- -j $PARALLELISM $LINUX_IMAGE_TYPE modules
-    make O=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- -j $PARALLELISM tools/perf
+    # GCC12.2 patch: specify EXTRA_CFLAGS to disable Werror=format-truncation for 'util/machine.c'.
+    # Note: re-evaluate the need for this patch if GCC version changes or Werror is removed.
+    EXTRA_CFLAGS="${EXTRA_CFLAGS} -Wno-error=format-truncation"
+    make EXTRA_CFLAGS="${EXTRA_CFLAGS}" O=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- -j $PARALLELISM tools/perf
     install -D $LINUX_OUTDIR/tools/perf/perf $BUILDROOT_ROOTFS_OVERLAY/bin/perf
 
     info_echo "Building kernel selftest"

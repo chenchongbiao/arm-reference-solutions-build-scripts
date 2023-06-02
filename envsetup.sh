@@ -46,6 +46,32 @@ if [[ -z "${FILESYSTEM:-}" ]] ; then
     exit 1
 fi
 
+
+# Check status code for failures and abort with error if necessary
+# message.
+# Args:
+#   $1 - status code from previous command
+#   $2 - error message to be displayed
+function fail_if_error() {
+	local status_code="$1"
+	local error_message="$2"
+	if [[ -z "${status_code}" ]] || [[ -z "${error_message}" ]]; then
+		echo -e
+		echo -e "\e[01;31mBUG: attempting to call function 'fail_if_error' with invalid number of arguments.\e[0m"
+		echo -e
+		exit 1
+	fi
+	if [[ ! "${status_code}" == "0" ]]; then
+		echo -e
+		echo -e "\e[01;31mERROR:\e[0m ${error_message}"
+		echo -e "       Please, check the error message and refer to the user guide for additional info."
+		echo -e "       Aborting remaining steps."
+		echo -e
+		exit 1
+	fi
+}
+
+
 # Install toolchains
 
 mkdir -p $SCRIPT_DIR/../tools/
@@ -54,51 +80,78 @@ pushd $SCRIPT_DIR/../tools/
 
 mkdir -p downloads
 
-GCC_VERSION="11.2-2022.02"
+GCC_VERSION="12.2.rel1"
 GCC_VERSION_GPU="8.3-2019.03"
 
 # Remove obsolete gcc versions
-gcc_old=$(find . -type d -name "gcc-arm-*-x86_64-*" \( ! -iname "gcc-arm-$GCC_VERSION-x86_64-*" \))
-rm -rf $gcc_old
+OLD_TOOLCHAINS_FOUND_LIST=$(find . -type d -name "arm-gnu-toolchain-*-x86_64-*" \( ! -iname "arm-gnu-toolchain-${GCC_VERSION}-x86_64-*" \) 2>/dev/null)
+# RSS-WORKAROUD: search for older versions of the GNU Arm GCC v11.2
+RSS_GCC_VERSION="11.2-2022.02"
+OLD_TOOLCHAINS_FOUND_LIST+=$(find . -type d -name "gcc-arm-*-x86_64-*" \( ! -iname "gcc-arm-${RSS_GCC_VERSION}-x86_64-*" \) 2>/dev/null)
+# RSS-WORKAROUND-END
+# remove the old toolchain instances found
+if [[ -n "${OLD_TOOLCHAINS_FOUND_LIST}" ]]; then
+	rm -rf "${OLD_TOOLCHAINS_FOUND_LIST}"
+fi
 
 # Toolchains
-if [ ! -d gcc-arm-$GCC_VERSION-x86_64-arm-none-eabi ]; then
-    wget https://developer.arm.com/-/media/Files/downloads/gnu/$GCC_VERSION/binrel/gcc-arm-$GCC_VERSION-x86_64-arm-none-eabi.tar.xz -P downloads
-    tar xf downloads/gcc-arm-$GCC_VERSION-x86_64-arm-none-eabi.tar.xz
+declare -a TOOLCHAIN_NAME_LIST=(
+      "arm-gnu-toolchain-${GCC_VERSION}-x86_64-arm-none-eabi"
+      "arm-gnu-toolchain-${GCC_VERSION}-x86_64-aarch64-none-elf"
+      "arm-gnu-toolchain-${GCC_VERSION}-x86_64-aarch64-none-linux-gnu"
+    )
+# download and extract each of the toolchains
+for TOOLCHAIN_NAME in "${TOOLCHAIN_NAME_LIST[@]}"; do
+    if [[ ! -d "${TOOLCHAIN_NAME}" ]]; then
+        wget "https://developer.arm.com/downloads/-/media/Files/downloads/gnu/${GCC_VERSION}/binrel/${TOOLCHAIN_NAME}.tar.xz" -O "downloads/${TOOLCHAIN_NAME}.tar.xz"
+        fail_if_error "$?" "could not download toolchain ${TOOLCHAIN_NAME}."
+        tar xf "downloads/${TOOLCHAIN_NAME}.tar.xz"
+        fail_if_error "$?" "could not extract toolchain ${TOOLCHAIN_NAME}."
+    fi
+done
+
+# RSS-WORKAROUND: use old GNU Arm compiler v11.2 to compile RSS
+RSS_TOOLCHAIN_NAME="gcc-arm-${RSS_GCC_VERSION}-x86_64-arm-none-eabi"
+if [[ ! -d "${RSS_TOOLCHAIN_NAME}" ]]; then
+    wget "https://developer.arm.com/downloads/-/media/Files/downloads/gnu/${RSS_GCC_VERSION}/binrel/${RSS_TOOLCHAIN_NAME}.tar.xz" -O "downloads/${RSS_TOOLCHAIN_NAME}.tar.xz"
+    fail_if_error "$?" "could not download toolchain ${RSS_TOOLCHAIN_NAME}."
+    tar xf "downloads/${RSS_TOOLCHAIN_NAME}.tar.xz"
+    fail_if_error "$?" "could not extract toolchain ${RSS_TOOLCHAIN_NAME}."
 fi
-if [ ! -d gcc-arm-$GCC_VERSION-x86_64-aarch64-none-elf ]; then
-    wget https://developer.arm.com/-/media/Files/downloads/gnu/$GCC_VERSION/binrel/gcc-arm-$GCC_VERSION-x86_64-aarch64-none-elf.tar.xz -P downloads
-    tar xf downloads/gcc-arm-$GCC_VERSION-x86_64-aarch64-none-elf.tar.xz
-fi
-if [ ! -d gcc-arm-$GCC_VERSION-x86_64-aarch64-none-linux-gnu ]; then
-    wget https://developer.arm.com/-/media/Files/downloads/gnu/$GCC_VERSION/binrel/gcc-arm-$GCC_VERSION-x86_64-aarch64-none-linux-gnu.tar.xz -P downloads
-    tar xf downloads/gcc-arm-$GCC_VERSION-x86_64-aarch64-none-linux-gnu.tar.xz
-fi
+# RSS-WORKAROUND-END
 
 # gcc8 is required to build GPU DDK
-if [ ! -d gcc-arm-$GCC_VERSION_GPU-x86_64-aarch64-linux-gnu ]; then
-    wget https://developer.arm.com/-/media/Files/downloads/gnu-a/$GCC_VERSION_GPU/binrel/gcc-arm-$GCC_VERSION_GPU-x86_64-aarch64-linux-gnu.tar.xz -P downloads
-    tar xf downloads/gcc-arm-$GCC_VERSION_GPU-x86_64-aarch64-linux-gnu.tar.xz
+GPU_TOOLCHAIN_NAME="gcc-arm-${GCC_VERSION_GPU}-x86_64-aarch64-linux-gnu"
+if [[ ! -d "${GPU_TOOLCHAIN_NAME}" ]]; then
+    wget "https://developer.arm.com/-/media/Files/downloads/gnu-a/${GCC_VERSION_GPU}/binrel/${GPU_TOOLCHAIN_NAME}.tar.xz" -P "downloads"
+    fail_if_error "$?" "could not download toolchain ${GPU_TOOLCHAIN_NAME}."
+    tar xf "downloads/${GPU_TOOLCHAIN_NAME}.tar.xz"
+    fail_if_error "$?" "could not extract toolchain ${TOOLCHAIN_NAME}."
 fi
 
 # Builds tools
 # Cmake v3.22.4
-if [ ! -f cmake-3.22.4-linux-x86_64/bin/cmake ]; then
-    wget https://github.com/Kitware/CMake/releases/download/v3.22.4/cmake-3.22.4-linux-x86_64.tar.gz -P downloads
-    tar xf downloads/cmake-3.22.4-linux-x86_64.tar.gz
+CMAKE_TOOLCHAIN_NAME="cmake-3.22.4-linux-x86_64"
+if [[ ! -f "${CMAKE_TOOLCHAIN_NAME}/bin/cmake" ]]; then
+    wget "https://github.com/Kitware/CMake/releases/download/v3.22.4/${CMAKE_TOOLCHAIN_NAME}.tar.gz" -P "downloads"
+    fail_if_error "$?" "could not download toolchain ${CMAKE_TOOLCHAIN_NAME}."
+    tar xf "downloads/${CMAKE_TOOLCHAIN_NAME}.tar.gz"
+    fail_if_error "$?" "could not extract toolchain ${CMAKE_TOOLCHAIN_NAME}."
 fi
 
 # Repo tool
 if [ ! command -v repo &>/dev/null ]; then
-    curl https://storage.googleapis.com/git-repo-downloads/repo > ~/downloads/repo
-    chmod a+x ~/bin/repo
-    export PATH=~/bin:$PATH
+    curl -# -o "downloads/repo" "https://storage.googleapis.com/git-repo-downloads/repo"
+    if [[ "$?" == "0" ]]; then
+        chmod a+x "downloads/repo"
+        export PATH=./downloads:$PATH
+    fi
 fi
 
 popd
 
 # armclang (A copy of armclang after install Arm DS)
-if [ $TC_GPU == true ]; then
+if [[ "${TC_GPU}" == "true" ]]; then
     export ARMCLANG_TOOL=$ARMCLANG_TOOL
     pushd $SCRIPT_DIR/../tools/
     TC_ARMCLANG_BIN=$SCRIPT_DIR/../tools/armclang/bin/armclang
