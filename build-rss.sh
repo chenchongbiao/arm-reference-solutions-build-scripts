@@ -61,7 +61,7 @@ EOF
             --align 1 \
             --pad \
             --pad-header \
-            -H 0x1000 \
+            -H $RSS_IMAGE_OFFSET \
             -s $RSS_SEC_CNTR_INIT_VAL \
             $host_bin  \
             $signed_bin
