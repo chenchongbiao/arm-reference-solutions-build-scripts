@@ -59,6 +59,8 @@ do_build() {
 do_clean() {
     info_echo "Cleaning $RSS_OUTDIR_TRUSTY"
     rm -rf $RSS_OUTDIR_TRUSTY
+    info_echo "Cleaning RSS_TRUSTY deployed items"
+    rm -f $DEPLOY_DIR/$PLATFORM/rss_trusty*
 }
 
 do_patch() {
@@ -68,13 +70,11 @@ do_patch() {
 }
 
 do_deploy() {
-    #create rss_trusty_rom.bin
-    srec_cat \
-    $RSS_BINDIR_TRUSTY/bl1_1.bin -Binary -offset 0x0 \
-    $RSS_BINDIR_TRUSTY/bl1_provisioning_bundle.bin -Binary -offset 0xE000 \
-    -o $DEPLOY_DIR/$PLATFORM/rss_trusty_rom.bin -Binary
+    ln -s $RSS_BINDIR_TRUSTY/bl1_1.bin $DEPLOY_DIR/$PLATFORM/rss_trusty_rom.bin 2>/dev/null || :
+    ln -s $RSS_BINDIR_TRUSTY/encrypted_cm_provisioning_bundle_0.bin $DEPLOY_DIR/$PLATFORM/rss_trusty_encrypted_cm_provisioning_bundle_0.bin 2>/dev/null || :
+    ln -s $RSS_BINDIR_TRUSTY/encrypted_dm_provisioning_bundle.bin $DEPLOY_DIR/$PLATFORM/rss_trusty_encrypted_dm_provisioning_bundle.bin 2>/dev/null || :
 
-    info_echo "Created rss_trusty_rom.bin"
+    info_echo "Deployed rss_trusty_rom.bin and provisioning bundles"
 }
 
 source "$(dirname ${BASH_SOURCE[0]})/framework.sh"

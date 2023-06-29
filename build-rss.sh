@@ -102,6 +102,8 @@ do_build() {
 do_clean() {
     info_echo "Cleaning $RSS_OUTDIR"
     rm -rf $RSS_OUTDIR
+    info_echo "Cleaning RSS deployed items"
+    rm -f $DEPLOY_DIR/$PLATFORM/rss_*
 }
 
 do_patch() {
@@ -123,13 +125,11 @@ do_deploy() {
     sign_image $RSS_SIGN_SCP_BL1_NAME \
         $RSS_SIGN_SCP_BL1_LOAD_ADDRESS $RSS_SIGN_SCP_BL1_BIN_SIZE
 
-    #create rss_rom.bin
-    srec_cat \
-    $RSS_BINDIR/bl1_1.bin -Binary -offset 0x0 \
-    $RSS_BINDIR/bl1_provisioning_bundle.bin -Binary -offset 0xE000 \
-    -o $DEPLOY_DIR/$PLATFORM/rss_rom.bin -Binary
+    ln -s $RSS_BINDIR/bl1_1.bin $DEPLOY_DIR/$PLATFORM/rss_rom.bin 2>/dev/null || :
+    ln -s $RSS_BINDIR/encrypted_cm_provisioning_bundle_0.bin $DEPLOY_DIR/$PLATFORM/rss_encrypted_cm_provisioning_bundle_0.bin 2>/dev/null || :
+    ln -s $RSS_BINDIR/encrypted_dm_provisioning_bundle.bin $DEPLOY_DIR/$PLATFORM/rss_encrypted_dm_provisioning_bundle.bin 2>/dev/null || :
 
-    info_echo "Created rss_rom.bin"
+    info_echo "Deployed rss_rom.bin and provisioning bundles"
 }
 
 source "$(dirname ${BASH_SOURCE[0]})/framework.sh"
