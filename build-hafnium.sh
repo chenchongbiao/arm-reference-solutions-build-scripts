@@ -47,8 +47,8 @@ do_clean() {
 }
 
 do_deploy() {
-    ln -s $HAFNIUM_OUTDIR/secure_tc_clang/hafnium.bin $DEPLOY_DIR/$PLATFORM 2>/dev/null || :
-    ln -s $HAFNIUM_OUTDIR/secure_tc_clang/hafnium.elf $DEPLOY_DIR/$PLATFORM 2>/dev/null || :
+    ln -sf $HAFNIUM_OUTDIR/secure_tc_clang/hafnium.bin $DEPLOY_DIR/$PLATFORM
+    ln -sf $HAFNIUM_OUTDIR/secure_tc_clang/hafnium.elf $DEPLOY_DIR/$PLATFORM
 }
 
 do_patch() {

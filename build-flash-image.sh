@@ -198,21 +198,21 @@ do_deploy() {
     assemble_fip $TFA_OUTDIR/build/$TFA_PLATFORM/$BUILD_TYPE/fip.bin \
                  ${OUTDIR}/fip_combined.bin
 
-    ln -sf $OUTDIR/fip_combined.bin $DEPLOY_DIR/$PLATFORM/fip-tc.bin 2>/dev/null || :
+    ln -sf $OUTDIR/fip_combined.bin $DEPLOY_DIR/$PLATFORM/fip-tc.bin
     if [[ $TC_FWU_SUPPORT -eq 1 ]]; then
         do_generate_gpt $OUTDIR/fip_combined.bin $OUTDIR/fip_gpt.bin
-        ln -sf $OUTDIR/fip_gpt.bin $DEPLOY_DIR/$PLATFORM/fip_gpt-tc.bin 2>/dev/null || :
+        ln -sf $OUTDIR/fip_gpt.bin $DEPLOY_DIR/$PLATFORM/fip_gpt-tc.bin
     fi
 
     if [[ -e $TRUSTY_OUTDIR/build/tc/debug/fip.bin ]]; then
         assemble_fip $TRUSTY_OUTDIR/build/tc/debug/fip.bin \
                      ${OUTDIR}/fip_combined_trusty.bin
 
-        ln -sf $OUTDIR/fip_combined_trusty.bin $DEPLOY_DIR/$PLATFORM/fip-trusty-tc.bin 2>/dev/null || :
+        ln -sf $OUTDIR/fip_combined_trusty.bin $DEPLOY_DIR/$PLATFORM/fip-trusty-tc.bin
 # Currently not supporting FWU for trusty
 #        if [[ $TC_FWU_SUPPORT -eq 1 ]]; then
 #            do_generate_gpt $OUTDIR/fip_combined_trusty.bin $OUTDIR/fip_gpt_trusty.bin
-#            ln -sf $OUTDIR/fip_gpt_trusty.bin $DEPLOY_DIR/$PLATFORM/fip_gpt-trusty-tc.bin 2>/dev/null || :
+#            ln -sf $OUTDIR/fip_gpt_trusty.bin $DEPLOY_DIR/$PLATFORM/fip_gpt-trusty-tc.bin
 #        fi
     fi
 }

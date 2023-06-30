@@ -73,7 +73,7 @@ do_clean() {
 
 do_deploy() {
     # Copy final image to deploy directory
-    ln -s $LINUX_OUTDIR/arch/arm64/boot/Image $DEPLOY_DIR/$PLATFORM/Image 2>/dev/null || :
+    ln -sf $LINUX_OUTDIR/arch/arm64/boot/Image $DEPLOY_DIR/$PLATFORM/Image
 }
 
 do_patch() {

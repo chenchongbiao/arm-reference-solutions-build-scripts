@@ -125,9 +125,9 @@ do_deploy() {
     sign_image $RSS_SIGN_SCP_BL1_NAME \
         $RSS_SIGN_SCP_BL1_LOAD_ADDRESS $RSS_SIGN_SCP_BL1_BIN_SIZE
 
-    ln -s $RSS_BINDIR/bl1_1.bin $DEPLOY_DIR/$PLATFORM/rss_rom.bin 2>/dev/null || :
-    ln -s $RSS_BINDIR/encrypted_cm_provisioning_bundle_0.bin $DEPLOY_DIR/$PLATFORM/rss_encrypted_cm_provisioning_bundle_0.bin 2>/dev/null || :
-    ln -s $RSS_BINDIR/encrypted_dm_provisioning_bundle.bin $DEPLOY_DIR/$PLATFORM/rss_encrypted_dm_provisioning_bundle.bin 2>/dev/null || :
+    ln -sf $RSS_BINDIR/bl1_1.bin $DEPLOY_DIR/$PLATFORM/rss_rom.bin
+    ln -sf $RSS_BINDIR/encrypted_cm_provisioning_bundle_0.bin $DEPLOY_DIR/$PLATFORM/rss_encrypted_cm_provisioning_bundle_0.bin
+    ln -sf $RSS_BINDIR/encrypted_dm_provisioning_bundle.bin $DEPLOY_DIR/$PLATFORM/rss_encrypted_dm_provisioning_bundle.bin
 
     info_echo "Deployed rss_rom.bin and provisioning bundles"
 }

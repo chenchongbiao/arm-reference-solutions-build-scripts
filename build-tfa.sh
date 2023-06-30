@@ -68,10 +68,10 @@ do_deploy() {
         BUILD_TYPE=debug
     fi
 
-    ln -s $TFA_OUTDIR/build/$TFA_PLATFORM/$BUILD_TYPE/bl1.bin $DEPLOY_DIR/$PLATFORM/bl1-tc.bin 2>/dev/null || :
-    ln -s $TFA_OUTDIR/build/$TFA_PLATFORM/$BUILD_TYPE/bl1/bl1.elf $DEPLOY_DIR/$PLATFORM/bl1-tc.elf 2>/dev/null || :
+    ln -sf $TFA_OUTDIR/build/$TFA_PLATFORM/$BUILD_TYPE/bl1.bin $DEPLOY_DIR/$PLATFORM/bl1-tc.bin
+    ln -sf $TFA_OUTDIR/build/$TFA_PLATFORM/$BUILD_TYPE/bl1/bl1.elf $DEPLOY_DIR/$PLATFORM/bl1-tc.elf
     if [[ $TC_TARGET_FLAVOR == "fpga" ]]; then
-        ln -s $TFA_OUTDIR/build/$TFA_PLATFORM/$BUILD_TYPE/fip.bin $DEPLOY_DIR/$PLATFORM/fip-tc.bin 2>/dev/null || :
+        ln -sf $TFA_OUTDIR/build/$TFA_PLATFORM/$BUILD_TYPE/fip.bin $DEPLOY_DIR/$PLATFORM/fip-tc.bin
     fi
 }
 

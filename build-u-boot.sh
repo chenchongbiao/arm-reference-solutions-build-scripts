@@ -69,7 +69,7 @@ do_clean() {
 }
 
 do_deploy() {
-    ln -s $UBOOT_OUTDIR/u-boot.bin $DEPLOY_DIR/$PLATFORM/ 2>/dev/null || :
+    ln -sf $UBOOT_OUTDIR/u-boot.bin $DEPLOY_DIR/$PLATFORM/
 }
 
 do_patch() {

@@ -70,9 +70,9 @@ do_patch() {
 }
 
 do_deploy() {
-    ln -s $RSS_BINDIR_TRUSTY/bl1_1.bin $DEPLOY_DIR/$PLATFORM/rss_trusty_rom.bin 2>/dev/null || :
-    ln -s $RSS_BINDIR_TRUSTY/encrypted_cm_provisioning_bundle_0.bin $DEPLOY_DIR/$PLATFORM/rss_trusty_encrypted_cm_provisioning_bundle_0.bin 2>/dev/null || :
-    ln -s $RSS_BINDIR_TRUSTY/encrypted_dm_provisioning_bundle.bin $DEPLOY_DIR/$PLATFORM/rss_trusty_encrypted_dm_provisioning_bundle.bin 2>/dev/null || :
+    ln -sf $RSS_BINDIR_TRUSTY/bl1_1.bin $DEPLOY_DIR/$PLATFORM/rss_trusty_rom.bin
+    ln -sf $RSS_BINDIR_TRUSTY/encrypted_cm_provisioning_bundle_0.bin $DEPLOY_DIR/$PLATFORM/rss_trusty_encrypted_cm_provisioning_bundle_0.bin
+    ln -sf $RSS_BINDIR_TRUSTY/encrypted_dm_provisioning_bundle.bin $DEPLOY_DIR/$PLATFORM/rss_trusty_encrypted_dm_provisioning_bundle.bin
 
     info_echo "Deployed rss_trusty_rom.bin and provisioning bundles"
 }

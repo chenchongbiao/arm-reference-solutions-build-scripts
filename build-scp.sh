@@ -81,12 +81,12 @@ do_deploy() {
     # Copy binaries to deploy dir
     for scp_fw in $FW_TARGETS; do
         if [[ "$FW_INSTALL" == *"romfw"* ]]; then
-            ln -s $SCP_OUTDIR/$scp_fw/bin/$SCP_PLATFORM-bl1.elf $DEPLOY_DIR/$PLATFORM/${scp_fw}_romfw.elf 2>/dev/null || :
-            ln -s $SCP_OUTDIR/$scp_fw/bin/$SCP_PLATFORM-bl1.bin $DEPLOY_DIR/$PLATFORM/${scp_fw}_romfw.bin 2>/dev/null || :
+            ln -sf $SCP_OUTDIR/$scp_fw/bin/$SCP_PLATFORM-bl1.elf $DEPLOY_DIR/$PLATFORM/${scp_fw}_romfw.elf
+            ln -sf $SCP_OUTDIR/$scp_fw/bin/$SCP_PLATFORM-bl1.bin $DEPLOY_DIR/$PLATFORM/${scp_fw}_romfw.bin
         fi
         if [[ "$FW_INSTALL" == *"ramfw"* ]]; then
-            ln -s $SCP_OUTDIR/$scp_fw/bin/$SCP_PLATFORM-bl2.elf $DEPLOY_DIR/$PLATFORM/${scp_fw}_ramfw.elf 2>/dev/null || :
-            ln -s $SCP_OUTDIR/$scp_fw/bin/$SCP_PLATFORM-bl2.bin $DEPLOY_DIR/$PLATFORM/${scp_fw}_ramfw.bin 2>/dev/null || :
+            ln -sf $SCP_OUTDIR/$scp_fw/bin/$SCP_PLATFORM-bl2.elf $DEPLOY_DIR/$PLATFORM/${scp_fw}_ramfw.elf
+            ln -sf $SCP_OUTDIR/$scp_fw/bin/$SCP_PLATFORM-bl2.bin $DEPLOY_DIR/$PLATFORM/${scp_fw}_ramfw.bin
         fi
     done
 }
