@@ -1,7 +1,7 @@
-From 1ac3d9e0c90429c0414879ce8791df6250d74cf6 Mon Sep 17 00:00:00 2001
+From 48bc304f734acc3ebb0e267af5f2f586f89be8f1 Mon Sep 17 00:00:00 2001
 From: Jiyong Park <jiyong@google.com>
 Date: Mon, 17 Apr 2023 16:13:50 +0530
-Subject: [PATCH] avb: Extend support to non-eMMC interfaces
+Subject: [PATCH 9/9] avb: Extend support to non-eMMC interfaces
 
 Previously Android AVB supported block devices only on eMMC. This change
 eliminates the restriction by using the generic block driver model.
@@ -82,10 +82,10 @@ index 783f51b816..8bffe49011 100644
  	"avb write_rb <num> <rb> - write rollback index <rb> to <num>\n"
  	"avb is_unlocked - returns unlock status of the device\n"
 diff --git a/common/Kconfig b/common/Kconfig
-index 82cd864baf..dfefa6af2e 100644
+index 0afc01b759..5bd2ca3e2e 100644
 --- a/common/Kconfig
 +++ b/common/Kconfig
-@@ -597,7 +597,6 @@ config HASH
+@@ -785,7 +785,6 @@ config HASH
  config AVB_VERIFY
  	bool "Build Android Verified Boot operations"
  	depends on LIBAVB
@@ -94,7 +94,7 @@ index 82cd864baf..dfefa6af2e 100644
  	help
  	  This option enables compilation of bootloader-dependent operations,
 diff --git a/common/avb_verify.c b/common/avb_verify.c
-index 0520a71455..d30bbb5726 100644
+index 48ba8db51e..80c94ce7ba 100644
 --- a/common/avb_verify.c
 +++ b/common/avb_verify.c
 @@ -253,10 +253,10 @@ char *avb_set_enforce_verity(const char *cmdline)
@@ -124,7 +124,7 @@ index 0520a71455..d30bbb5726 100644
  }
  
 -static unsigned long mmc_write(struct mmc_part *part, lbaint_t start,
-+static unsigned long blk_write(struct avb_part *part, lbaint_t start,
++static unsigned long avb_blk_write(struct avb_part *part, lbaint_t start,
  			       lbaint_t sectors, void *buffer)
  {
  	void *tmp_buf;
@@ -250,7 +250,7 @@ index 0520a71455..d30bbb5726 100644
  					buffer, residue);
  
 -				ret = mmc_write(part, part->info.start +
-+				ret = blk_write(part, part->info.start +
++				ret = avb_blk_write(part, part->info.start +
  						start_sector, 1, tmp_buf);
  				if (ret != 1) {
  					printf("%s: write error (%ld, %lld)\n",
@@ -265,7 +265,7 @@ index 0520a71455..d30bbb5726 100644
  							 sectors, buffer);
  			} else {
 -				ret = mmc_write(part,
-+				ret = blk_write(part,
++				ret = avb_blk_write(part,
  						part->info.start +
  						start_sector,
  						sectors, buffer);
@@ -287,7 +287,7 @@ index 0520a71455..d30bbb5726 100644
  			   num_bytes, (void *)buffer, NULL, IO_WRITE);
  }
  
-@@ -803,7 +793,7 @@ static AvbIOResult get_unique_guid_for_partition(AvbOps *ops,
+@@ -804,7 +794,7 @@ static AvbIOResult get_unique_guid_for_partition(AvbOps *ops,
  						 char *guid_buf,
  						 size_t guid_buf_size)
  {
@@ -296,7 +296,7 @@ index 0520a71455..d30bbb5726 100644
  	size_t uuid_size;
  
  	part = get_partition(ops, partition);
-@@ -837,7 +827,7 @@ static AvbIOResult get_size_of_partition(AvbOps *ops,
+@@ -838,7 +828,7 @@ static AvbIOResult get_size_of_partition(AvbOps *ops,
  					 const char *partition,
  					 u64 *out_size_num_bytes)
  {
@@ -305,7 +305,7 @@ index 0520a71455..d30bbb5726 100644
  
  	if (!out_size_num_bytes)
  		return AVB_IO_RESULT_ERROR_INSUFFICIENT_SPACE;
-@@ -976,7 +966,7 @@ free_name:
+@@ -977,7 +967,7 @@ free_name:
   * AVB2.0 AvbOps alloc/initialisation/free
   * ============================================================================
   */
@@ -314,7 +314,7 @@ index 0520a71455..d30bbb5726 100644
  {
  	struct AvbOpsData *ops_data;
  
-@@ -999,7 +989,8 @@ AvbOps *avb_ops_alloc(int boot_device)
+@@ -1000,7 +990,8 @@ AvbOps *avb_ops_alloc(int boot_device)
  	ops_data->ops.read_persistent_value = read_persistent_value;
  #endif
  	ops_data->ops.get_size_of_partition = get_size_of_partition;
@@ -324,7 +324,7 @@ index 0520a71455..d30bbb5726 100644
  
  	return &ops_data->ops;
  }
-@@ -1018,6 +1009,12 @@ void avb_ops_free(AvbOps *ops)
+@@ -1019,6 +1010,12 @@ void avb_ops_free(AvbOps *ops)
  		if (ops_data->tee)
  			tee_close_session(ops_data->tee, ops_data->session);
  #endif

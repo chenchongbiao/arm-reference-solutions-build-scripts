@@ -1,7 +1,7 @@
-From 1a91fb8cae43ee371a9e765d6152afba3c25717e Mon Sep 17 00:00:00 2001
+From acb527af5b14dd6cc527ccff6336b5b7115c16cc Mon Sep 17 00:00:00 2001
 From: Davidson K <davidson.kumaresan@arm.com>
 Date: Mon, 17 Apr 2023 16:16:37 +0530
-Subject: [PATCH] virtio: add virtio block device
+Subject: [PATCH 8/9] virtio: add virtio block device
 
 This will help in mounting a disk image as a virtio block device
 ---

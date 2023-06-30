@@ -1,7 +1,7 @@
-From 7f9bab0d0428d74d11956a6d7a1eebdca925a91e Mon Sep 17 00:00:00 2001
+From 310203e3a7fd15a0fe122c48fcfa58eab2be1f53 Mon Sep 17 00:00:00 2001
 From: Davidson K <davidson.kumaresan@arm.com>
 Date: Mon, 6 Jun 2022 13:19:07 +0530
-Subject: [PATCH 5/7] efi_firmware: add new fmp driver that supports arm fwu
+Subject: [PATCH 4/9] efi_firmware: add new fmp driver that supports arm fwu
  specification
 
 This fmp driver communicates to the firmware update secure partition
@@ -251,10 +251,10 @@ index 0000000000..82f932066c
 +
 +#endif /* _EFI_FIRMWARE_ARM_PSA_H */
 diff --git a/include/efi_loader.h b/include/efi_loader.h
-index af36639ec6..7327c87497 100644
+index 1542b4b625..3895647b7a 100644
 --- a/include/efi_loader.h
 +++ b/include/efi_loader.h
-@@ -961,6 +961,7 @@ u16 *efi_create_indexed_name(u16 *buffer, size_t buffer_size, const char *name,
+@@ -1033,6 +1033,7 @@ efi_string_t efi_convert_string(const char *str);
  
  extern const struct efi_firmware_management_protocol efi_fmp_fit;
  extern const struct efi_firmware_management_protocol efi_fmp_raw;
@@ -263,10 +263,10 @@ index af36639ec6..7327c87497 100644
  /* Capsule update */
  efi_status_t EFIAPI efi_update_capsule(
 diff --git a/lib/efi_loader/Kconfig b/lib/efi_loader/Kconfig
-index e5e35fe51f..f99d436f16 100644
+index c5835e6ef6..8e27a3d71d 100644
 --- a/lib/efi_loader/Kconfig
 +++ b/lib/efi_loader/Kconfig
-@@ -168,6 +168,15 @@ config EFI_CAPSULE_FIRMWARE_MANAGEMENT
+@@ -183,6 +183,15 @@ config EFI_CAPSULE_FIRMWARE_MANAGEMENT
  	  Select this option if you want to enable capsule-based
  	  firmware update using Firmware Management Protocol.
  
@@ -283,10 +283,10 @@ index e5e35fe51f..f99d436f16 100644
  	bool "FMP driver for FIT images"
  	depends on FIT
 diff --git a/lib/efi_loader/Makefile b/lib/efi_loader/Makefile
-index 034d26cf01..f986ac6417 100644
+index 13a35eae6c..6994d589c8 100644
 --- a/lib/efi_loader/Makefile
 +++ b/lib/efi_loader/Makefile
-@@ -38,6 +38,7 @@ obj-y += efi_boottime.o
+@@ -44,6 +44,7 @@ obj-y += efi_boottime.o
  obj-y += efi_helper.o
  obj-$(CONFIG_EFI_HAVE_CAPSULE_SUPPORT) += efi_capsule.o
  obj-$(CONFIG_EFI_CAPSULE_FIRMWARE) += efi_firmware.o
@@ -295,26 +295,26 @@ index 034d26cf01..f986ac6417 100644
  obj-y += efi_device_path.o
  obj-$(CONFIG_EFI_DEVICE_PATH_TO_TEXT) += efi_device_path_to_text.o
 diff --git a/lib/efi_loader/efi_capsule.c b/lib/efi_loader/efi_capsule.c
-index f00440163d..3154fc51d3 100644
+index d5d3ede7ae..19f6d6fc7b 100644
 --- a/lib/efi_loader/efi_capsule.c
 +++ b/lib/efi_loader/efi_capsule.c
-@@ -1041,6 +1041,14 @@ efi_status_t __weak efi_load_capsule_drivers(void)
- 				&efi_fmp_raw, NULL));
+@@ -853,6 +853,14 @@ efi_status_t __weak efi_load_capsule_drivers(void)
+ 							       NULL);
  	}
  
 +	if (IS_ENABLED(CONFIG_EFI_CAPSULE_FIRMWARE_ARM_PSA)) {
 +		handle = NULL;
-+		ret = EFI_CALL(efi_install_multiple_protocol_interfaces(
-+				&handle,
-+				&efi_guid_firmware_management_protocol,
-+				&efi_fmp_arm_psa, NULL));
++		ret = efi_install_multiple_protocol_interfaces(&handle,
++							       &efi_guid_firmware_management_protocol,
++							       &efi_fmp_arm_psa,
++							       NULL);
 +	}
 +
  	return ret;
  }
  
 diff --git a/lib/efi_loader/efi_firmware.c b/lib/efi_loader/efi_firmware.c
-index a5ff32f121..3356559af8 100644
+index 93e2b01c07..d04858509d 100644
 --- a/lib/efi_loader/efi_firmware.c
 +++ b/lib/efi_loader/efi_firmware.c
 @@ -9,6 +9,7 @@
@@ -323,9 +323,9 @@ index a5ff32f121..3356559af8 100644
  #include <dfu.h>
 +#include <efi_firmware_arm_psa.h>
  #include <efi_loader.h>
+ #include <fwu.h>
  #include <image.h>
- #include <signatures.h>
-@@ -478,3 +479,136 @@ const struct efi_firmware_management_protocol efi_fmp_raw = {
+@@ -431,3 +432,136 @@ const struct efi_firmware_management_protocol efi_fmp_raw = {
  	.set_package_info = efi_firmware_set_package_info_unsupported,
  };
  #endif /* CONFIG_EFI_CAPSULE_FIRMWARE_RAW */
@@ -464,7 +464,7 @@ index a5ff32f121..3356559af8 100644
 +#endif /* CONFIG_EFI_CAPSULE_FIRMWARE_ARM_PSA */
 diff --git a/lib/efi_loader/efi_firmware_arm_psa.c b/lib/efi_loader/efi_firmware_arm_psa.c
 new file mode 100644
-index 0000000000..fab2e96b53
+index 0000000000..f985bed860
 --- /dev/null
 +++ b/lib/efi_loader/efi_firmware_arm_psa.c
 @@ -0,0 +1,519 @@
@@ -958,7 +958,7 @@ index 0000000000..fab2e96b53
 +	*package_version_name = NULL; /* not supported */
 +
 +	for (int i = 0; i < cached_image_directory.num_images; i++) {
-+		image_info[i].image_index = i+1;
++		image_info[i].image_index = i;
 +		guidcpy(&image_info[i].image_type_id, &cached_image_directory.entries[i].image_guid);
 +		image_info[i].image_id = i;
 +		image_info[i].image_id_name = NULL; /* not supported */

@@ -1,7 +1,7 @@
-From 42fd69fb5ec0c441b3d31ec544ed03bedab28d45 Mon Sep 17 00:00:00 2001
+From 8fbeb6cb801cdeb3454285e978ab5b6454ba45cb Mon Sep 17 00:00:00 2001
 From: Abdellatif El Khlifi <abdellatif.elkhlifi@arm.com>
 Date: Tue, 16 Nov 2021 12:34:52 +0000
-Subject: [PATCH 2/7] arm_ffa: introducing Arm FF-A low-level driver
+Subject: [PATCH 2/9] arm_ffa: introducing Arm FF-A low-level driver
 
 This driver implements Arm Firmware Framework for Armv8-A on u-boot
 
@@ -59,12 +59,12 @@ Upstream-Status: Submitted [https://patchwork.ozlabs.org/project/uboot/patch/202
  create mode 100644 lib/arm-ffa/arm_ffa_helper.c
 
 diff --git a/MAINTAINERS b/MAINTAINERS
-index 96582fc677..14307e6da6 100644
+index 91d40ea4b6..0fa5c4773b 100644
 --- a/MAINTAINERS
 +++ b/MAINTAINERS
-@@ -232,6 +232,14 @@ F:	board/CZ.NIC/
- F:	configs/turris_*_defconfig
- F:	include/configs/turris_*.h
+@@ -266,6 +266,14 @@ F:	drivers/net/cortina_ni.h
+ F:	drivers/net/phy/ca_phy.c
+ F:	configs/cortina_presidio-asic-pnand_defconfig
  
 +ARM FF-A
 +M:	Abdellatif El Khlifi <abdellatif.elkhlifi@arm.com>
@@ -120,7 +120,7 @@ index dc92b28777..ffc39c9fef 100644
 +
 +#endif
 diff --git a/arch/arm/lib/asm-offsets.c b/arch/arm/lib/asm-offsets.c
-index 22fd541f9a..45eca83a47 100644
+index 6de0ce9152..daa5612471 100644
 --- a/arch/arm/lib/asm-offsets.c
 +++ b/arch/arm/lib/asm-offsets.c
 @@ -9,6 +9,8 @@
@@ -132,7 +132,7 @@ index 22fd541f9a..45eca83a47 100644
   */
  
  #include <common.h>
-@@ -115,6 +117,10 @@ int main(void)
+@@ -88,6 +90,10 @@ int main(void)
  #ifdef CONFIG_ARM_SMCCC
  	DEFINE(ARM_SMCCC_RES_X0_OFFS, offsetof(struct arm_smccc_res, a0));
  	DEFINE(ARM_SMCCC_RES_X2_OFFS, offsetof(struct arm_smccc_res, a2));
@@ -144,20 +144,20 @@ index 22fd541f9a..45eca83a47 100644
  	DEFINE(ARM_SMCCC_QUIRK_STATE_OFFS, offsetof(struct arm_smccc_quirk, state));
  #endif
 diff --git a/common/board_r.c b/common/board_r.c
-index c24d9b4e22..af20f38b10 100644
+index e45003353f..30f91ef25e 100644
 --- a/common/board_r.c
 +++ b/common/board_r.c
-@@ -61,6 +61,9 @@
- #include <wdt.h>
+@@ -66,6 +66,9 @@
  #include <asm-generic/gpio.h>
  #include <efi_loader.h>
+ #include <relocate.h>
 +#ifdef CONFIG_ARM_FFA_TRANSPORT
 +#include <arm_ffa_helper.h>
 +#endif
  
  DECLARE_GLOBAL_DATA_PTR;
  
-@@ -770,6 +773,9 @@ static init_fnc_t init_sequence_r[] = {
+@@ -773,6 +776,9 @@ static init_fnc_t init_sequence_r[] = {
  	INIT_FUNC_WATCHDOG_RESET
  	initr_net,
  #endif
@@ -168,7 +168,7 @@ index c24d9b4e22..af20f38b10 100644
  	initr_post,
  #endif
 diff --git a/drivers/Kconfig b/drivers/Kconfig
-index b26ca8cf70..e83c23789d 100644
+index 9101e538b0..3c43f77725 100644
 --- a/drivers/Kconfig
 +++ b/drivers/Kconfig
 @@ -6,6 +6,8 @@ source "drivers/core/Kconfig"
@@ -181,10 +181,10 @@ index b26ca8cf70..e83c23789d 100644
  
  source "drivers/axi/Kconfig"
 diff --git a/drivers/Makefile b/drivers/Makefile
-index 4e7cf28440..6671d2a604 100644
+index 15d19d0c8a..a166b6426a 100644
 --- a/drivers/Makefile
 +++ b/drivers/Makefile
-@@ -107,6 +107,7 @@ obj-y += iommu/
+@@ -112,6 +112,7 @@ obj-y += iommu/
  obj-y += smem/
  obj-y += thermal/
  obj-$(CONFIG_TEE) += tee/
@@ -2250,19 +2250,19 @@ index 0000000000..0e143e5451
 +int ffa_uuid_str_to_bin(const char *uuid_str, unsigned char *uuid_bin);
 +#endif
 diff --git a/include/dm/uclass-id.h b/include/dm/uclass-id.h
-index 0e26e1d138..a1181b8f48 100644
+index 33e43c20db..9adff7f3d8 100644
 --- a/include/dm/uclass-id.h
 +++ b/include/dm/uclass-id.h
-@@ -52,6 +52,7 @@ enum uclass_id {
+@@ -55,6 +55,7 @@ enum uclass_id {
  	UCLASS_EFI_MEDIA,	/* Devices provided by UEFI firmware */
  	UCLASS_ETH,		/* Ethernet device */
  	UCLASS_ETH_PHY,		/* Ethernet PHY device */
 +	UCLASS_FFA,		/* Arm Firmware Framework for Armv8-A */
  	UCLASS_FIRMWARE,	/* Firmware */
- 	UCLASS_FS_FIRMWARE_LOADER,		/* Generic loader */
- 	UCLASS_GPIO,		/* Bank of general-purpose I/O pins */
+ 	UCLASS_FPGA,		/* FPGA device */
+ 	UCLASS_FUZZING_ENGINE,	/* Fuzzing engine */
 diff --git a/include/linux/arm-smccc.h b/include/linux/arm-smccc.h
-index 7f2be23394..54980a130f 100644
+index e1d09884a1..6f52842724 100644
 --- a/include/linux/arm-smccc.h
 +++ b/include/linux/arm-smccc.h
 @@ -1,6 +1,8 @@
@@ -2274,7 +2274,7 @@ index 7f2be23394..54980a130f 100644
   */
  #ifndef __LINUX_ARM_SMCCC_H
  #define __LINUX_ARM_SMCCC_H
-@@ -57,13 +59,17 @@
+@@ -61,13 +63,17 @@
  #include <linux/types.h>
  /**
   * struct arm_smccc_res - Result from SMC/HVC call
@@ -2293,7 +2293,7 @@ index 7f2be23394..54980a130f 100644
  };
  
  /**
-@@ -113,6 +119,26 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
+@@ -133,6 +139,26 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
  			unsigned long a5, unsigned long a6, unsigned long a7,
  			struct arm_smccc_res *res, struct arm_smccc_quirk *quirk);
  
@@ -2321,10 +2321,10 @@ index 7f2be23394..54980a130f 100644
  
  #define arm_smccc_smc_quirk(...) __arm_smccc_smc(__VA_ARGS__)
 diff --git a/lib/Kconfig b/lib/Kconfig
-index 3c6fa99b1a..473821b882 100644
+index 83e5edd73b..baf585e52f 100644
 --- a/lib/Kconfig
 +++ b/lib/Kconfig
-@@ -810,6 +810,7 @@ config SMBIOS_PARSER
+@@ -1004,6 +1004,7 @@ config SMBIOS_PARSER
  source lib/efi/Kconfig
  source lib/efi_loader/Kconfig
  source lib/optee/Kconfig
@@ -2333,17 +2333,17 @@ index 3c6fa99b1a..473821b882 100644
  config TEST_FDTDEC
  	bool "enable fdtdec test"
 diff --git a/lib/Makefile b/lib/Makefile
-index 11b03d1cbe..8e6fad6130 100644
+index a282e40258..9086828d5b 100644
 --- a/lib/Makefile
 +++ b/lib/Makefile
-@@ -9,6 +9,7 @@ obj-$(CONFIG_EFI) += efi/
- obj-$(CONFIG_EFI_LOADER) += efi_driver/
+@@ -10,6 +10,7 @@ obj-$(CONFIG_EFI_LOADER) += efi_driver/
  obj-$(CONFIG_EFI_LOADER) += efi_loader/
  obj-$(CONFIG_CMD_BOOTEFI_SELFTEST) += efi_selftest/
+ obj-$(CONFIG_FWU_MULTI_BANK_UPDATE) += fwu_updates/
 +obj-$(CONFIG_ARM_FFA_TRANSPORT_HELPERS) += arm-ffa/
  obj-$(CONFIG_LZMA) += lzma/
  obj-$(CONFIG_BZIP2) += bzip2/
- obj-$(CONFIG_TIZEN) += tizen/
+ obj-$(CONFIG_FIT) += libfdt/
 diff --git a/lib/arm-ffa/Kconfig b/lib/arm-ffa/Kconfig
 new file mode 100644
 index 0000000000..79acbc5a8f
@@ -2565,7 +2565,7 @@ index 0000000000..623899d380
 +	return 0;
 +}
 diff --git a/lib/efi_loader/efi_boottime.c b/lib/efi_loader/efi_boottime.c
-index 5bcb8253ed..cffa2c69d6 100644
+index caaab685ee..18b48eb06f 100644
 --- a/lib/efi_loader/efi_boottime.c
 +++ b/lib/efi_loader/efi_boottime.c
 @@ -23,6 +23,10 @@
@@ -2579,7 +2579,7 @@ index 5bcb8253ed..cffa2c69d6 100644
  DECLARE_GLOBAL_DATA_PTR;
  
  /* Task priority level */
-@@ -2114,6 +2118,10 @@ static efi_status_t EFIAPI efi_exit_boot_services(efi_handle_t image_handle,
+@@ -2121,6 +2125,10 @@ static efi_status_t EFIAPI efi_exit_boot_services(efi_handle_t image_handle,
  	struct efi_event *evt, *next_event;
  	efi_status_t ret = EFI_SUCCESS;
  
@@ -2590,7 +2590,7 @@ index 5bcb8253ed..cffa2c69d6 100644
  	EFI_ENTRY("%p, %zx", image_handle, map_key);
  
  	/* Check that the caller has read the current memory map */
-@@ -2174,6 +2182,15 @@ static efi_status_t EFIAPI efi_exit_boot_services(efi_handle_t image_handle,
+@@ -2181,6 +2189,15 @@ static efi_status_t EFIAPI efi_exit_boot_services(efi_handle_t image_handle,
  		dm_remove_devices_flags(DM_REMOVE_ACTIVE_ALL);
  	}
  
