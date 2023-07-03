@@ -33,8 +33,10 @@ do_build() {
     mkdir -p "$SCP_OUTDIR"
     if [ "$TC_TARGET_FLAVOR" == "fvp" ]; then
     	SCP_PLAT_FVP=true
+	SCP_PLATFORM_VARIANT=$SCP_PLATFORM_VARIANT_MPMM
     elif [ "$TC_TARGET_FLAVOR" == "fpga" ]; then
     	SCP_PLAT_FVP=false
+	SCP_PLATFORM_VARIANT=$SCP_PLATFORM_VARIANT_STD
     fi
     for scp_fw in $FW_TARGETS; do
         for scp_type in $FW_INSTALL; do
@@ -48,6 +50,7 @@ do_build() {
                 -DSCP_LOG_LEVEL=${SCP_LOG_LEVEL}
                 -DDISABLE_CPPCHECK=true
                 -DSCP_ENABLE_PLAT_FVP=$SCP_PLAT_FVP
+                -DSCP_PLATFORM_VARIANT=$SCP_PLATFORM_VARIANT
             )
 
             case "${SCP_BUILD_MODE}" in
