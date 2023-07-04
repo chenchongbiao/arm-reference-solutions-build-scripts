@@ -34,6 +34,7 @@ do_build() {
     install -D $BUILDROOT_CFG/sshd_config $BUILDROOT_ROOTFS_OVERLAY/etc/ssh/sshd_config
     install -D $BUILDROOT_CFG/testing_mpam.sh $BUILDROOT_ROOTFS_OVERLAY/bin/testing_mpam.sh
     install -D $BUILDROOT_CFG/test_feats_arch.sh $BUILDROOT_ROOTFS_OVERLAY/bin/test_feats_arch.sh
+    install -D $BUILDROOT_CFG/test_mpmm.sh $BUILDROOT_ROOTFS_OVERLAY/bin/test_mpmm.sh
     mkdir -p $BUILDROOT_OUT
     pushd $BUILDROOT_SRC
     make BR2_EXTERNAL=$BUILDROOT_EXTERNAL_TREE O=$BUILDROOT_OUT defconfig BR2_DEFCONFIG=$BUILDROOT_CFG/defconfig
@@ -49,6 +50,7 @@ do_clean() {
     rm -f $BUILDROOT_ROOTFS_OVERLAY/etc/ssh/sshd_config
     rm -f $BUILDROOT_ROOTFS_OVERLAY/bin/testing_mpam.sh
     rm -f $BUILDROOT_ROOTFS_OVERLAY/bin/test_feats_arch.sh
+    rm -f $BUILDROOT_ROOTFS_OVERLAY/bin/test_mpmm.sh
 }
 
 do_deploy() {
