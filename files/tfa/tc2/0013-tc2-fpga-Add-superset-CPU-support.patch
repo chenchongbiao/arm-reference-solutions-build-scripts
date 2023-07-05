@@ -1,7 +1,7 @@
-From e26b84f377507a1e36f7f6aec14dea28a1dde10a Mon Sep 17 00:00:00 2001
+From b276a3eb11648a081a8e15c8b0e6c5021ee9ddf8 Mon Sep 17 00:00:00 2001
 From: Tintu Thomas <tintu.thomas@arm.com>
 Date: Tue, 4 Apr 2023 09:54:54 +0100
-Subject: [PATCH] tc2-fpga: Add superset CPU support
+Subject: [PATCH 13/13] tc2-fpga: Add superset CPU support
 
 * Added core8 to core13.
 * Added support for Hunter-ELP min cores
@@ -164,7 +164,7 @@ index 10fdd35b9..b5f759b5f 100644
  	};
  
 diff --git a/plat/arm/board/tc/include/platform_def.h b/plat/arm/board/tc/include/platform_def.h
-index a0e5defdc..556308864 100644
+index 1879bd2ad..eb7415e03 100644
 --- a/plat/arm/board/tc/include/platform_def.h
 +++ b/plat/arm/board/tc/include/platform_def.h
 @@ -17,7 +17,11 @@
@@ -179,7 +179,7 @@ index a0e5defdc..556308864 100644
  
  #define PLAT_ARM_TRUSTED_SRAM_SIZE	0x00080000	/* 512 KB */
  
-@@ -244,7 +248,13 @@
+@@ -245,7 +249,13 @@
  #define PLAT_ARM_SCMI_CHANNEL_COUNT	1
  
  #define PLAT_ARM_CLUSTER_COUNT		U(1)

@@ -1,4 +1,4 @@
-From c0d39d7025660da529d4fc40f4385ccf8a0345c0 Mon Sep 17 00:00:00 2001
+From c625485d6ef57106e05cf92e5aa5f95ef5f3ef0c Mon Sep 17 00:00:00 2001
 From: Davidson K <davidson.kumaresan@arm.com>
 Date: Wed, 12 Apr 2023 17:22:57 +0530
 Subject: [PATCH] Add Total compute FPGA support
@@ -18,14 +18,14 @@ Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
  include/plat/arm/css/common/css_def.h         |  13 +
  include/plat/arm/soc/common/soc_css.h         |   3 +
  include/plat/arm/soc/common/soc_css_def.h     |  10 +
- plat/arm/board/tc/include/platform_def.h      |   8 +-
- plat/arm/board/tc/platform.mk                 |  38 +-
+ plat/arm/board/tc/include/platform_def.h      |   6 +
+ plat/arm/board/tc/platform.mk                 |  36 +-
  plat/arm/board/tc/tc_bl31_setup.c             |   4 +
  plat/arm/board/tc/tc_plat.c                   |   5 +
  plat/arm/board/tc/tc_security.c               |   4 +
  plat/arm/common/arm_common.c                  |   5 +
  plat/arm/common/arm_nor_psci_mem_protect.c    |   9 +
- 15 files changed, 600 insertions(+), 15 deletions(-)
+ 15 files changed, 600 insertions(+), 11 deletions(-)
  create mode 100644 fdts/tc_fpga.dts
 
 diff --git a/fdts/tc_fpga.dts b/fdts/tc_fpga.dts
@@ -534,10 +534,10 @@ index 000000000..10fdd35b9
 +	};
 +};
 diff --git a/include/arch/aarch64/arch_features.h b/include/arch/aarch64/arch_features.h
-index 9ff81aa10..e5a075312 100644
+index 9d719877b..6d1592b91 100644
 --- a/include/arch/aarch64/arch_features.h
 +++ b/include/arch/aarch64/arch_features.h
-@@ -51,6 +51,9 @@ static inline bool is_feat_pacqarma3_present(void)
+@@ -75,6 +75,9 @@ static inline bool is_feat_pacqarma3_present(void)
  
  static inline bool is_armv8_3_pauth_present(void)
  {
@@ -547,14 +547,14 @@ index 9ff81aa10..e5a075312 100644
  	uint64_t mask_id_aa64isar1 =
  		(ID_AA64ISAR1_GPI_MASK << ID_AA64ISAR1_GPI_SHIFT) |
  		(ID_AA64ISAR1_GPA_MASK << ID_AA64ISAR1_GPA_SHIFT) |
-@@ -63,6 +66,7 @@ static inline bool is_armv8_3_pauth_present(void)
+@@ -87,6 +90,7 @@ static inline bool is_armv8_3_pauth_present(void)
  	 */
  	return ((read_id_aa64isar1_el1() & mask_id_aa64isar1) != 0U ||
  		is_feat_pacqarma3_present());
 +#endif
  }
  
- static inline bool is_armv8_4_dit_present(void)
+ static inline bool is_armv8_4_ttst_present(void)
 diff --git a/include/plat/arm/board/common/board_css_def.h b/include/plat/arm/board/common/board_css_def.h
 index 1963bf0cb..9f0dcef91 100644
 --- a/include/plat/arm/board/common/board_css_def.h
@@ -590,10 +590,10 @@ index cb11dac47..7547d898d 100644
  
  #define V2M_IOFPGA_BASE			(V2M_OFFSET + UL(0x1c000000))
 diff --git a/include/plat/arm/common/arm_def.h b/include/plat/arm/common/arm_def.h
-index 38793cd73..d5526605e 100644
+index bf1f93a80..cef0ccc3d 100644
 --- a/include/plat/arm/common/arm_def.h
 +++ b/include/plat/arm/common/arm_def.h
-@@ -450,7 +450,11 @@
+@@ -482,7 +482,11 @@ MEASURED_BOOT
  #define ARM_SYS_CNT_BASE_NS		UL(0x2a830000)
  #endif
  
@@ -606,10 +606,10 @@ index 38793cd73..d5526605e 100644
  /* Trusted Watchdog constants */
  #ifdef PLAT_ARM_SP805_TWDG_BASE
 diff --git a/include/plat/arm/css/common/css_def.h b/include/plat/arm/css/common/css_def.h
-index dde174c37..a90af0dbb 100644
+index f87f857c5..8fc83e396 100644
 --- a/include/plat/arm/css/common/css_def.h
 +++ b/include/plat/arm/css/common/css_def.h
-@@ -78,6 +78,19 @@
+@@ -81,6 +81,19 @@
  /* If SDS is present, then mailbox is at top of SRAM */
  #define PLAT_ARM_TRUSTED_MAILBOX_BASE	(ARM_SHARED_RAM_BASE + ARM_SHARED_RAM_SIZE - 0x8)
  
@@ -672,19 +672,10 @@ index b4b6ba8e4..e16bb1ab3 100644
  /* SoC NIC-400 Global Programmers View (GPV) */
  #define SOC_CSS_NIC400_BASE		0x7fd00000
 diff --git a/plat/arm/board/tc/include/platform_def.h b/plat/arm/board/tc/include/platform_def.h
-index 34b0b1c0f..a0e5defdc 100644
+index 5ba6e2f14..1879bd2ad 100644
 --- a/plat/arm/board/tc/include/platform_def.h
 +++ b/plat/arm/board/tc/include/platform_def.h
-@@ -200,7 +200,7 @@
- 
- #define PLAT_ARM_NSTIMER_FRAME_ID	0
- 
--#if (TARGET_PLATFORM >= 2)
-+#if (defined (TARGET_PLATFORM_FVP) && TARGET_VERSION >= 2)
- #define PLAT_ARM_TRUSTED_ROM_BASE	0x1000
- #else
- #define PLAT_ARM_TRUSTED_ROM_BASE	0x0
-@@ -210,7 +210,11 @@
+@@ -206,7 +206,11 @@
  #define PLAT_ARM_TRUSTED_ROM_SIZE	(0x00080000 - PLAT_ARM_TRUSTED_ROM_BASE)
  
  #define PLAT_ARM_NSRAM_BASE		0x06000000
@@ -696,7 +687,7 @@ index 34b0b1c0f..a0e5defdc 100644
  
  #define PLAT_ARM_DRAM2_BASE		ULL(0x8080000000)
  #define PLAT_ARM_DRAM2_SIZE		ULL(0x180000000)
-@@ -323,6 +327,7 @@
+@@ -324,6 +328,7 @@
  
  /* UART related constants */
  
@@ -704,7 +695,7 @@ index 34b0b1c0f..a0e5defdc 100644
  #undef PLAT_ARM_BOOT_UART_BASE
  #define PLAT_ARM_BOOT_UART_BASE		0x2A410000
  
-@@ -334,5 +339,6 @@
+@@ -335,5 +340,6 @@
  
  #undef PLAT_ARM_CRASH_UART_BASE
  #define PLAT_ARM_CRASH_UART_BASE	PLAT_ARM_RUN_UART_BASE
@@ -712,26 +703,28 @@ index 34b0b1c0f..a0e5defdc 100644
  
  #endif /* PLATFORM_DEF_H */
 diff --git a/plat/arm/board/tc/platform.mk b/plat/arm/board/tc/platform.mk
-index 218247769..ee0c9657a 100644
+index 5a1d83aa0..9965947d8 100644
 --- a/plat/arm/board/tc/platform.mk
 +++ b/plat/arm/board/tc/platform.mk
-@@ -5,16 +5,17 @@
+@@ -5,15 +5,20 @@
  
  include common/fdt_wrappers.mk
  
 -ifeq ($(TARGET_PLATFORM), 0)
--$(warning Platform ${PLAT}$(TARGET_PLATFORM) is deprecated. \
--Some of the features might not work as expected)
+-	$(error Platform ${PLAT}$(TARGET_PLATFORM) is deprecated.)
++ifeq ($(TARGET_VERSION), 0)
++	$(error Platform ${PLAT}$(TARGET_VERSION) is deprecated.)
+ endif
 +ifeq ($(filter ${TARGET_PLATFORM}, fvp fpga),)
 +        $(error TARGET_PLATFORM must be fvp or fpga)
- endif
++endif
++
++$(eval $(call add_define,TARGET_PLATFORM_$(call uppercase,${TARGET_PLATFORM})))
  
 -ifeq ($(shell expr $(TARGET_PLATFORM) \<= 2), 0)
 -        $(error TARGET_PLATFORM must be less than or equal to 2)
-+$(eval $(call add_define,TARGET_PLATFORM_$(call uppercase,${TARGET_PLATFORM})))
-+
-+ifeq ($(filter ${TARGET_VERSION}, 0 1 2),)
-+        $(error TARGET_VERSION must be 0 or 1 2)
++ifeq ($(shell expr $(TARGET_VERSION) \<= 2), 0)
++        $(error TARGET_VERSION must be less than or equal to 2)
  endif
  
 -$(eval $(call add_define,TARGET_PLATFORM))
@@ -739,18 +732,9 @@ index 218247769..ee0c9657a 100644
  
  CSS_LOAD_SCP_IMAGES	:=	1
  
-@@ -71,22 +72,22 @@ TC_BASE	=	plat/arm/board/tc
+@@ -69,15 +74,15 @@ TC_BASE	=	plat/arm/board/tc
  
  PLAT_INCLUDES		+=	-I${TC_BASE}/include/
- 
--# CPU libraries for TARGET_PLATFORM=0
--ifeq (${TARGET_PLATFORM}, 0)
-+# CPU libraries for TARGET_VERSION=0
-+ifeq (${TARGET_VERSION}, 0)
- TC_CPU_SOURCES	+=	lib/cpus/aarch64/cortex_a510.S	\
- 			lib/cpus/aarch64/cortex_a710.S	\
- 			lib/cpus/aarch64/cortex_x2.S
- endif
  
 -# CPU libraries for TARGET_PLATFORM=1
 -ifeq (${TARGET_PLATFORM}, 1)
@@ -765,10 +749,10 @@ index 218247769..ee0c9657a 100644
 -ifeq (${TARGET_PLATFORM}, 2)
 +# CPU libraries for TARGET_VERSION=2
 +ifeq (${TARGET_VERSION}, 2)
- TC_CPU_SOURCES	+=	lib/cpus/aarch64/cortex_hayes.S \
- 			lib/cpus/aarch64/cortex_hunter.S \
- 			lib/cpus/aarch64/cortex_hunter_elp_arm.S
-@@ -110,7 +111,8 @@ BL2_SOURCES		+=	${TC_BASE}/tc_security.c	\
+ TC_CPU_SOURCES	+=	lib/cpus/aarch64/cortex_a520.S \
+ 			lib/cpus/aarch64/cortex_a720.S \
+ 			lib/cpus/aarch64/cortex_x4.S
+@@ -101,7 +106,8 @@ BL2_SOURCES		+=	${TC_BASE}/tc_security.c	\
  				lib/utils/mem_region.c			\
  				drivers/arm/tzc/tzc400.c		\
  				plat/arm/common/arm_tzc400.c		\
@@ -778,7 +762,7 @@ index 218247769..ee0c9657a 100644
  
  BL31_SOURCES		+=	${INTERCONNECT_SOURCES}	\
  				${TC_CPU_SOURCES}	\
-@@ -148,9 +150,15 @@ TC_TOS_FW_CONFIG	:=	${BUILD_PLAT}/fdts/$(notdir $(basename ${ARM_SPMC_MANIFEST_D
+@@ -140,9 +146,15 @@ TC_TOS_FW_CONFIG	:=	${BUILD_PLAT}/fdts/$(notdir $(basename ${ARM_SPMC_MANIFEST_D
  $(eval $(call TOOL_ADD_PAYLOAD,${TC_TOS_FW_CONFIG},--tos-fw-config,${TC_TOS_FW_CONFIG}))
  endif
  
@@ -795,7 +779,7 @@ index 218247769..ee0c9657a 100644
  FDT_SOURCES		+=	${TC_HW_CONFIG_DTS}
  $(eval TC_HW_CONFIG	:=	${BUILD_PLAT}/$(patsubst %.dts,%.dtb,$(TC_HW_CONFIG_DTS)))
  
-@@ -167,8 +175,10 @@ override ENABLE_AMU := 1
+@@ -159,8 +171,10 @@ override ENABLE_FEAT_AMU := 1
  override ENABLE_AMU_AUXILIARY_COUNTERS := 1
  override ENABLE_AMU_FCONF := 1
  
@@ -807,10 +791,10 @@ index 218247769..ee0c9657a 100644
  # Include Measured Boot makefile before any Crypto library makefile.
  # Crypto library makefile may need default definitions of Measured Boot build
 diff --git a/plat/arm/board/tc/tc_bl31_setup.c b/plat/arm/board/tc/tc_bl31_setup.c
-index c79558de3..800ece4f3 100644
+index ca3a03279..390de6546 100644
 --- a/plat/arm/board/tc/tc_bl31_setup.c
 +++ b/plat/arm/board/tc/tc_bl31_setup.c
-@@ -18,6 +18,10 @@
+@@ -19,6 +19,10 @@
  #include <plat/arm/common/plat_arm.h>
  #include <plat/common/platform.h>
  
@@ -822,7 +806,7 @@ index c79558de3..800ece4f3 100644
  	{
  		.scmi_mbx_mem = CSS_SCMI_PAYLOAD_BASE,
 diff --git a/plat/arm/board/tc/tc_plat.c b/plat/arm/board/tc/tc_plat.c
-index 77db023fd..55dfc04b3 100644
+index 766bfb570..a83290aad 100644
 --- a/plat/arm/board/tc/tc_plat.c
 +++ b/plat/arm/board/tc/tc_plat.c
 @@ -28,6 +28,9 @@
@@ -840,7 +824,7 @@ index 77db023fd..55dfc04b3 100644
  void plat_arm_secure_wdt_start(void)
  {
 +#ifdef TARGET_PLATFORM_FVP
- 	sbsa_wdog_start(SBSA_SECURE_WDOG_BASE, SBSA_SECURE_WDOG_TIMEOUT);
+ 	sbsa_wdog_start(SBSA_SECURE_WDOG_CONTROL_BASE, SBSA_SECURE_WDOG_TIMEOUT);
 +#endif
  }
  

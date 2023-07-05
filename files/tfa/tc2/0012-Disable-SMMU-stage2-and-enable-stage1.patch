@@ -1,7 +1,7 @@
-From 1689f38115a2ae34b78abfe21c8c16012a9cf2ba Mon Sep 17 00:00:00 2001
+From 9fba8655633c058a46910f5afc9fe39ff552e056 Mon Sep 17 00:00:00 2001
 From: Quoc Khanh Le <QuocKhanh.Le@arm.com>
 Date: Wed, 19 Apr 2023 14:50:49 +0100
-Subject: [PATCH] Disable SMMU stage2 and enable stage1
+Subject: [PATCH 12/13] Disable SMMU stage2 and enable stage1
 
 Use the intergrated MMU600 for the dpu, This avoids issue with the import of buffers at dpu for HW rendering
 
@@ -80,5 +80,5 @@ index 9cf1411c9..23dc333a3 100644
  			reg = <0>;
  			clocks = <&scmi_clk 1>;
 -- 
-2.25.1
+2.34.1
 

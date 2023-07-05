@@ -1,7 +1,7 @@
-From 16f183e3c09d64fee92638ea9d0017ac7973ddf8 Mon Sep 17 00:00:00 2001
+From 1f50df4205df1b5769e3f7805583a02268dd8ae8 Mon Sep 17 00:00:00 2001
 From: Tudor Cretu <tudor.cretu@arm.com>
 Date: Fri, 24 Sep 2021 12:09:53 +0000
-Subject: [PATCH 1/2] feat(plat/tc): add firmware update secure partition
+Subject: [PATCH 07/13] feat(plat/tc): add firmware update secure partition
 
 Firmware update is a trusted service secure partition that implements
 the PSA firmware update specification. It executes in the secure world
@@ -17,7 +17,7 @@ Upstream-Status: Pending [Not submitted to upstream yet]
  2 files changed, 12 insertions(+), 1 deletion(-)
 
 diff --git a/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts b/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts
-index 92e2ddda6..23ad06888 100644
+index 382f0e1b5..22ac51c78 100644
 --- a/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts
 +++ b/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts
 @@ -28,7 +28,7 @@

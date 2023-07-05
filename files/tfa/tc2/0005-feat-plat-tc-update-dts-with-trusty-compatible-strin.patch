@@ -1,7 +1,7 @@
-From 84ae384d742a4d5d860901e58233d9bf8b7d6207 Mon Sep 17 00:00:00 2001
+From 14405f7aa704f320dac0fc2235bc21722842adcc Mon Sep 17 00:00:00 2001
 From: Arunachalam Ganapathy <arunachalam.ganapathy@arm.com>
 Date: Wed, 30 Mar 2022 12:14:49 +0000
-Subject: [PATCH 5/6] feat(plat/tc): update dts with trusty compatible string
+Subject: [PATCH 05/13] feat(plat/tc): update dts with trusty compatible string
 
 Signed-off-by: Arunachalam Ganapathy <arunachalam.ganapathy@arm.com>
 Change-Id: Ic6661df479e114bf3f464165c14df5fa02dc0139
@@ -11,10 +11,10 @@ Upstream-Status: Pending [Not submitted to upstream yet]
  1 file changed, 26 insertions(+)
 
 diff --git a/fdts/tc.dts b/fdts/tc.dts
-index af64504a4..dc86958bf 100644
+index 4f275895f..587ad6973 100644
 --- a/fdts/tc.dts
 +++ b/fdts/tc.dts
-@@ -555,4 +555,30 @@
+@@ -596,4 +596,30 @@
  		compatible = "arm,trace-buffer-extension";
  		interrupts = <1 2 4>;
  	};
@@ -46,5 +46,5 @@ index af64504a4..dc86958bf 100644
 +	};
  };
 -- 
-2.25.1
+2.34.1
 

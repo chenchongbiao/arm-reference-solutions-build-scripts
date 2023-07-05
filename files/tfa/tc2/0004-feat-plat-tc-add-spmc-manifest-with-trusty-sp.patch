@@ -1,7 +1,7 @@
-From 6ddbd89e836f61db7e3ce9b5653be770dc87b93f Mon Sep 17 00:00:00 2001
+From 6d8817def87c1f700479ec4ed3bab98539cce43e Mon Sep 17 00:00:00 2001
 From: Arunachalam Ganapathy <arunachalam.ganapathy@arm.com>
 Date: Mon, 11 Apr 2022 14:43:15 +0100
-Subject: [PATCH 4/6] feat(plat/tc): add spmc manifest with trusty sp
+Subject: [PATCH 04/13] feat(plat/tc): add spmc manifest with trusty sp
 
 Add SPMC manifest with Trusty SP. Define Trusty's load address,
 vcpu count, memory size.
@@ -165,5 +165,5 @@ index 4c6ccef25..a72772fb3 100644
  		cactus-primary {
  			uuid = "b4b5671e-4a90-4fe1-b81f-fb13dae1dacb";
 -- 
-2.25.1
+2.34.1
 

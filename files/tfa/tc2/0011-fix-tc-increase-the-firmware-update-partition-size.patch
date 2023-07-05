@@ -1,7 +1,7 @@
-From 4ad00c90be8228b2ecdb340fc96a8686b7b3f71f Mon Sep 17 00:00:00 2001
+From fc6d99758a4f50db0a257b571a682024eb8742d1 Mon Sep 17 00:00:00 2001
 From: Davidson K <davidson.kumaresan@arm.com>
 Date: Wed, 19 Apr 2023 18:25:25 +0530
-Subject: [PATCH] fix(tc): increase the firmware update partition size
+Subject: [PATCH 11/13] fix(tc): increase the firmware update partition size
 
 The firmware update partition size is increased to accomodate the
 increase in size of the FIP images. Since the partition size is
@@ -14,7 +14,7 @@ Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
  2 files changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts b/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts
-index 23ad06888..c9d170ded 100644
+index 22ac51c78..94bd022ea 100644
 --- a/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts
 +++ b/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts
 @@ -28,7 +28,7 @@

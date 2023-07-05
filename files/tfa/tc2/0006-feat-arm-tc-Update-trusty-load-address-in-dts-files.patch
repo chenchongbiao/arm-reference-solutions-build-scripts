@@ -1,7 +1,7 @@
-From ea9556a14bec0249ac6e01e4a55cbb04fd15b51a Mon Sep 17 00:00:00 2001
+From d8466ee9c08cc9b83e35cca06fdda327f13b6f51 Mon Sep 17 00:00:00 2001
 From: Rupinderjit Singh <rupinderjit.singh@arm.com>
 Date: Wed, 27 Jul 2022 09:23:58 +0100
-Subject: [PATCH] feat(arm/tc): Update trusty load-address in dts files.
+Subject: [PATCH 06/13] feat(arm/tc): Update trusty load-address in dts files.
 
 Change is required to align with sp header size change from 0x1000 to 0x4000
 
@@ -40,5 +40,5 @@ index a72772fb3..a5bb520fe 100644
  #else
  		cactus-primary {
 -- 
-2.25.1
+2.34.1
 

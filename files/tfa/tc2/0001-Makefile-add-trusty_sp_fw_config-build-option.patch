@@ -1,36 +1,39 @@
-From 95426342dd36f75371a0a108ef91a4736cfc1f08 Mon Sep 17 00:00:00 2001
+From b3eb7a027e836368924349ffd198d759a6dd6fff Mon Sep 17 00:00:00 2001
 From: Arunachalam Ganapathy <arunachalam.ganapathy@arm.com>
 Date: Mon, 11 Apr 2022 14:36:54 +0100
-Subject: [PATCH 1/6] Makefile: add trusty_sp_fw_config build option
+Subject: [PATCH 01/13] Makefile: add trusty_sp_fw_config build option
 
 Signed-off-by: Arunachalam Ganapathy <arunachalam.ganapathy@arm.com>
 Change-Id: Ief90ae9113d32265ee2200f35f3e517b7b9a4bea
 Upstream-Status: Pending [Not submitted to upstream yet]
 ---
- Makefile                            | 4 ++++
+ Makefile                            | 6 +++++-
  docs/plat/arm/arm-build-options.rst | 4 ++++
- 2 files changed, 8 insertions(+)
+ 2 files changed, 9 insertions(+), 1 deletion(-)
 
 diff --git a/Makefile b/Makefile
-index 05d97b006..5149a8911 100644
+index 8a0a2e0e1..2a927d747 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -536,6 +536,10 @@ ifneq (${SPD},none)
-             DTC_CPPFLAGS	+=	-DOPTEE_SP_FW_CONFIG
-         endif
+@@ -599,8 +599,12 @@ ifneq (${SPD},none)
+ 			DTC_CPPFLAGS	+=	-DOPTEE_SP_FW_CONFIG
+ 		endif
  
-+        ifeq ($(findstring trusty_sp,$(ARM_SPMC_MANIFEST_DTS)),trusty_sp)
-+            DTC_CPPFLAGS	+=	-DTRUSTY_SP_FW_CONFIG
-+        endif
++		ifeq ($(findstring trusty_sp,$(ARM_SPMC_MANIFEST_DTS)),trusty_sp)
++			DTC_CPPFLAGS	+=	-DTRUSTY_SP_FW_CONFIG
++		endif
 +
-         ifeq ($(TS_SP_FW_CONFIG),1)
-             DTC_CPPFLAGS	+=	-DTS_SP_FW_CONFIG
-         endif
+ 		ifeq ($(TS_SP_FW_CONFIG),1)
+-		DTC_CPPFLAGS	+=	-DTS_SP_FW_CONFIG
++			DTC_CPPFLAGS	+=	-DTS_SP_FW_CONFIG
+ 		endif
+ 
+ 		ifneq ($(ARM_BL2_SP_LIST_DTS),)
 diff --git a/docs/plat/arm/arm-build-options.rst b/docs/plat/arm/arm-build-options.rst
-index 339ebbe33..3c9a41fb8 100644
+index e0b924208..bebd357ee 100644
 --- a/docs/plat/arm/arm-build-options.rst
 +++ b/docs/plat/arm/arm-build-options.rst
-@@ -107,6 +107,10 @@ Arm Platform Build Options
+@@ -119,6 +119,10 @@ Arm Platform Build Options
     device tree. This flag is defined only when ``ARM_SPMC_MANIFEST_DTS`` manifest
     file name contains pattern optee_sp.
  
@@ -42,5 +45,5 @@ index 339ebbe33..3c9a41fb8 100644
     internal-trusted-storage) as SP in tb_fw_config device tree.
  
 -- 
-2.25.1
+2.34.1
 

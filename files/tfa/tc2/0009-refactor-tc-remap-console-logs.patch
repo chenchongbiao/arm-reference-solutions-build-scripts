@@ -1,7 +1,7 @@
-From 1abc086de20d9270172e1be9199076a63324b207 Mon Sep 17 00:00:00 2001
+From c9a3399d6de25121712bf74615d811676f4e1c08 Mon Sep 17 00:00:00 2001
 From: annsai01 <annam.saimanisha@arm.com>
 Date: Mon, 20 Feb 2023 13:34:57 +0000
-Subject: [PATCH] refactor(tc): remap console logs
+Subject: [PATCH 09/13] refactor(tc): remap console logs
 
 Remapping tf-a console logs from soc uart2 (s1 terminal)
 to css secure (uart1_ap terminal) and linux logs
@@ -15,7 +15,7 @@ Signed-off-by: Annam Sai Manisha <annam.saimanisha@arm.com>
  2 files changed, 18 insertions(+), 4 deletions(-)
 
 diff --git a/fdts/tc.dts b/fdts/tc.dts
-index 4f275895f..9113ec4bb 100644
+index 72078c570..9cf1411c9 100644
 --- a/fdts/tc.dts
 +++ b/fdts/tc.dts
 @@ -13,7 +13,7 @@
@@ -27,7 +27,7 @@ index 4f275895f..9113ec4bb 100644
  	};
  
  	chosen {
-@@ -327,10 +327,10 @@
+@@ -332,10 +332,10 @@
  		clock-output-names = "uartclk";
  	};
  
@@ -42,10 +42,10 @@ index 4f275895f..9113ec4bb 100644
  		clock-names = "uartclk", "apb_pclk";
  		status = "okay";
 diff --git a/plat/arm/board/tc/include/platform_def.h b/plat/arm/board/tc/include/platform_def.h
-index a884c7a81..34b0b1c0f 100644
+index 59fff6e2a..5ba6e2f14 100644
 --- a/plat/arm/board/tc/include/platform_def.h
 +++ b/plat/arm/board/tc/include/platform_def.h
-@@ -321,4 +321,18 @@
+@@ -322,4 +322,18 @@
  #define PLAT_ARM_FIP_OFFSET_IN_GPT		0x6000
  #endif /* ARM_GPT_SUPPORT */
  
@@ -65,5 +65,5 @@ index a884c7a81..34b0b1c0f 100644
 +
  #endif /* PLATFORM_DEF_H */
 -- 
-2.39.1
+2.34.1
 

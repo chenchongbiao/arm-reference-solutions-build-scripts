@@ -1,8 +1,8 @@
-From af0cbfd42c20f3e1012d0f3a8824f3f0418eaa6b Mon Sep 17 00:00:00 2001
+From 606cb0265ae02b721a21782683797809a20a3c32 Mon Sep 17 00:00:00 2001
 From: Davidson K <davidson.kumaresan@arm.com>
 Date: Fri, 3 Jun 2022 18:16:31 +0530
-Subject: [PATCH] feat(plat/tc): reserve 4 MB for stmm communication used for
- firmware update
+Subject: [PATCH 08/13] feat(plat/tc): reserve 4 MB for stmm communication used
+ for firmware update
 
 The firmware update secure partition and u-boot communicates using
 the stmm communication layer and it needs a dedicated memory region.
@@ -15,7 +15,7 @@ Upstream-Status: Pending [Not submitted to upstream yet]
  1 file changed, 5 insertions(+)
 
 diff --git a/fdts/tc.dts b/fdts/tc.dts
-index 44f551c3a..90864a907 100644
+index 587ad6973..72078c570 100644
 --- a/fdts/tc.dts
 +++ b/fdts/tc.dts
 @@ -217,6 +217,11 @@
