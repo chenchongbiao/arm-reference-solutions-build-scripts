@@ -11,15 +11,15 @@ Change-Id: I67508203273baf3bd8e6be2d99717028db945715
  src/arch/aarch64/hypervisor/BUILD.gn    |   1 +
  src/arch/aarch64/hypervisor/cpu.c       |  11 ++-
  src/arch/aarch64/hypervisor/handler.c   |   6 ++
- src/arch/aarch64/hypervisor/timer_el1.c | 104 ++++++++++++++++++++++++
- src/arch/aarch64/hypervisor/timer_el1.h |  20 +++++
- src/arch/aarch64/msr.h                  |   8 ++
- 7 files changed, 150 insertions(+), 3 deletions(-)
+ src/arch/aarch64/hypervisor/timer_el1.c | 105 ++++++++++++++++++++++++
+ src/arch/aarch64/hypervisor/timer_el1.h |  21 +++++
+ src/arch/aarch64/msr.h                  |   9 ++
+ 7 files changed, 153 insertions(+), 3 deletions(-)
  create mode 100644 src/arch/aarch64/hypervisor/timer_el1.c
  create mode 100644 src/arch/aarch64/hypervisor/timer_el1.h
 
 diff --git a/Makefile b/Makefile
-index 95cab9a..21cca93 100644
+index 8e9de498..f67921ba 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -60,7 +60,8 @@ CHECKPATCH := $(CURDIR)/third_party/linux/scripts/checkpatch.pl \
@@ -33,10 +33,10 @@ index 95cab9a..21cca93 100644
  OUT ?= out/$(PROJECT)
  OUT_DIR = out/$(PROJECT)
 diff --git a/src/arch/aarch64/hypervisor/BUILD.gn b/src/arch/aarch64/hypervisor/BUILD.gn
-index 6068d1e..de1a414 100644
+index ac0cb702..de6373f7 100644
 --- a/src/arch/aarch64/hypervisor/BUILD.gn
 +++ b/src/arch/aarch64/hypervisor/BUILD.gn
-@@ -45,6 +45,7 @@ source_set("hypervisor") {
+@@ -39,6 +39,7 @@ source_set("hypervisor") {
      "handler.c",
      "perfmon.c",
      "psci_handler.c",
@@ -45,7 +45,7 @@ index 6068d1e..de1a414 100644
    ]
  
 diff --git a/src/arch/aarch64/hypervisor/cpu.c b/src/arch/aarch64/hypervisor/cpu.c
-index bcf5ffc..d2df77d 100644
+index 75e704f5..678ddbf7 100644
 --- a/src/arch/aarch64/hypervisor/cpu.c
 +++ b/src/arch/aarch64/hypervisor/cpu.c
 @@ -98,13 +98,20 @@ void arch_regs_reset(struct vcpu *vcpu)
@@ -72,10 +72,10 @@ index bcf5ffc..d2df77d 100644
  	}
  
 diff --git a/src/arch/aarch64/hypervisor/handler.c b/src/arch/aarch64/hypervisor/handler.c
-index 4bd8a3b..4c1b6e4 100644
+index 1ee1f3d1..6552634a 100644
 --- a/src/arch/aarch64/hypervisor/handler.c
 +++ b/src/arch/aarch64/hypervisor/handler.c
-@@ -34,6 +34,7 @@
+@@ -35,6 +35,7 @@
  #include "psci_handler.h"
  #include "smc.h"
  #include "sysregs.h"
@@ -83,21 +83,21 @@ index 4bd8a3b..4c1b6e4 100644
  
  /**
   * Hypervisor Fault Address Register Non-Secure.
-@@ -1277,6 +1278,11 @@ void handle_system_register_access(uintreg_t esr_el2)
- 			inject_el1_unknown_exception(vcpu, esr_el2);
+@@ -1379,6 +1380,11 @@ void handle_system_register_access(uintreg_t esr_el2)
+ 			inject_el1_sysreg_trap_exception(vcpu, esr_el2);
  			return;
  		}
 +	} else if (timer_el1_is_register_access(esr_el2)) {
 +		if (!timer_el1_process_access(vcpu, vm_id, esr_el2)) {
-+			inject_el1_unknown_exception(vcpu, esr_el2);
++			inject_el1_sysreg_trap_exception(vcpu, esr_el2);
 +			return;
 +		}
  	} else {
- 		inject_el1_unknown_exception(vcpu, esr_el2);
+ 		inject_el1_sysreg_trap_exception(vcpu, esr_el2);
  		return;
 diff --git a/src/arch/aarch64/hypervisor/timer_el1.c b/src/arch/aarch64/hypervisor/timer_el1.c
 new file mode 100644
-index 0000000..c30e554
+index 00000000..0d27ad8a
 --- /dev/null
 +++ b/src/arch/aarch64/hypervisor/timer_el1.c
 @@ -0,0 +1,104 @@
@@ -205,12 +205,13 @@ index 0000000..c30e554
 +
 +	return true;
 +}
++
 diff --git a/src/arch/aarch64/hypervisor/timer_el1.h b/src/arch/aarch64/hypervisor/timer_el1.h
 new file mode 100644
-index 0000000..04a43b6
+index 00000000..e55b1c24
 --- /dev/null
 +++ b/src/arch/aarch64/hypervisor/timer_el1.h
-@@ -0,0 +1,20 @@
+@@ -0,0 +1,21 @@
 +/*
 + * Copyright 2022 The Hafnium Authors.
 + *
@@ -231,14 +232,15 @@ index 0000000..04a43b6
 +
 +bool timer_el1_process_access(struct vcpu *vcpu, ffa_vm_id_t vm_id,
 +			      uintreg_t esr);
++
 diff --git a/src/arch/aarch64/msr.h b/src/arch/aarch64/msr.h
-index cd6778b..55e7833 100644
+index 231a01dc..db310c72 100644
 --- a/src/arch/aarch64/msr.h
 +++ b/src/arch/aarch64/msr.h
-@@ -126,3 +126,11 @@
+@@ -128,3 +128,12 @@
+ #define MSR_CNTV_CVAL_EL02 S3_5_C14_C3_2
+ #define MSR_SPSR_EL12 S3_5_C4_C0_0
  #define MSR_ELR_EL12 S3_5_C4_C0_1
- 
- #endif
 +
 +/*
 + * Secure EL2 Physical timer (CNTHPS) register encodings as defined in
@@ -247,6 +249,7 @@ index cd6778b..55e7833 100644
 +#define MSR_CNTHPS_CTL_EL2 S3_4_C14_C5_1
 +#define MSR_CNTHPS_CVAL_EL2 S3_4_C14_C5_2
 +#define MSR_CNTHPS_TVAL_EL2 S3_4_C14_C5_0
++
 -- 
-2.34.1
+2.25.1
 

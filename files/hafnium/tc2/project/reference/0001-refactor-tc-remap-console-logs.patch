@@ -13,18 +13,18 @@ Signed-off-by: Annam Sai Manisha <annam.saimanisha@arm.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/BUILD.gn b/BUILD.gn
-index f26ce03..01206f5 100644
+index 08259d9..d672c81 100644
 --- a/BUILD.gn
 +++ b/BUILD.gn
-@@ -244,7 +244,7 @@ aarch64_toolchains("secure_tc") {
+@@ -192,7 +192,7 @@ aarch64_toolchains("secure_tc") {
+     plat_psci = "//src/arch/aarch64/plat/psci:spmc"
      plat_interrupts = "//src/arch/aarch64/plat/interrupts:gicv3"
-     plat_prng = "//src/arch/aarch64/plat/prng:prng"
      secure_world = "1"
 -    pl011_base_address = "0x7ff80000"
 +    pl011_base_address = "0x2A410000"
      enable_mte = "1"
-     enable_vhe = "1"
-   }
+     plat_log_level = "LOG_LEVEL_INFO"
+     plat_num_virtual_interrupts_ids = 1024
 -- 
 2.25.1
 
