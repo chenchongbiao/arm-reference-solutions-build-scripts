@@ -1,0 +1,31 @@
+From 99e6a98f9091658d56279e59e78f4261d8d0b6ca Mon Sep 17 00:00:00 2001
+From: Sergio Alves <sergio.dasilvalves@arm.com>
+Date: Fri, 7 Jul 2023 15:59:39 +0000
+Subject: [PATCH] tc2: update/fix SPMC manifest
+
+Update SPMC manifest to:
+ - add FirmwareUpgrade Memory region
+ - fix NS memory region address space
+
+Signed-off-by: Sergio Alves <sergio.dasilvalves@arm.com>
+---
+ plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts b/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts
+index 94bd022ea..4bdbfed35 100644
+--- a/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts
++++ b/plat/arm/board/tc/fdts/tc_spmc_optee_sp_manifest.dts
+@@ -130,7 +130,8 @@
+ 
+ 	memory@1 {
+ 		device_type = "ns-memory";
+-		reg = <0x0 0x80000000 0x0 0x79000000>,
++		reg = <0x0 0x08000000 0x0 0x4000000>,
++		      <0x0 0x80000000 0x0 0x7d000000>,
+ 		      <0x80 0x80000000 0x1 0x80000000>;
+ 	};
+ };
+-- 
+2.25.1
+

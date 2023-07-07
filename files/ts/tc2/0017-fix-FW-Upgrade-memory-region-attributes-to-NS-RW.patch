@@ -1,0 +1,34 @@
+From 78fb4dab01e5e71255fdb32f12e22fed1d0eeeb3 Mon Sep 17 00:00:00 2001
+From: Sergio Alves <sergio.dasilvalves@arm.com>
+Date: Fri, 7 Jul 2023 16:06:45 +0000
+Subject: [PATCH] tc2: fix FW-Upgrade memory region attributes to NS-RW
+
+Fix Firmware-Upgrade memory region attributes to Non-Secure Read-Write. This is required so Hafnium hypervisor can correctly manage and ensure proper access and isolation of this memory region when requested.
+
+Signed-off-by: Sergio Alves <sergio.dasilvalves@arm.com>
+---
+ deployments/firmware-update/sp/firmware-update.dts | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/deployments/firmware-update/sp/firmware-update.dts b/deployments/firmware-update/sp/firmware-update.dts
+index b95ee69..9f3d956 100644
+--- a/deployments/firmware-update/sp/firmware-update.dts
++++ b/deployments/firmware-update/sp/firmware-update.dts
+@@ -23,12 +23,12 @@
+ 		flash {
+ 			base-address = <0x00000000 0x08000000>;
+ 			pages-count = <0x4000>;
+-			attributes = <0x3>; /* read-write */
++			attributes = <0xb>; /* non-secure read-write */
+ 		};
+ 		mm-memory {
+ 			base-address = <0x00000000 0xfca00000>;
+ 			pages-count = <0x400>;
+-			attributes = <0x3>; /* read-write */
++			attributes = <0xb>; /* non-secure read-write */
+ 		};
+ 	};
+ };
+-- 
+2.25.1
+
