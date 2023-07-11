@@ -39,6 +39,9 @@ do_build() {
     for config in ${!lconfig}; do
         CONFIG=$CONFIG"$CFG_DIR/$config "
     done
+    if [ "$TC_TARGET_FLAVOR" == "fpga" ]; then
+        CONFIG=$CONFIG"$CFG_DIR/fpga.cfg "
+    fi
     CONFIG="$LINUX_SRC/arch/arm64/configs/gki_defconfig "$CONFIG
     pushd $LINUX_SRC
     scripts/kconfig/merge_config.sh -O $LINUX_OUTDIR -m $CONFIG
