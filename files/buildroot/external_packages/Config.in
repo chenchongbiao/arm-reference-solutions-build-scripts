@@ -1,0 +1,1 @@
+source "$BR2_EXTERNAL_TC_TREE_PATH/package/vector_workload/Config.in"

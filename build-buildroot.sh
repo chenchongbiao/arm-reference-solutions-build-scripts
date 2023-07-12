@@ -36,9 +36,9 @@ do_build() {
     install -D $BUILDROOT_CFG/test_feats_arch.sh $BUILDROOT_ROOTFS_OVERLAY/bin/test_feats_arch.sh
     mkdir -p $BUILDROOT_OUT
     pushd $BUILDROOT_SRC
-    make O=$BUILDROOT_OUT defconfig BR2_DEFCONFIG=$BUILDROOT_CFG/defconfig
+    make BR2_EXTERNAL=$BUILDROOT_EXTERNAL_TREE O=$BUILDROOT_OUT defconfig BR2_DEFCONFIG=$BUILDROOT_CFG/defconfig
     # The environment variable AARCH64_LINUX is used in the defconfig to locate the compiler
-    AARCH64_LINUX="$AARCH64_LINUX" make O=$BUILDROOT_OUT all
+    AARCH64_LINUX="$AARCH64_LINUX" make BR2_EXTERNAL=$BUILDROOT_EXTERNAL_TREE O=$BUILDROOT_OUT all
     popd
 }
 
