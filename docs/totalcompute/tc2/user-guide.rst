@@ -641,6 +641,29 @@ The hardware and the software requirements required for the MPAM feature can be 
     This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mpam>` document section.
 
 
+MPMM
+####
+
+The functionality of MPMM module in the SCP firmware can be split into two:
+ * To set the proper gear for each core based on the workload.  This can be verified by checking the ``INFO`` level SCP logs while executing the ``vector_workload`` test application.
+ * To enforce the maximum clock frequency for a group of cores of the same type based on the current gear set for each core in that group.
+
+There are 2 files added to facilitate the verfication of MPMM.
+ * vector_workload - This is a C application that runs vector instructions continuously.
+ * test_mpmm.sh - This is a shell script that runs ``vector_workload`` on different cores and ensure the maximum clock frequency for a group of cores of the same type doesn't exceed the values set in PCT of the MPMM module in the SCP firmware.
+
+To execute the testing script,
+::
+
+    test_mpmm.sh fvp
+
+.. note::
+    To execute ``vector_workload``, the ``ScalableVectorExtension.so`` plugin have to be loaded while executing the model.
+
+.. note::
+    This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mpmm>` document section.
+
+
 BTI
 ###
 

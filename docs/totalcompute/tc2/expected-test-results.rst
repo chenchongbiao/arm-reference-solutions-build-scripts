@@ -444,6 +444,81 @@ MPAM unit tests
 
 	#
 
+.. _docs/totalcompute/tc2/expected-test-results_mpmm:
+
+
+MPMM unit tests
+---------------
+
+::
+
+        # test_mpmm.sh fvp
+        This is a test script to check the MPMM functionality
+
+        This is based on the PCT configured in the SCP which can be found at
+        product/tc2/scp_ramfw/config_mpmm.c
+
+        Testing MPMM in FVP
+
+        Testing the MPMM of A520 cores
+        ******************************
+        According to the PCT, the max frequency should be 1840000
+        Current set frequency of the cpu0 is 1537000
+        PASS
+
+        Starting a vector intensive workload on cpu0
+        According to the PCT, the max frequency should be 1537000
+        Current set frequency of the cpu0 is 1537000
+        PASS
+
+        Starting a vector intensive workload on cpu1
+        According to the PCT, the max frequency should be 1537000
+        Current set frequency of the cpu0 is 1537000
+        PASS
+
+        Starting a vector intensive workload on cpu2
+        According to the PCT, the max frequency should be 1153000
+        Current set frequency of the cpu0 is 1153000
+        PASS
+
+        Starting a vector intensive workload on cpu3
+        According to the PCT, the max frequency should be 1153000
+        Current set frequency of the cpu0 is 1153000
+        PASS
+
+        Testing the MPMM of A720 cores
+        ******************************
+        According to the PCT, the max frequency should be 2271000
+        Current set frequency of the cpu4 is 1893000
+        PASS
+
+        Starting a vector intensive workload on cpu4
+        According to the PCT, the max frequency should be 1893000
+        Current set frequency of the cpu4 is 1893000
+        PASS
+
+        Starting a vector intensive workload on cpu5
+        According to the PCT, the max frequency should be 1893000
+        Current set frequency of the cpu4 is 1893000
+        PASS
+
+        Starting a vector intensive workload on cpu6
+        According to the PCT, the max frequency should be 1893000
+        Current set frequency of the cpu4 is 1893000
+        PASS
+
+        Testing the MPMM of X4 cores
+        ******************************
+        According to the PCT, the max frequency should be 3047000
+        Current set frequency of the cpu7 is 1088000
+        PASS
+
+        Starting a vector intensive workload on cpu7
+        According to the PCT, the max frequency should be 2612000
+        Current set frequency of the cpu7 is 2612000
+        PASS
+        #
+
 .. _docs/totalcompute/tc2/expected-test-results_bti:
 
 
