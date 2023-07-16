@@ -1,0 +1,49 @@
+From e2644d8f1822397a18449aad054edc114d640780 Mon Sep 17 00:00:00 2001
+From: Rupinderjit Singh <rupinderjit.singh@arm.com>
+Date: Fri, 14 Jul 2023 09:25:59 +0100
+Subject: [PATCH 1/2] tc: update optee sp manifest
+
+added SP boot protocol attributes for boot information
+used by SPMC
+
+Signed-off-by: Rupinderjit Singh <rupinderjit.singh@arm.com>
+---
+ .../fdts/optee_sp_manifest.dts                  | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/core/arch/arm/plat-totalcompute/fdts/optee_sp_manifest.dts b/core/arch/arm/plat-totalcompute/fdts/optee_sp_manifest.dts
+index 9464fb1b3..e1e9c5804 100644
+--- a/core/arch/arm/plat-totalcompute/fdts/optee_sp_manifest.dts
++++ b/core/arch/arm/plat-totalcompute/fdts/optee_sp_manifest.dts
+@@ -11,6 +11,16 @@
+ / {
+ 	compatible = "arm,ffa-manifest-1.0";
+ 
++	/* mem-size OP-TEE specific binding. */
++#ifdef TS_SP_FW_CONFIG
++	mem-size = <0xb00000>; /* 11MB TZC DRAM */
++#else
++	mem-size = <0x1D7F000>; /* 29MB TZC DRAM */
++#endif
++
++	/* Boot protocol */
++	gp-register-num = <0x0>;
++
+ 	/* Properties */
+ 	description = "op-tee";
+ 	ffa-version = <0x00010000>; /* 31:16 - Major, 15:0 - Minor */
+@@ -33,4 +43,11 @@
+ 			attributes = <0x3>; /* read-write */
+ 		};
+ 	};
++
++	/* Boot Info */
++	boot-info {
++		compatible = "arm,ffa-manifest-boot-info";
++		ffa_manifest;
++	};
++
+ };
+-- 
+2.25.1
+
