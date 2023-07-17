@@ -37,8 +37,10 @@ Following is presented the high-level list of the software components:
 
  #. Debian;
  
+ #. TensorFlow Lite Machine Learning;
  
-:ref:`Total Compute Platform Software Components <docs/totalcompute/tc2/tc2_sw_stack>`
+
+For more information on each of the stack components, please refer to the :ref:`Total Compute Platform Software Components <docs/totalcompute/tc2/tc2_sw_stack>` section.
 
 
 --------------

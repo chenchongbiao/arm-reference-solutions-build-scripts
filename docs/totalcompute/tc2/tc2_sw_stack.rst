@@ -140,6 +140,9 @@ Debian
 .........
 This variant is based on the Debian filesystem and supports hardware or software rendering.
 
+TensorFlow Lite Machine Learning
+................................
+A minimal CMake wrapper project for building TensorFlow Lite applications for Total Compute targets is provided. By default, this project will build the ``benchmark_model`` application which allows to profile and validate ML inference flows. However, the developer can easily adapt the project and build any application exposed by TensorFlow Lite.
 
 --------------
 

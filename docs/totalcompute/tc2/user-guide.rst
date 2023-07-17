@@ -528,11 +528,82 @@ Running sanity tests
 -----------------------------------
 
 
+Validate the TensorFlow Lite ML flow
+####################################
+
+A typical Machine Learning (ML) inference flow can be validated using the TensorFlow Lite's model benchmarking application.
+
+This application can consume any TensorFlow Lite neural network model file and run a user specified number of inferences on it, allowing to benchmark performance for the whole graph and for individual operators.
+
+More information on the Model Benchmark tool can be found `here <https://github.com/tensorflow/tensorflow/blob/v2.13.0/tensorflow/lite/tools/benchmark/README.md>`__.
+
+Prerequisites
+*************
+
+For this test, two files will be required:
+ * ``benchmark_model`` binary: this file is part of the TC build and is automatically built when targeting Buildroot or Debian distros;
+ * ``<any model>.tflite`` model: there is no requirement for a specific model file as long as it is specified in a valid ``.tflite`` format; for the simplicity of just running a sanitiy test, two models are provided with the build and are automatically integrated into the distro filesystem (being located at ``/opt/arm/ml``).
+
+Running the provided TensorFlow Lite ML model examples
+******************************************************
+
+The following command describes how to run the ``benchmark_model`` application to profile the "Mobile Object Localizer" TensorFlow Lite model, which is one of the provided TensorFlow Lite ML model examples.
+
+Although the command arguments are expected to greatly vary according to different use cases and models, this example provides the typical command usage skeleton for most of models.
+
+More information on the Model Benchmark Tool and command usage examples can be found `here <https://github.com/tensorflow/tensorflow/blob/v2.13.0/tensorflow/lite/tools/benchmark/README.md>`__.
+
+To run the ``benchmark_model`` to profile the "Mobile Object Localizer" model, please follow the following steps:
+
+ * using ``terminal_uart_ap``, login to the device/FVP model running TC and run the following commands:
+
+	::
+
+		# the following command ensures correct path location to load the provided example ML models
+		cd /opt/arm/ml
+		benchmark_model --graph=mobile_object_localizer_v1.tflite --num_threads=4 --num_runs=1 --min_secs=0.01
+
+The benchmark model application will run profiling the Mobile Object Localizer model and after a few seconds, some statistics and execution info will be presented on the terminal.
+
+.. note::
+    This test is specific to Buildroot and Debian distros only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_ml_tensorflow>` document section.
+
+Manually uploading a TensorFlow Lite ML model
+*********************************************
+
+There may be situations where the developer wishes to use their own TensorFlow Lite model.
+
+This section describes the steps necessary to manually upload a model to the running TC FVP model and run it.
+
+To the purpose of demonstrating this process, an old MobileNet Graph model version will be taken as example (the model can be downloaded from `here <https://storage.googleapis.com/download.tensorflow.org/models/tflite/mobilenet_v1_224_android_quant_2017_11_08.zip>`__).
+To run the ``benchmark_model`` application and profile the "MobileNet Graph" model, please proceed as described:
+
+ * start by downloading and decompressing the MobileNet graph model to your local host machine using the following command:
+
+	::
+
+		# any host path location can be used (as long it has writable permissions)
+		mkdir MobileNetGraphTFModel && cd MobileNetGraphTFModel
+		wget https://storage.googleapis.com/download.tensorflow.org/models/tflite/mobilenet_v1_224_android_quant_2017_11_08.zip
+		unzip mobilenet_v1_224_android_quant_2017_11_08.zip
+
+ * upload the MobileNet Graph model to the TC FVP model using the following command:
+
+	::
+
+		# the following command assumes that the port 8022 is being used as specified in the run_model.sh script
+		scp -P 8022 mobilenet_quant_v1_224.tflite root@localhost:/opt/arm/ml/
+		# password (if required): root
+
+ * once the model has been uploaded to the remote TC FVP model, the ``benchmark_model`` can be run as described previously in the ``Running the provided TensorFlow Lite ML model examples`` section.
+
+
+
 Testing GPU with Debian
 ########################
 
-Prerequisite
-************
+Prerequisites
+*************
 
 If GPU is enabled then GPU files will need to be pushed into the device using secure copy (scp).
 This can be achieved by following the next steps:
