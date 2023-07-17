@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-# Copyright (c) 2022-2023, Arm Limited. All rights reserved.
+# Copyright (c) 2023, Arm Limited. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -28,37 +28,22 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-do_build() {
-    info_echo "Building Buildroot"
-    install -D $BUILDROOT_CFG/S09modload $BUILDROOT_ROOTFS_OVERLAY/etc/init.d/S09modload
-    install -D $BUILDROOT_CFG/sshd_config $BUILDROOT_ROOTFS_OVERLAY/etc/ssh/sshd_config
-    install -D $BUILDROOT_CFG/testing_mpam.sh $BUILDROOT_ROOTFS_OVERLAY/bin/testing_mpam.sh
-    install -D $BUILDROOT_CFG/test_feats_arch.sh $BUILDROOT_ROOTFS_OVERLAY/bin/test_feats_arch.sh
-    mkdir -p $BUILDROOT_OUT
-    pushd $BUILDROOT_SRC
-    make O=$BUILDROOT_OUT defconfig BR2_DEFCONFIG=$BUILDROOT_CFG/defconfig
-    # The environment variable AARCH64_LINUX is used in the defconfig to locate the compiler
-    AARCH64_LINUX="$AARCH64_LINUX" make O=$BUILDROOT_OUT all
-    popd
+NO_OF_CPUS=8
+
+run_test(){
+	feat_name=$1
+	feat_name_cap=$(echo "$feat_name" | tr '[a-z]' '[A-Z]') #this line will convert the input string to upper case
+	echo "Testing FEAT_$feat_name_cap HW CAP"
+	Feat_Supported=$(grep -io $feat_name /proc/cpuinfo | wc -l)
+
+	if [ $Feat_Supported -eq $NO_OF_CPUS ];
+	then
+	    echo -e "Pass\n"
+	else
+	    echo -e "Fail\n"
+	fi
 }
 
-do_clean() {
-    info_echo "Cleaning Buildroot"
-    rm -rf $BUILDROOT_OUT
-    rm -f $BUILDROOT_ROOTFS_OVERLAY/etc/init.d/S09modload
-    rm -f $BUILDROOT_ROOTFS_OVERLAY/etc/ssh/sshd_config
-    rm -f $BUILDROOT_ROOTFS_OVERLAY/bin/testing_mpam.sh
-    rm -f $BUILDROOT_ROOTFS_OVERLAY/bin/test_feats_arch.sh
-}
-
-do_deploy() {
-    # Create FIT Image
-    if [[ $TC_TARGET_FLAVOR == "fpga" ]]; then
-	    $UBOOT_OUTDIR/tools/mkimage -f $BUILDROOT_CFG/fit-image-fpga.its $DEPLOY_DIR/$PLATFORM/tc-fitImage.bin
-    else
-	    $UBOOT_OUTDIR/tools/mkimage -f $BUILDROOT_CFG/fit-image.its $DEPLOY_DIR/$PLATFORM/tc-fitImage.bin
-    fi
-
-}
-
-source "$(dirname ${BASH_SOURCE[0]})/framework.sh"
+run_test afp
+run_test ecv
+run_test wfxt
