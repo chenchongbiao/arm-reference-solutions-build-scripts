@@ -1,0 +1,10 @@
+# Build directories
+cmake-build-*/
+build-*/
+
+# Dependencies downloaded by CMake
+dependencies/
+
+# VSCode/CLion/IntelliJ files
+.vsode/
+.idea/

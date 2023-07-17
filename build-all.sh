@@ -34,6 +34,7 @@ fi
     ("buildroot")
         scripts+=(
             "build-buildroot.sh"
+            "build-ml-app.sh"
         )
         ;;
     ("android-"*)
