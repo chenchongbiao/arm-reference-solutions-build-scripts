@@ -4,4 +4,7 @@ build-optee-os.sh=build-tfa.sh , build-buildroot.sh
 build-optee-test.sh=build-buildroot.sh
 build-trusted-services.sh=build-tfa.sh , build-buildroot.sh
 build-tfa.sh=build-rss.sh
+build-tfa-trusty.sh=build-flash-image.sh
 build-scp.sh=build-tfa.sh
+build-rss.sh=build-flash-image.sh
+build-rss-trusty.sh=build-flash-image.sh
