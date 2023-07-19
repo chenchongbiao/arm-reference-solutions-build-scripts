@@ -33,8 +33,8 @@ fi
     case "$FILESYSTEM" in
     ("buildroot")
         scripts+=(
-            "build-buildroot.sh"
             "build-ml-app.sh"
+            "build-buildroot.sh"
         )
         ;;
     ("android-"*)

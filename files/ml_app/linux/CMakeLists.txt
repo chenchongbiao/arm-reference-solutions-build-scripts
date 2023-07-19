@@ -67,4 +67,9 @@ if (NOT TARGET benchmark_model)
     message(FATAL_ERROR "benchmark_model TARGET has not been defined.")
 else ()
     set_target_properties(benchmark_model PROPERTIES EXCLUDE_FROM_ALL OFF)
+
+    # Set a simple installation rule to ease copying of binaries if required.
+    install(TARGETS benchmark_model
+            RUNTIME
+            COMPONENT ${CMAKE_PROJECT_NAME})
 endif ()
