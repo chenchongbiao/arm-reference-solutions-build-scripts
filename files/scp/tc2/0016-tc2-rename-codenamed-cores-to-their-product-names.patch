@@ -1,0 +1,1279 @@
+From 4b5f94c11c0d86f2587558465b19d03f83afe409 Mon Sep 17 00:00:00 2001
+From: Boyan Karatotev <boyan.karatotev@arm.com>
+Date: Tue, 25 Jul 2023 15:02:07 +0100
+Subject: [PATCH] tc2: rename codenamed cores to their product names
+
+The cores Hunter ELP, Hunter, Hayes become Cortex X4, Cortex A720,
+Cortex A520 respectively.
+
+Update all references in code to reflect this.
+
+Signed-off-by: Boyan Karatotev <boyan.karatotev@arm.com>
+---
+ product/tc2/include/clock_soc.h             | 18 ++---
+ product/tc2/include/tc2_dvfs.h              |  6 +-
+ product/tc2/include/tc2_mock_psu.h          |  6 +-
+ product/tc2/include/tc2_psu.h               |  6 +-
+ product/tc2/include/tc2_timer.h             |  6 +-
+ product/tc2/scp_ramfw/CMakeLists.txt        |  4 +-
+ product/tc2/scp_ramfw/config_clock.c        | 18 ++---
+ product/tc2/scp_ramfw/config_css_clock.c    | 54 ++++++-------
+ product/tc2/scp_ramfw/config_dvfs.c         | 90 ++++++++++-----------
+ product/tc2/scp_ramfw/config_gtimer.c       |  2 +-
+ product/tc2/scp_ramfw/config_mock_psu.c     | 12 +--
+ product/tc2/scp_ramfw/config_mpmm.c         | 18 ++---
+ product/tc2/scp_ramfw/config_pik_clock.c    | 38 ++++-----
+ product/tc2/scp_ramfw/config_psu.c          | 18 ++---
+ product/tc2/scp_ramfw/config_scmi_perf.c    | 54 ++++++-------
+ product/tc2/scp_ramfw/config_sds.c          |  2 +-
+ product/tc2/scp_ramfw/config_system_pll.c   | 12 +--
+ product/tc2/scp_ramfw/config_thermal_mgmt.c |  4 +-
+ product/tc2/scp_ramfw/config_traffic_cop.c  | 18 ++---
+ product/tc2/scp_romfw/config_clock.c        |  6 +-
+ product/tc2/scp_romfw/config_cmn_booker.c   |  2 +-
+ product/tc2/scp_romfw/config_css_clock.c    | 18 ++---
+ product/tc2/scp_romfw/config_gtimer.c       |  2 +-
+ product/tc2/scp_romfw/config_pik_clock.c    | 18 ++---
+ product/tc2/scp_romfw/config_sds.c          |  2 +-
+ product/tc2/scp_romfw/config_system_pll.c   |  4 +-
+ 26 files changed, 219 insertions(+), 219 deletions(-)
+
+diff --git a/product/tc2/include/clock_soc.h b/product/tc2/include/clock_soc.h
+index 8574b752..5b0aa835 100644
+--- a/product/tc2/include/clock_soc.h
++++ b/product/tc2/include/clock_soc.h
+@@ -17,9 +17,9 @@
+  * PLL clock indexes.
+  */
+ enum clock_pll_idx {
+-    CLOCK_PLL_IDX_CPU_HAYES,
+-    CLOCK_PLL_IDX_CPU_HUNTER,
+-    CLOCK_PLL_IDX_CPU_HUNTER_ELP,
++    CLOCK_PLL_IDX_CPU_CORTEX_A520,
++    CLOCK_PLL_IDX_CPU_CORTEX_A720,
++    CLOCK_PLL_IDX_CPU_CORTEX_X4,
+     CLOCK_PLL_IDX_SYS,
+     CLOCK_PLL_IDX_DPU,
+     CLOCK_PLL_IDX_PIX0,
+@@ -71,9 +71,9 @@ enum mod_clusclock_source_tc2 {
+  * CSS clock indexes.
+  */
+ enum clock_css_idx {
+-    CLOCK_CSS_IDX_CPU_GROUP_HAYES,
+-    CLOCK_CSS_IDX_CPU_GROUP_HUNTER,
+-    CLOCK_CSS_IDX_CPU_GROUP_HUNTER_ELP,
++    CLOCK_CSS_IDX_CPU_GROUP_CORTEX_A520,
++    CLOCK_CSS_IDX_CPU_GROUP_CORTEX_A720,
++    CLOCK_CSS_IDX_CPU_GROUP_CORTEX_X4,
+     CLOCK_CSS_IDX_DPU,
+     CLOCK_CSS_IDX_COUNT
+ };
+@@ -82,9 +82,9 @@ enum clock_css_idx {
+  * Clock indexes.
+  */
+ enum clock_idx {
+-    CLOCK_IDX_CPU_GROUP_HAYES,
+-    CLOCK_IDX_CPU_GROUP_HUNTER,
+-    CLOCK_IDX_CPU_GROUP_HUNTER_ELP,
++    CLOCK_IDX_CPU_GROUP_CORTEX_A520,
++    CLOCK_IDX_CPU_GROUP_CORTEX_A720,
++    CLOCK_IDX_CPU_GROUP_CORTEX_X4,
+     CLOCK_IDX_DPU,
+     CLOCK_IDX_PIXEL_0,
+     CLOCK_IDX_PIXEL_1,
+diff --git a/product/tc2/include/tc2_dvfs.h b/product/tc2/include/tc2_dvfs.h
+index b8cdcd7a..28b58638 100644
+--- a/product/tc2/include/tc2_dvfs.h
++++ b/product/tc2/include/tc2_dvfs.h
+@@ -12,9 +12,9 @@
+ #define TC2_DVFS_H
+ 
+ enum dvfs_element_idx {
+-    DVFS_ELEMENT_IDX_HAYES,
+-    DVFS_ELEMENT_IDX_HUNTER,
+-    DVFS_ELEMENT_IDX_HUNTER_ELP,
++    DVFS_ELEMENT_IDX_CORTEX_A520,
++    DVFS_ELEMENT_IDX_CORTEX_A720,
++    DVFS_ELEMENT_IDX_CORTEX_X4,
+     DVFS_ELEMENT_IDX_COUNT
+ };
+ 
+diff --git a/product/tc2/include/tc2_mock_psu.h b/product/tc2/include/tc2_mock_psu.h
+index 571a7fe0..7b3c85ee 100644
+--- a/product/tc2/include/tc2_mock_psu.h
++++ b/product/tc2/include/tc2_mock_psu.h
+@@ -12,9 +12,9 @@
+ #define TC2_MOCK_PSU_H
+ 
+ enum mock_psu_id {
+-    MOCK_PSU_ELEMENT_IDX_HAYES,
+-    MOCK_PSU_ELEMENT_IDX_HUNTER,
+-    MOCK_PSU_ELEMENT_IDX_HUNTER_ELP,
++    MOCK_PSU_ELEMENT_IDX_CORTEX_A520,
++    MOCK_PSU_ELEMENT_IDX_CORTEX_A720,
++    MOCK_PSU_ELEMENT_IDX_CORTEX_X4,
+     MOCK_PSU_ELEMENT_IDX_COUNT,
+ };
+ 
+diff --git a/product/tc2/include/tc2_psu.h b/product/tc2/include/tc2_psu.h
+index 9e8bba65..b0e55c2c 100644
+--- a/product/tc2/include/tc2_psu.h
++++ b/product/tc2/include/tc2_psu.h
+@@ -12,9 +12,9 @@
+ #define TC2_PSU_H
+ 
+ enum psu_id {
+-    PSU_ELEMENT_IDX_HAYES,
+-    PSU_ELEMENT_IDX_HUNTER,
+-    PSU_ELEMENT_IDX_HUNTER_ELP,
++    PSU_ELEMENT_IDX_CORTEX_A520,
++    PSU_ELEMENT_IDX_CORTEX_A720,
++    PSU_ELEMENT_IDX_CORTEX_X4,
+     PSU_ELEMENT_IDX_COUNT,
+ };
+ 
+diff --git a/product/tc2/include/tc2_timer.h b/product/tc2/include/tc2_timer.h
+index b3d340ef..4cc2a818 100644
+--- a/product/tc2/include/tc2_timer.h
++++ b/product/tc2/include/tc2_timer.h
+@@ -9,9 +9,9 @@
+ #define CONFIG_TIMER_H
+ 
+ enum config_timer_refclk_sub_element_idx {
+-    TC2_CONFIG_TIMER_DVFS_CPU_HAYES,
+-    TC2_CONFIG_TIMER_DVFS_CPU_HUNTER,
+-    TC2_CONFIG_TIMER_DVFS_CPU_HUNTER_ELP,
++    TC2_CONFIG_TIMER_DVFS_CPU_CORTEX_A520,
++    TC2_CONFIG_TIMER_DVFS_CPU_CORTEX_A720,
++    TC2_CONFIG_TIMER_DVFS_CPU_CORTEX_X4,
+ #ifdef BUILD_HAS_SCMI_PERF_FAST_CHANNELS
+     TC2_CONFIG_TIMER_FAST_CHANNEL_TIMER_IDX,
+ #endif
+diff --git a/product/tc2/scp_ramfw/CMakeLists.txt b/product/tc2/scp_ramfw/CMakeLists.txt
+index 59eceb60..e7f22ac4 100644
+--- a/product/tc2/scp_ramfw/CMakeLists.txt
++++ b/product/tc2/scp_ramfw/CMakeLists.txt
+@@ -15,8 +15,8 @@ add_executable(tc2-bl2)
+ # - 'TC2_VARIANT_STD' for TC2 standard build
+ # - 'TC2_VAR_EXPERIMENT_POWER' for TC2 with power/performance/thermal additions
+ #   used for evaluation purpose:
+-#   - TRAFFIC_COP on HAYES cores
+-#   - MPMM on HUNTER cores
++#   - TRAFFIC_COP on CORTEX_A520 cores
++#   - MPMM on CORTEX_A720 cores
+ #   - THERMAL_MANAGEMENT for the entire system, with a simplified/dummy power
+ #     model
+ 
+diff --git a/product/tc2/scp_ramfw/config_clock.c b/product/tc2/scp_ramfw/config_clock.c
+index 8f98a9fa..201d2b26 100644
+--- a/product/tc2/scp_ramfw/config_clock.c
++++ b/product/tc2/scp_ramfw/config_clock.c
+@@ -20,37 +20,37 @@
+ #include <fwk_module_idx.h>
+ 
+ static const struct fwk_element clock_dev_desc_table[CLOCK_IDX_COUNT + 1] = {
+-    [CLOCK_IDX_CPU_GROUP_HAYES] =
++    [CLOCK_IDX_CPU_GROUP_CORTEX_A520] =
+         {
+-            .name = "CPU_GROUP_HAYES",
++            .name = "CPU_GROUP_CORTEX_A520",
+             .data = &((struct mod_clock_dev_config){
+                 .driver_id = FWK_ID_ELEMENT_INIT(
+                     FWK_MODULE_IDX_CSS_CLOCK,
+-                    CLOCK_CSS_IDX_CPU_GROUP_HAYES),
++                    CLOCK_CSS_IDX_CPU_GROUP_CORTEX_A520),
+                 .api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_CSS_CLOCK,
+                     MOD_CSS_CLOCK_API_TYPE_CLOCK),
+             }),
+         },
+-    [CLOCK_IDX_CPU_GROUP_HUNTER] =
++    [CLOCK_IDX_CPU_GROUP_CORTEX_A720] =
+         {
+-            .name = "CPU_GROUP_HUNTER",
++            .name = "CPU_GROUP_CORTEX_A720",
+             .data = &((struct mod_clock_dev_config){
+                 .driver_id = FWK_ID_ELEMENT_INIT(
+                     FWK_MODULE_IDX_CSS_CLOCK,
+-                    CLOCK_CSS_IDX_CPU_GROUP_HUNTER),
++                    CLOCK_CSS_IDX_CPU_GROUP_CORTEX_A720),
+                 .api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_CSS_CLOCK,
+                     MOD_CSS_CLOCK_API_TYPE_CLOCK),
+             }),
+         },
+-    [CLOCK_IDX_CPU_GROUP_HUNTER_ELP] =
++    [CLOCK_IDX_CPU_GROUP_CORTEX_X4] =
+         {
+-            .name = "CPU_GROUP_HUNTER_ELP",
++            .name = "CPU_GROUP_CORTEX_X4",
+             .data = &((struct mod_clock_dev_config){
+                 .driver_id = FWK_ID_ELEMENT_INIT(
+                     FWK_MODULE_IDX_CSS_CLOCK,
+-                    CLOCK_CSS_IDX_CPU_GROUP_HUNTER_ELP),
++                    CLOCK_CSS_IDX_CPU_GROUP_CORTEX_X4),
+                 .api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_CSS_CLOCK,
+                     MOD_CSS_CLOCK_API_TYPE_CLOCK),
+diff --git a/product/tc2/scp_ramfw/config_css_clock.c b/product/tc2/scp_ramfw/config_css_clock.c
+index 9f6ff764..3a993187 100644
+--- a/product/tc2/scp_ramfw/config_css_clock.c
++++ b/product/tc2/scp_ramfw/config_css_clock.c
+@@ -17,7 +17,7 @@
+ #include <fwk_module.h>
+ #include <fwk_module_idx.h>
+ 
+-static const struct mod_css_clock_rate rate_table_cpu_group_hayes[5] = {
++static const struct mod_css_clock_rate rate_table_cpu_group_cortex_a520[5] = {
+     {
+         /* Super Underdrive */
+         .rate = 768 * FWK_MHZ,
+@@ -70,7 +70,7 @@ static const struct mod_css_clock_rate rate_table_cpu_group_hayes[5] = {
+     },
+ };
+ 
+-static const struct mod_css_clock_rate rate_table_cpu_group_hunter[5] = {
++static const struct mod_css_clock_rate rate_table_cpu_group_cortex_a720[5] = {
+     {
+         /* Super Underdrive */
+         .rate = 946 * FWK_MHZ,
+@@ -123,7 +123,7 @@ static const struct mod_css_clock_rate rate_table_cpu_group_hunter[5] = {
+     },
+ };
+ 
+-static const struct mod_css_clock_rate rate_table_cpu_group_hunter_elp[5] = {
++static const struct mod_css_clock_rate rate_table_cpu_group_cortex_x4[5] = {
+     {
+         /* Super Underdrive */
+         .rate = 1088 * FWK_MHZ,
+@@ -176,20 +176,20 @@ static const struct mod_css_clock_rate rate_table_cpu_group_hunter_elp[5] = {
+     },
+ };
+ 
+-static const fwk_id_t member_table_cpu_group_hayes[4] = {
++static const fwk_id_t member_table_cpu_group_cortex_a520[4] = {
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU0),
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU1),
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU2),
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU3),
+ };
+ 
+-static const fwk_id_t member_table_cpu_group_hunter[3] = {
++static const fwk_id_t member_table_cpu_group_cortex_a720[3] = {
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU4),
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU5),
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU6),
+ };
+ 
+-static const fwk_id_t member_table_cpu_group_hunter_elp[1] = {
++static const fwk_id_t member_table_cpu_group_cortex_x4[1] = {
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU7),
+ };
+ 
+@@ -199,23 +199,23 @@ static const fwk_id_t member_table_dpu[1] = {
+ 
+ static const struct fwk_element css_clock_element_table[
+     CLOCK_CSS_IDX_COUNT + 1] = {
+-    [CLOCK_CSS_IDX_CPU_GROUP_HAYES] =
++    [CLOCK_CSS_IDX_CPU_GROUP_CORTEX_A520] =
+         {
+-            .name = "CPU_GROUP_HAYES",
++            .name = "CPU_GROUP_CORTEX_A520",
+             .data = &((struct mod_css_clock_dev_config){
+                 .clock_type = MOD_CSS_CLOCK_TYPE_INDEXED,
+-                .rate_table = rate_table_cpu_group_hayes,
+-                .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hayes),
++                .rate_table = rate_table_cpu_group_cortex_a520,
++                .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a520),
+                 .clock_switching_source =
+                     MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL0,
+                 .pll_id = FWK_ID_ELEMENT_INIT(
+                     FWK_MODULE_IDX_SYSTEM_PLL,
+-                    CLOCK_PLL_IDX_CPU_HAYES),
++                    CLOCK_PLL_IDX_CPU_CORTEX_A520),
+                 .pll_api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_SYSTEM_PLL,
+                     MOD_SYSTEM_PLL_API_TYPE_DEFAULT),
+-                .member_table = member_table_cpu_group_hayes,
+-                .member_count = FWK_ARRAY_SIZE(member_table_cpu_group_hayes),
++                .member_table = member_table_cpu_group_cortex_a520,
++                .member_count = FWK_ARRAY_SIZE(member_table_cpu_group_cortex_a520),
+                 .member_api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_PIK_CLOCK,
+                     MOD_PIK_CLOCK_API_TYPE_CSS),
+@@ -223,23 +223,23 @@ static const struct fwk_element css_clock_element_table[
+                 .modulation_supported = true,
+             }),
+         },
+-    [CLOCK_CSS_IDX_CPU_GROUP_HUNTER] =
++    [CLOCK_CSS_IDX_CPU_GROUP_CORTEX_A720] =
+         {
+-            .name = "CPU_GROUP_HUNTER",
++            .name = "CPU_GROUP_CORTEX_A720",
+             .data = &((struct mod_css_clock_dev_config){
+                 .clock_type = MOD_CSS_CLOCK_TYPE_INDEXED,
+-                .rate_table = rate_table_cpu_group_hunter,
+-                .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter),
++                .rate_table = rate_table_cpu_group_cortex_a720,
++                .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a720),
+                 .clock_switching_source =
+                     MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL1,
+                 .pll_id = FWK_ID_ELEMENT_INIT(
+                     FWK_MODULE_IDX_SYSTEM_PLL,
+-                    CLOCK_PLL_IDX_CPU_HUNTER),
++                    CLOCK_PLL_IDX_CPU_CORTEX_A720),
+                 .pll_api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_SYSTEM_PLL,
+                     MOD_SYSTEM_PLL_API_TYPE_DEFAULT),
+-                .member_table = member_table_cpu_group_hunter,
+-                .member_count = FWK_ARRAY_SIZE(member_table_cpu_group_hunter),
++                .member_table = member_table_cpu_group_cortex_a720,
++                .member_count = FWK_ARRAY_SIZE(member_table_cpu_group_cortex_a720),
+                 .member_api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_PIK_CLOCK,
+                     MOD_PIK_CLOCK_API_TYPE_CSS),
+@@ -247,24 +247,24 @@ static const struct fwk_element css_clock_element_table[
+                 .modulation_supported = true,
+             }),
+         },
+-    [CLOCK_CSS_IDX_CPU_GROUP_HUNTER_ELP] =
++    [CLOCK_CSS_IDX_CPU_GROUP_CORTEX_X4] =
+         {
+-            .name = "CPU_GROUP_HUNTER_ELP",
++            .name = "CPU_GROUP_CORTEX_X4",
+             .data = &((struct mod_css_clock_dev_config){
+                 .clock_type = MOD_CSS_CLOCK_TYPE_INDEXED,
+-                .rate_table = rate_table_cpu_group_hunter_elp,
+-                .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp),
++                .rate_table = rate_table_cpu_group_cortex_x4,
++                .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_x4),
+                 .clock_switching_source =
+                     MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL2,
+                 .pll_id = FWK_ID_ELEMENT_INIT(
+                     FWK_MODULE_IDX_SYSTEM_PLL,
+-                    CLOCK_PLL_IDX_CPU_HUNTER_ELP),
++                    CLOCK_PLL_IDX_CPU_CORTEX_X4),
+                 .pll_api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_SYSTEM_PLL,
+                     MOD_SYSTEM_PLL_API_TYPE_DEFAULT),
+-                .member_table = member_table_cpu_group_hunter_elp,
++                .member_table = member_table_cpu_group_cortex_x4,
+                 .member_count =
+-                    FWK_ARRAY_SIZE(member_table_cpu_group_hunter_elp),
++                    FWK_ARRAY_SIZE(member_table_cpu_group_cortex_x4),
+                 .member_api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_PIK_CLOCK,
+                     MOD_PIK_CLOCK_API_TYPE_CSS),
+diff --git a/product/tc2/scp_ramfw/config_dvfs.c b/product/tc2/scp_ramfw/config_dvfs.c
+index cb2f42f9..5b2043d8 100644
+--- a/product/tc2/scp_ramfw/config_dvfs.c
++++ b/product/tc2/scp_ramfw/config_dvfs.c
+@@ -31,171 +31,171 @@
+  */
+ 
+ /* dynamic-power-coeffient/1000 */
+-#define HAYES_DPC      0.230
+-#define HUNTER_DPC     0.495
+-#define HUNTER_ELP_DPC 1.054
++#define CORTEX_A520_DPC      0.230
++#define CORTEX_A720_DPC     0.495
++#define CORTEX_X4_DPC 1.054
+ 
+-static struct mod_dvfs_opp operating_points_hayes[6] = {
++static struct mod_dvfs_opp operating_points_cortex_a520[6] = {
+     {
+         .level = 768 * 1000000UL,
+         .frequency = 768 * FWK_KHZ,
+         .voltage = 550,
+-        .power = (uint32_t)(HAYES_DPC * 768 * 0.550 * 0.550),
++        .power = (uint32_t)(CORTEX_A520_DPC * 768 * 0.550 * 0.550),
+     },
+     {
+         .level = 1153 * 1000000UL,
+         .frequency = 1153 * FWK_KHZ,
+         .voltage = 650,
+-        .power = (uint32_t)(HAYES_DPC * 1153 * 0.650 * 0.650),
++        .power = (uint32_t)(CORTEX_A520_DPC * 1153 * 0.650 * 0.650),
+     },
+     {
+         .level = 1537 * 1000000UL,
+         .frequency = 1537 * FWK_KHZ,
+         .voltage = 750,
+-        .power = (uint32_t)(HAYES_DPC * 1537 * 0.750 * 0.750),
++        .power = (uint32_t)(CORTEX_A520_DPC * 1537 * 0.750 * 0.750),
+     },
+     {
+         .level = 1844 * 1000000UL,
+         .frequency = 1844 * FWK_KHZ,
+         .voltage = 850,
+-        .power = (uint32_t)(HAYES_DPC * 1844 * 0.850 * 0.850),
++        .power = (uint32_t)(CORTEX_A520_DPC * 1844 * 0.850 * 0.850),
+     },
+     {
+         .level = 2152 * 1000000UL,
+         .frequency = 2152 * FWK_KHZ,
+         .voltage = 950,
+-        .power = (uint32_t)(HAYES_DPC * 2152 * 0.950 * 0.950),
++        .power = (uint32_t)(CORTEX_A520_DPC * 2152 * 0.950 * 0.950),
+     },
+     { 0 }
+ };
+ 
+-static struct mod_dvfs_opp operating_points_hunter[6] = {
++static struct mod_dvfs_opp operating_points_cortex_a720[6] = {
+     {
+         .level = 946 * 1000000UL,
+         .frequency = 946 * FWK_KHZ,
+         .voltage = 550,
+-        .power = (uint32_t)(HUNTER_DPC * 946 * 0.550 * 0.550),
++        .power = (uint32_t)(CORTEX_A720_DPC * 946 * 0.550 * 0.550),
+     },
+     {
+         .level = 1419 * 1000000UL,
+         .frequency = 1419 * FWK_KHZ,
+         .voltage = 650,
+-        .power = (uint32_t)(HUNTER_DPC * 1419 * 0.650 * 0.650),
++        .power = (uint32_t)(CORTEX_A720_DPC * 1419 * 0.650 * 0.650),
+     },
+     {
+         .level = 1893 * 1000000UL,
+         .frequency = 1893 * FWK_KHZ,
+         .voltage = 750,
+-        .power = (uint32_t)(HUNTER_DPC * 1893 * 0.750 * 0.750),
++        .power = (uint32_t)(CORTEX_A720_DPC * 1893 * 0.750 * 0.750),
+     },
+     {
+         .level = 2271 * 1000000UL,
+         .frequency = 2271 * FWK_KHZ,
+         .voltage = 850,
+-        .power = (uint32_t)(HUNTER_DPC * 2271 * 0.850 * 0.850),
++        .power = (uint32_t)(CORTEX_A720_DPC * 2271 * 0.850 * 0.850),
+     },
+     {
+         .level = 2650 * 1000000UL,
+         .frequency = 2650 * FWK_KHZ,
+         .voltage = 950,
+-        .power = (uint32_t)(HUNTER_DPC * 2650 * 0.950 * 0.950),
++        .power = (uint32_t)(CORTEX_A720_DPC * 2650 * 0.950 * 0.950),
+     },
+     { 0 }
+ };
+ 
+-static struct mod_dvfs_opp operating_points_hunter_elp[6] = {
++static struct mod_dvfs_opp operating_points_cortex_x4[6] = {
+     {
+         .level = 1088 * 1000000UL,
+         .frequency = 1088 * FWK_KHZ,
+         .voltage = 550,
+-        .power = (uint32_t)(HUNTER_ELP_DPC * 1088 * 0.550 * 0.550),
++        .power = (uint32_t)(CORTEX_X4_DPC * 1088 * 0.550 * 0.550),
+     },
+     {
+         .level = 1632 * 1000000UL,
+         .frequency = 1632 * FWK_KHZ,
+         .voltage = 650,
+-        .power = (uint32_t)(HUNTER_ELP_DPC * 1632 * 0.650 * 0.650),
++        .power = (uint32_t)(CORTEX_X4_DPC * 1632 * 0.650 * 0.650),
+     },
+     {
+         .level = 2176 * 1000000UL,
+         .frequency = 2176 * FWK_KHZ,
+         .voltage = 750,
+-        .power = (uint32_t)(HUNTER_ELP_DPC * 2176 * 0.750 * 0.750),
++        .power = (uint32_t)(CORTEX_X4_DPC * 2176 * 0.750 * 0.750),
+     },
+     {
+         .level = 2612 * 1000000UL,
+         .frequency = 2612 * FWK_KHZ,
+         .voltage = 850,
+-        .power = (uint32_t)(HUNTER_ELP_DPC * 2612 * 0.850 * 0.850),
++        .power = (uint32_t)(CORTEX_X4_DPC * 2612 * 0.850 * 0.850),
+     },
+     {
+         .level = 3047 * 1000000UL,
+         .frequency = 3047 * FWK_KHZ,
+         .voltage = 950,
+-        .power = (uint32_t)(HUNTER_ELP_DPC * 3047 * 0.950 * 0.950),
++        .power = (uint32_t)(CORTEX_X4_DPC * 3047 * 0.950 * 0.950),
+     },
+     { 0 }
+ };
+ 
+-static const struct mod_dvfs_domain_config cpu_group_hayes = {
+-    .psu_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PSU, PSU_ELEMENT_IDX_HAYES),
++static const struct mod_dvfs_domain_config cpu_group_cortex_a520 = {
++    .psu_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PSU, PSU_ELEMENT_IDX_CORTEX_A520),
+     .clock_id =
+-        FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_CLOCK, CLOCK_IDX_CPU_GROUP_HAYES),
++        FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_CLOCK, CLOCK_IDX_CPU_GROUP_CORTEX_A520),
+     .alarm_id = FWK_ID_SUB_ELEMENT_INIT(
+         FWK_MODULE_IDX_TIMER,
+         0,
+-        TC2_CONFIG_TIMER_DVFS_CPU_HAYES),
++        TC2_CONFIG_TIMER_DVFS_CPU_CORTEX_A520),
+     .retry_ms = 1,
+     .latency = 1200,
+     .sustained_idx = 2,
+-    .opps = operating_points_hayes,
++    .opps = operating_points_cortex_a520,
+ };
+ 
+-static const struct mod_dvfs_domain_config cpu_group_hunter = {
+-    .psu_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PSU, PSU_ELEMENT_IDX_HUNTER),
++static const struct mod_dvfs_domain_config cpu_group_cortex_a720 = {
++    .psu_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PSU, PSU_ELEMENT_IDX_CORTEX_A720),
+     .clock_id =
+-        FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_CLOCK, CLOCK_IDX_CPU_GROUP_HUNTER),
++        FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_CLOCK, CLOCK_IDX_CPU_GROUP_CORTEX_A720),
+     .alarm_id = FWK_ID_SUB_ELEMENT_INIT(
+         FWK_MODULE_IDX_TIMER,
+         0,
+-        TC2_CONFIG_TIMER_DVFS_CPU_HUNTER),
++        TC2_CONFIG_TIMER_DVFS_CPU_CORTEX_A720),
+     .retry_ms = 1,
+     .latency = 1200,
+     .sustained_idx = 2,
+-    .opps = operating_points_hunter,
++    .opps = operating_points_cortex_a720,
+ };
+ 
+-static const struct mod_dvfs_domain_config cpu_group_hunter_elp = {
++static const struct mod_dvfs_domain_config cpu_group_cortex_x4 = {
+     .psu_id =
+-        FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PSU, PSU_ELEMENT_IDX_HUNTER_ELP),
++        FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PSU, PSU_ELEMENT_IDX_CORTEX_X4),
+     .clock_id = FWK_ID_ELEMENT_INIT(
+         FWK_MODULE_IDX_CLOCK,
+-        CLOCK_IDX_CPU_GROUP_HUNTER_ELP),
++        CLOCK_IDX_CPU_GROUP_CORTEX_X4),
+     .alarm_id = FWK_ID_SUB_ELEMENT_INIT(
+         FWK_MODULE_IDX_TIMER,
+         0,
+-        TC2_CONFIG_TIMER_DVFS_CPU_HUNTER_ELP),
++        TC2_CONFIG_TIMER_DVFS_CPU_CORTEX_X4),
+     .retry_ms = 1,
+     .latency = 1200,
+     .sustained_idx = 2,
+-    .opps = operating_points_hunter_elp,
++    .opps = operating_points_cortex_x4,
+ };
+ 
+ static const struct fwk_element element_table[DVFS_ELEMENT_IDX_COUNT + 1] = {
+-    [DVFS_ELEMENT_IDX_HAYES] =
++    [DVFS_ELEMENT_IDX_CORTEX_A520] =
+         {
+-            .name = "CPU_GROUP_HAYES",
+-            .data = &cpu_group_hayes,
++            .name = "CPU_GROUP_CORTEX_A520",
++            .data = &cpu_group_cortex_a520,
+         },
+-    [DVFS_ELEMENT_IDX_HUNTER] =
++    [DVFS_ELEMENT_IDX_CORTEX_A720] =
+         {
+-            .name = "CPU_GROUP_HUNTER",
+-            .data = &cpu_group_hunter,
++            .name = "CPU_GROUP_CORTEX_A720",
++            .data = &cpu_group_cortex_a720,
+         },
+-    [DVFS_ELEMENT_IDX_HUNTER_ELP] =
++    [DVFS_ELEMENT_IDX_CORTEX_X4] =
+         {
+-            .name = "CPU_GROUP_HUNTER_ELP",
+-            .data = &cpu_group_hunter_elp,
++            .name = "CPU_GROUP_CORTEX_X4",
++            .data = &cpu_group_cortex_x4,
+         },
+     { 0 },
+ };
+diff --git a/product/tc2/scp_ramfw/config_gtimer.c b/product/tc2/scp_ramfw/config_gtimer.c
+index 5cbef899..a65689a7 100644
+--- a/product/tc2/scp_ramfw/config_gtimer.c
++++ b/product/tc2/scp_ramfw/config_gtimer.c
+@@ -28,7 +28,7 @@ static const struct fwk_element gtimer_dev_table[2] = {
+                 .frequency = CLOCK_RATE_REFCLK,
+                 .clock_id = FWK_ID_ELEMENT_INIT(
+                    FWK_MODULE_IDX_CLOCK,
+-                    CLOCK_IDX_CPU_GROUP_HAYES),
++                    CLOCK_IDX_CPU_GROUP_CORTEX_A520),
+         }),
+     },
+     [1] = { 0 },
+diff --git a/product/tc2/scp_ramfw/config_mock_psu.c b/product/tc2/scp_ramfw/config_mock_psu.c
+index 50bd1f5b..7dc2ddbe 100644
+--- a/product/tc2/scp_ramfw/config_mock_psu.c
++++ b/product/tc2/scp_ramfw/config_mock_psu.c
+@@ -13,8 +13,8 @@
+ #include <fwk_module.h>
+ 
+ static const struct fwk_element element_table[MOCK_PSU_ELEMENT_IDX_COUNT + 1] = {
+-    [MOCK_PSU_ELEMENT_IDX_HAYES] = {
+-        .name = "DVFS_GROUP_HAYES",
++    [MOCK_PSU_ELEMENT_IDX_CORTEX_A520] = {
++        .name = "DVFS_GROUP_CORTEX_A520",
+         .data =
+             &(const struct mod_mock_psu_element_cfg){
+                 .async_alarm_id = FWK_ID_NONE_INIT,
+@@ -27,8 +27,8 @@ static const struct fwk_element element_table[MOCK_PSU_ELEMENT_IDX_COUNT + 1] =
+                 .default_voltage = 550,
+             },
+     },
+-    [MOCK_PSU_ELEMENT_IDX_HUNTER] = {
+-        .name = "DVFS_GROUP_HUNTER",
++    [MOCK_PSU_ELEMENT_IDX_CORTEX_A720] = {
++        .name = "DVFS_GROUP_CORTEX_A720",
+         .data =
+             &(const struct mod_mock_psu_element_cfg){
+                 .async_alarm_id = FWK_ID_NONE_INIT,
+@@ -41,8 +41,8 @@ static const struct fwk_element element_table[MOCK_PSU_ELEMENT_IDX_COUNT + 1] =
+                 .default_voltage = 550,
+             },
+     },
+-    [MOCK_PSU_ELEMENT_IDX_HUNTER_ELP] = {
+-        .name = "DVFS_GROUP_HUNTER_ELP",
++    [MOCK_PSU_ELEMENT_IDX_CORTEX_X4] = {
++        .name = "DVFS_GROUP_CORTEX_X4",
+         .data =
+             &(const struct mod_mock_psu_element_cfg){
+                 .async_alarm_id = FWK_ID_NONE_INIT,
+diff --git a/product/tc2/scp_ramfw/config_mpmm.c b/product/tc2/scp_ramfw/config_mpmm.c
+index bb8d09da..e5544347 100644
+--- a/product/tc2/scp_ramfw/config_mpmm.c
++++ b/product/tc2/scp_ramfw/config_mpmm.c
+@@ -27,7 +27,7 @@ enum cpu_idx {
+     CORE7_IDX
+ };
+ 
+-static struct mod_mpmm_pct_table hunter_pct[4] = {
++static struct mod_mpmm_pct_table cortex_a720_pct[4] = {
+     {
+         .cores_online = 4,
+         .default_perf_limit = 1419 * 1000000UL,
+@@ -86,7 +86,7 @@ static struct mod_mpmm_pct_table hunter_pct[4] = {
+     },
+ };
+ 
+-static const struct mod_mpmm_core_config hunter_core_config[4] = {
++static const struct mod_mpmm_core_config cortex_a720_core_config[4] = {
+     [0] = {
+         .pd_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_POWER_DOMAIN, CORE4_IDX),
+         .mpmm_reg_base = SCP_MPMM_CORE_BASE(CORE4_IDX),
+@@ -113,24 +113,24 @@ static const struct mod_mpmm_core_config hunter_core_config[4] = {
+     },
+ };
+ 
+-static const struct mod_mpmm_domain_config hunter_domain_conf[2] = {
++static const struct mod_mpmm_domain_config cortex_a720_domain_conf[2] = {
+     [0] = {
+         .perf_id = FWK_ID_ELEMENT_INIT(
+-            FWK_MODULE_IDX_DVFS, DVFS_ELEMENT_IDX_HUNTER),
+-        .pct = hunter_pct,
+-        .pct_size = FWK_ARRAY_SIZE(hunter_pct),
++            FWK_MODULE_IDX_DVFS, DVFS_ELEMENT_IDX_CORTEX_A720),
++        .pct = cortex_a720_pct,
++        .pct_size = FWK_ARRAY_SIZE(cortex_a720_pct),
+         .btc = 10,
+         .num_threshold_counters = 3,
+-        .core_config = hunter_core_config,
++        .core_config = cortex_a720_core_config,
+     },
+     [1] = {0},
+ };
+ 
+ static const struct fwk_element element_table[2] = {
+     [0] = {
+-        .name = "MPMM_HUNTER_ELEM",
++        .name = "MPMM_CORTEX_A720_ELEM",
+         .sub_element_count = 1,
+-        .data = hunter_domain_conf,
++        .data = cortex_a720_domain_conf,
+     },
+     [1] = { 0 },
+ };
+diff --git a/product/tc2/scp_ramfw/config_pik_clock.c b/product/tc2/scp_ramfw/config_pik_clock.c
+index f452646c..41f62dcd 100644
+--- a/product/tc2/scp_ramfw/config_pik_clock.c
++++ b/product/tc2/scp_ramfw/config_pik_clock.c
+@@ -21,7 +21,7 @@
+ /*
+  * Rate lookup tables
+  */
+-static const struct mod_pik_clock_rate rate_table_cpu_group_hayes[1] = {
++static const struct mod_pik_clock_rate rate_table_cpu_group_cortex_a520[1] = {
+     {
+         .rate = 1537 * FWK_MHZ,
+         .source = MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL0,
+@@ -30,7 +30,7 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_hayes[1] = {
+     },
+ };
+ 
+-static const struct mod_pik_clock_rate rate_table_cpu_group_hunter[1] = {
++static const struct mod_pik_clock_rate rate_table_cpu_group_cortex_a720[1] = {
+     {
+         .rate = 1893 * FWK_MHZ,
+         .source = MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL1,
+@@ -39,7 +39,7 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_hunter[1] = {
+     },
+ };
+ 
+-static const struct mod_pik_clock_rate rate_table_cpu_group_hunter_elp[1] = {
++static const struct mod_pik_clock_rate rate_table_cpu_group_cortex_x4[1] = {
+     {
+         .rate = 2176 * FWK_MHZ,
+         .source = MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL2,
+@@ -104,8 +104,8 @@ static const struct fwk_element pik_clock_element_table[
+             .control_reg = &CLUSTER_PIK_PTR->CORECLK[0].CTRL,
+             .divext_reg = &CLUSTER_PIK_PTR->CORECLK[0].DIV,
+             .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[0].MOD,
+-            .rate_table = rate_table_cpu_group_hayes,
+-            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hayes),
++            .rate_table = rate_table_cpu_group_cortex_a520,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a520),
+         }),
+     },
+     [CLOCK_PIK_IDX_CLUS0_CPU1] = {
+@@ -116,8 +116,8 @@ static const struct fwk_element pik_clock_element_table[
+             .control_reg = &CLUSTER_PIK_PTR->CORECLK[1].CTRL,
+             .divext_reg = &CLUSTER_PIK_PTR->CORECLK[1].DIV,
+             .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[1].MOD,
+-            .rate_table = rate_table_cpu_group_hayes,
+-            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hayes),
++            .rate_table = rate_table_cpu_group_cortex_a520,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a520),
+         }),
+     },
+     [CLOCK_PIK_IDX_CLUS0_CPU2] = {
+@@ -128,8 +128,8 @@ static const struct fwk_element pik_clock_element_table[
+             .control_reg = &CLUSTER_PIK_PTR->CORECLK[2].CTRL,
+             .divext_reg = &CLUSTER_PIK_PTR->CORECLK[2].DIV,
+             .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[2].MOD,
+-            .rate_table = rate_table_cpu_group_hayes,
+-            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hayes),
++            .rate_table = rate_table_cpu_group_cortex_a520,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a520),
+         }),
+     },
+     [CLOCK_PIK_IDX_CLUS0_CPU3] = {
+@@ -140,8 +140,8 @@ static const struct fwk_element pik_clock_element_table[
+             .control_reg = &CLUSTER_PIK_PTR->CORECLK[3].CTRL,
+             .divext_reg = &CLUSTER_PIK_PTR->CORECLK[3].DIV,
+             .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[3].MOD,
+-            .rate_table = rate_table_cpu_group_hayes,
+-            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hayes),
++            .rate_table = rate_table_cpu_group_cortex_a520,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a520),
+         }),
+     },
+     [CLOCK_PIK_IDX_CLUS0_CPU4] = {
+@@ -152,8 +152,8 @@ static const struct fwk_element pik_clock_element_table[
+             .control_reg = &CLUSTER_PIK_PTR->CORECLK[4].CTRL,
+             .divext_reg = &CLUSTER_PIK_PTR->CORECLK[4].DIV,
+             .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[4].MOD,
+-            .rate_table = rate_table_cpu_group_hunter,
+-            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter),
++            .rate_table = rate_table_cpu_group_cortex_a720,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a720),
+         }),
+     },
+     [CLOCK_PIK_IDX_CLUS0_CPU5] = {
+@@ -164,8 +164,8 @@ static const struct fwk_element pik_clock_element_table[
+             .control_reg = &CLUSTER_PIK_PTR->CORECLK[5].CTRL,
+             .divext_reg = &CLUSTER_PIK_PTR->CORECLK[5].DIV,
+             .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[5].MOD,
+-            .rate_table = rate_table_cpu_group_hunter,
+-            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter),
++            .rate_table = rate_table_cpu_group_cortex_a720,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a720),
+         }),
+     },
+     [CLOCK_PIK_IDX_CLUS0_CPU6] = {
+@@ -176,8 +176,8 @@ static const struct fwk_element pik_clock_element_table[
+             .control_reg = &CLUSTER_PIK_PTR->CORECLK[6].CTRL,
+             .divext_reg = &CLUSTER_PIK_PTR->CORECLK[6].DIV,
+             .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[6].MOD,
+-            .rate_table = rate_table_cpu_group_hunter,
+-            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter),
++            .rate_table = rate_table_cpu_group_cortex_a720,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a720),
+         }),
+     },
+     [CLOCK_PIK_IDX_CLUS0_CPU7] = {
+@@ -188,8 +188,8 @@ static const struct fwk_element pik_clock_element_table[
+             .control_reg = &CLUSTER_PIK_PTR->CORECLK[7].CTRL,
+             .divext_reg = &CLUSTER_PIK_PTR->CORECLK[7].DIV,
+             .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[7].MOD,
+-            .rate_table = rate_table_cpu_group_hunter_elp,
+-            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp),
++            .rate_table = rate_table_cpu_group_cortex_x4,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_x4),
+         }),
+     },
+     [CLOCK_PIK_IDX_GIC] = {
+diff --git a/product/tc2/scp_ramfw/config_psu.c b/product/tc2/scp_ramfw/config_psu.c
+index 4fa8778e..9015dcd2 100644
+--- a/product/tc2/scp_ramfw/config_psu.c
++++ b/product/tc2/scp_ramfw/config_psu.c
+@@ -16,32 +16,32 @@
+ #include <fwk_module_idx.h>
+ 
+ static const struct fwk_element element_table[PSU_ELEMENT_IDX_COUNT + 1] = {
+-    [PSU_ELEMENT_IDX_HAYES] = {
+-        .name = "PSU_GROUP_HAYES",
++    [PSU_ELEMENT_IDX_CORTEX_A520] = {
++        .name = "PSU_GROUP_CORTEX_A520",
+         .data =
+             &(const struct mod_psu_element_cfg){
+                 .driver_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_MOCK_PSU,
+-                    MOCK_PSU_ELEMENT_IDX_HAYES),
++                    MOCK_PSU_ELEMENT_IDX_CORTEX_A520),
+                 .driver_api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_MOCK_PSU,
+                     MOD_MOCK_PSU_API_IDX_DRIVER) },
+     },
+-    [PSU_ELEMENT_IDX_HUNTER] = {
+-        .name = "PSU_GROUP_HUNTER",
++    [PSU_ELEMENT_IDX_CORTEX_A720] = {
++        .name = "PSU_GROUP_CORTEX_A720",
+         .data =
+             &(const struct mod_psu_element_cfg){
+                 .driver_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_MOCK_PSU,
+-                    MOCK_PSU_ELEMENT_IDX_HUNTER),
++                    MOCK_PSU_ELEMENT_IDX_CORTEX_A720),
+                 .driver_api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_MOCK_PSU,
+                     MOD_MOCK_PSU_API_IDX_DRIVER) },
+     },
+-    [PSU_ELEMENT_IDX_HUNTER_ELP] = {
+-        .name = "PSU_GROUP_HUNTER_ELP",
++    [PSU_ELEMENT_IDX_CORTEX_X4] = {
++        .name = "PSU_GROUP_CORTEX_X4",
+         .data =
+             &(const struct mod_psu_element_cfg){
+                 .driver_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_MOCK_PSU,
+-                    MOCK_PSU_ELEMENT_IDX_HUNTER_ELP),
++                    MOCK_PSU_ELEMENT_IDX_CORTEX_X4),
+                 .driver_api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_MOCK_PSU,
+                     MOD_MOCK_PSU_API_IDX_DRIVER) },
+diff --git a/product/tc2/scp_ramfw/config_scmi_perf.c b/product/tc2/scp_ramfw/config_scmi_perf.c
+index bd99f60d..96a55088 100644
+--- a/product/tc2/scp_ramfw/config_scmi_perf.c
++++ b/product/tc2/scp_ramfw/config_scmi_perf.c
+@@ -56,75 +56,75 @@
+ 
+ static const struct mod_scmi_perf_domain_config
+     domains[DVFS_ELEMENT_IDX_COUNT] = {
+-        [DVFS_ELEMENT_IDX_HAYES] = {
++        [DVFS_ELEMENT_IDX_CORTEX_A520] = {
+ #ifdef BUILD_HAS_SCMI_PERF_FAST_CHANNELS
+          .fast_channels_addr_scp = (uint64_t[]) {
+             [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_SET] =
+-                FC_LEVEL_SET_ADDR(DVFS_ELEMENT_IDX_HAYES),
++                FC_LEVEL_SET_ADDR(DVFS_ELEMENT_IDX_CORTEX_A520),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_SET] =
+-                FC_LIMIT_SET_ADDR(DVFS_ELEMENT_IDX_HAYES),
++                FC_LIMIT_SET_ADDR(DVFS_ELEMENT_IDX_CORTEX_A520),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_GET] =
+-                FC_LEVEL_GET_ADDR(DVFS_ELEMENT_IDX_HAYES),
++                FC_LEVEL_GET_ADDR(DVFS_ELEMENT_IDX_CORTEX_A520),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_GET] =
+-                FC_LIMIT_GET_ADDR(DVFS_ELEMENT_IDX_HAYES),
++                FC_LIMIT_GET_ADDR(DVFS_ELEMENT_IDX_CORTEX_A520),
+         },
+          .fast_channels_addr_ap = (uint64_t[]) {
+             [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_SET] =
+-                FC_LEVEL_SET_AP_ADDR(DVFS_ELEMENT_IDX_HAYES),
++                FC_LEVEL_SET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_A520),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_SET] =
+-                FC_LIMIT_SET_AP_ADDR(DVFS_ELEMENT_IDX_HAYES),
++                FC_LIMIT_SET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_A520),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_GET] =
+-                FC_LEVEL_GET_AP_ADDR(DVFS_ELEMENT_IDX_HAYES),
++                FC_LEVEL_GET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_A520),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_GET] =
+-                FC_LIMIT_GET_AP_ADDR(DVFS_ELEMENT_IDX_HAYES),
++                FC_LIMIT_GET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_A520),
+         },
+ #endif
+         },
+-        [DVFS_ELEMENT_IDX_HUNTER] = {
++        [DVFS_ELEMENT_IDX_CORTEX_A720] = {
+ #ifdef BUILD_HAS_SCMI_PERF_FAST_CHANNELS
+          .fast_channels_addr_scp = (uint64_t[]) {
+             [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_SET] =
+-                FC_LEVEL_SET_ADDR(DVFS_ELEMENT_IDX_HUNTER),
++                FC_LEVEL_SET_ADDR(DVFS_ELEMENT_IDX_CORTEX_A720),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_SET] =
+-                FC_LIMIT_SET_ADDR(DVFS_ELEMENT_IDX_HUNTER),
++                FC_LIMIT_SET_ADDR(DVFS_ELEMENT_IDX_CORTEX_A720),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_GET] =
+-                FC_LEVEL_GET_ADDR(DVFS_ELEMENT_IDX_HUNTER),
++                FC_LEVEL_GET_ADDR(DVFS_ELEMENT_IDX_CORTEX_A720),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_GET] =
+-                FC_LIMIT_GET_ADDR(DVFS_ELEMENT_IDX_HUNTER),
++                FC_LIMIT_GET_ADDR(DVFS_ELEMENT_IDX_CORTEX_A720),
+         },
+          .fast_channels_addr_ap = (uint64_t[]) {
+             [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_SET] =
+-                FC_LEVEL_SET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER),
++                FC_LEVEL_SET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_A720),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_SET] =
+-                FC_LIMIT_SET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER),
++                FC_LIMIT_SET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_A720),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_GET] =
+-                FC_LEVEL_GET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER),
++                FC_LEVEL_GET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_A720),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_GET] =
+-                FC_LIMIT_GET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER),
++                FC_LIMIT_GET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_A720),
+         },
+ #endif
+         },
+-        [DVFS_ELEMENT_IDX_HUNTER_ELP] = {
++        [DVFS_ELEMENT_IDX_CORTEX_X4] = {
+ #ifdef BUILD_HAS_SCMI_PERF_FAST_CHANNELS
+          .fast_channels_addr_scp = (uint64_t[]) {
+             [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_SET] =
+-                FC_LEVEL_SET_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP),
++                FC_LEVEL_SET_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_SET] =
+-                FC_LIMIT_SET_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP),
++                FC_LIMIT_SET_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_GET] =
+-                FC_LEVEL_GET_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP),
++                FC_LEVEL_GET_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_GET] =
+-                FC_LIMIT_GET_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP),
++                FC_LIMIT_GET_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4),
+         },
+          .fast_channels_addr_ap = (uint64_t[]) {
+             [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_SET] =
+-                FC_LEVEL_SET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP),
++                FC_LEVEL_SET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_SET] =
+-                FC_LIMIT_SET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP),
++                FC_LIMIT_SET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_GET] =
+-                FC_LEVEL_GET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP),
++                FC_LEVEL_GET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4),
+             [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_GET] =
+-                FC_LIMIT_GET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP),
++                FC_LIMIT_GET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4),
+         },
+ #endif
+         },
+diff --git a/product/tc2/scp_ramfw/config_sds.c b/product/tc2/scp_ramfw/config_sds.c
+index 933ea021..67e78d48 100644
+--- a/product/tc2/scp_ramfw/config_sds.c
++++ b/product/tc2/scp_ramfw/config_sds.c
+@@ -41,7 +41,7 @@ const struct mod_sds_config sds_module_config = {
+     .regions = sds_module_regions,
+     .region_count = TC2_SDS_REGION_COUNT,
+     .clock_id =
+-        FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_CLOCK, CLOCK_IDX_CPU_GROUP_HAYES)
++        FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_CLOCK, CLOCK_IDX_CPU_GROUP_CORTEX_A520)
+ };
+ 
+ static struct fwk_element sds_element_table[3] = {
+diff --git a/product/tc2/scp_ramfw/config_system_pll.c b/product/tc2/scp_ramfw/config_system_pll.c
+index 0a7eb174..b7e24975 100644
+--- a/product/tc2/scp_ramfw/config_system_pll.c
++++ b/product/tc2/scp_ramfw/config_system_pll.c
+@@ -19,9 +19,9 @@
+ static const struct fwk_element system_pll_element_table[
+     CLOCK_PLL_IDX_COUNT + 1] =
+     {
+-        [CLOCK_PLL_IDX_CPU_HAYES] =
++        [CLOCK_PLL_IDX_CPU_CORTEX_A520] =
+             {
+-                .name = "CPU_PLL_HAYES",
++                .name = "CPU_PLL_CORTEX_A520",
+                 .data = &((struct mod_system_pll_dev_config){
+                     .control_reg = (void *)SCP_PLL_CPU0,
+                     .status_reg = (void *)&SCP_PIK_PTR->PLL_STATUS[1],
+@@ -32,9 +32,9 @@ static const struct fwk_element system_pll_element_table[
+                     .min_step = MOD_SYSTEM_PLL_MIN_INTERVAL,
+                 }),
+             },
+-        [CLOCK_PLL_IDX_CPU_HUNTER] =
++        [CLOCK_PLL_IDX_CPU_CORTEX_A720] =
+             {
+-                .name = "CPU_PLL_HUNTER",
++                .name = "CPU_PLL_CORTEX_A720",
+                 .data = &((struct mod_system_pll_dev_config){
+                     .control_reg = (void *)SCP_PLL_CPU1,
+                     .status_reg = (void *)&SCP_PIK_PTR->PLL_STATUS[1],
+@@ -45,9 +45,9 @@ static const struct fwk_element system_pll_element_table[
+                     .min_step = MOD_SYSTEM_PLL_MIN_INTERVAL,
+                 }),
+             },
+-        [CLOCK_PLL_IDX_CPU_HUNTER_ELP] =
++        [CLOCK_PLL_IDX_CPU_CORTEX_X4] =
+             {
+-                .name = "CPU_PLL_HUNTER_ELP",
++                .name = "CPU_PLL_CORTEX_X4",
+                 .data = &((struct mod_system_pll_dev_config){
+                     .control_reg = (void *)SCP_PLL_CPU2,
+                     .status_reg = (void *)&SCP_PIK_PTR->PLL_STATUS[1],
+diff --git a/product/tc2/scp_ramfw/config_thermal_mgmt.c b/product/tc2/scp_ramfw/config_thermal_mgmt.c
+index 2824cfe7..d4f7b6c3 100644
+--- a/product/tc2/scp_ramfw/config_thermal_mgmt.c
++++ b/product/tc2/scp_ramfw/config_thermal_mgmt.c
+@@ -22,14 +22,14 @@ static struct mod_thermal_mgmt_actor_config actor_table_domain0[2] = {
+         .driver_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_TC2_POWER_MODEL, 0),
+         .dvfs_domain_id =
+             FWK_ID_ELEMENT_INIT(
+-                FWK_MODULE_IDX_DVFS, DVFS_ELEMENT_IDX_HAYES),
++                FWK_MODULE_IDX_DVFS, DVFS_ELEMENT_IDX_CORTEX_A520),
+         .weight = 100,
+     },
+     [1] = {
+         .driver_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_TC2_POWER_MODEL, 1),
+         .dvfs_domain_id =
+             FWK_ID_ELEMENT_INIT(
+-                FWK_MODULE_IDX_DVFS, DVFS_ELEMENT_IDX_HUNTER),
++                FWK_MODULE_IDX_DVFS, DVFS_ELEMENT_IDX_CORTEX_A720),
+         .weight = 100,
+     },
+ };
+diff --git a/product/tc2/scp_ramfw/config_traffic_cop.c b/product/tc2/scp_ramfw/config_traffic_cop.c
+index 9f6b7397..482b2d69 100644
+--- a/product/tc2/scp_ramfw/config_traffic_cop.c
++++ b/product/tc2/scp_ramfw/config_traffic_cop.c
+@@ -27,7 +27,7 @@ enum cpu_idx {
+     CORE7_PD_IDX
+ };
+ 
+-static struct mod_tcop_pct_table hayes_pct[3] = {
++static struct mod_tcop_pct_table cortex_a520_pct[3] = {
+     {
+         /*
+          * Perf limit for 4 cores online.
+@@ -48,7 +48,7 @@ static struct mod_tcop_pct_table hayes_pct[3] = {
+     },
+ };
+ 
+-static const struct mod_tcop_core_config hayes_core_config[4] = {
++static const struct mod_tcop_core_config cortex_a520_core_config[4] = {
+     [0] = {
+         .pd_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_POWER_DOMAIN, CORE0_PD_IDX),
+         .core_starts_online = true,
+@@ -67,23 +67,23 @@ static const struct mod_tcop_core_config hayes_core_config[4] = {
+     },
+ };
+ 
+-static const struct mod_tcop_domain_config hayes_domain_conf[2] = {
++static const struct mod_tcop_domain_config cortex_a520_domain_conf[2] = {
+     [0] = {
+         .perf_id = FWK_ID_ELEMENT_INIT(
+             FWK_MODULE_IDX_DVFS,
+-            DVFS_ELEMENT_IDX_HAYES),
+-        .pct = hayes_pct,
+-        .pct_size = FWK_ARRAY_SIZE(hayes_pct),
+-        .core_config = hayes_core_config,
++            DVFS_ELEMENT_IDX_CORTEX_A520),
++        .pct = cortex_a520_pct,
++        .pct_size = FWK_ARRAY_SIZE(cortex_a520_pct),
++        .core_config = cortex_a520_core_config,
+     },
+     [1] = { { 0 } },
+ };
+ 
+ static const struct fwk_element element_table[2] = {
+     [0] = {
+-        .name = "TCOP_HAYES",
++        .name = "TCOP_CORTEX_A520",
+         .sub_element_count = 4,
+-        .data = hayes_domain_conf,
++        .data = cortex_a520_domain_conf,
+     },
+     [1] = { 0 },
+ };
+diff --git a/product/tc2/scp_romfw/config_clock.c b/product/tc2/scp_romfw/config_clock.c
+index 1f3aee95..ab93c3ee 100644
+--- a/product/tc2/scp_romfw/config_clock.c
++++ b/product/tc2/scp_romfw/config_clock.c
+@@ -26,13 +26,13 @@
+ #include <fwk_module_idx.h>
+ 
+ static const struct fwk_element clock_dev_desc_table[2] = {
+-    [CLOCK_IDX_CPU_GROUP_HAYES] =
++    [CLOCK_IDX_CPU_GROUP_CORTEX_A520] =
+         {
+-            .name = "CPU_GROUP_HAYES",
++            .name = "CPU_GROUP_CORTEX_A520",
+             .data = &((struct mod_clock_dev_config){
+                 .driver_id = FWK_ID_ELEMENT_INIT(
+                     FWK_MODULE_IDX_CSS_CLOCK,
+-                    CLOCK_CSS_IDX_CPU_GROUP_HAYES),
++                    CLOCK_CSS_IDX_CPU_GROUP_CORTEX_A520),
+                 .api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_CSS_CLOCK,
+                     MOD_CSS_CLOCK_API_TYPE_CLOCK),
+diff --git a/product/tc2/scp_romfw/config_cmn_booker.c b/product/tc2/scp_romfw/config_cmn_booker.c
+index 1be9a3a8..358e6fb6 100644
+--- a/product/tc2/scp_romfw/config_cmn_booker.c
++++ b/product/tc2/scp_romfw/config_cmn_booker.c
+@@ -116,7 +116,7 @@ const struct fwk_module_config config_cmn_booker = {
+         .mmap_count = FWK_ARRAY_SIZE(mmap),
+         .clock_id = FWK_ID_ELEMENT_INIT(
+             FWK_MODULE_IDX_CLOCK,
+-            CLOCK_IDX_CPU_GROUP_HAYES),
++            CLOCK_IDX_CPU_GROUP_CORTEX_A520),
+         .hnf_cal_mode = false,
+         .ports_per_xp = 4,
+     }),
+diff --git a/product/tc2/scp_romfw/config_css_clock.c b/product/tc2/scp_romfw/config_css_clock.c
+index 748e9241..c0777cef 100644
+--- a/product/tc2/scp_romfw/config_css_clock.c
++++ b/product/tc2/scp_romfw/config_css_clock.c
+@@ -17,7 +17,7 @@
+ #include <fwk_module.h>
+ #include <fwk_module_idx.h>
+ 
+-static const struct mod_css_clock_rate rate_table_cpu_group_hayes[5] = {
++static const struct mod_css_clock_rate rate_table_cpu_group_cortex_a520[5] = {
+     {
+         /* Super Underdrive */
+         .rate = 768 * FWK_MHZ,
+@@ -70,7 +70,7 @@ static const struct mod_css_clock_rate rate_table_cpu_group_hayes[5] = {
+     },
+ };
+ 
+-static const fwk_id_t member_table_cpu_group_hayes[4] = {
++static const fwk_id_t member_table_cpu_group_cortex_a520[4] = {
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU0),
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU1),
+     FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU2),
+@@ -78,23 +78,23 @@ static const fwk_id_t member_table_cpu_group_hayes[4] = {
+ };
+ 
+ static const struct fwk_element css_clock_element_table[2] = {
+-    [CLOCK_CSS_IDX_CPU_GROUP_HAYES] =
++    [CLOCK_CSS_IDX_CPU_GROUP_CORTEX_A520] =
+         {
+-            .name = "CPU_GROUP_HAYES",
++            .name = "CPU_GROUP_CORTEX_A520",
+             .data = &((struct mod_css_clock_dev_config){
+                 .clock_type = MOD_CSS_CLOCK_TYPE_INDEXED,
+-                .rate_table = rate_table_cpu_group_hayes,
+-                .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hayes),
++                .rate_table = rate_table_cpu_group_cortex_a520,
++                .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a520),
+                 .clock_switching_source =
+                     MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL0,
+                 .pll_id = FWK_ID_ELEMENT_INIT(
+                     FWK_MODULE_IDX_SYSTEM_PLL,
+-                    CLOCK_PLL_IDX_CPU_HAYES),
++                    CLOCK_PLL_IDX_CPU_CORTEX_A520),
+                 .pll_api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_SYSTEM_PLL,
+                     MOD_SYSTEM_PLL_API_TYPE_DEFAULT),
+-                .member_table = member_table_cpu_group_hayes,
+-                .member_count = FWK_ARRAY_SIZE(member_table_cpu_group_hayes),
++                .member_table = member_table_cpu_group_cortex_a520,
++                .member_count = FWK_ARRAY_SIZE(member_table_cpu_group_cortex_a520),
+                 .member_api_id = FWK_ID_API_INIT(
+                     FWK_MODULE_IDX_PIK_CLOCK,
+                     MOD_PIK_CLOCK_API_TYPE_CSS),
+diff --git a/product/tc2/scp_romfw/config_gtimer.c b/product/tc2/scp_romfw/config_gtimer.c
+index 39128c9f..7dc0ed91 100644
+--- a/product/tc2/scp_romfw/config_gtimer.c
++++ b/product/tc2/scp_romfw/config_gtimer.c
+@@ -28,7 +28,7 @@ static const struct fwk_element gtimer_dev_table[2] = {
+                 .frequency = CLOCK_RATE_REFCLK,
+                 .clock_id = FWK_ID_ELEMENT_INIT(
+                     FWK_MODULE_IDX_CLOCK,
+-                    CLOCK_IDX_CPU_GROUP_HAYES),
++                    CLOCK_IDX_CPU_GROUP_CORTEX_A520),
+         }),
+     },
+     [1] = { 0 },
+diff --git a/product/tc2/scp_romfw/config_pik_clock.c b/product/tc2/scp_romfw/config_pik_clock.c
+index 79627abf..72ac2d9f 100644
+--- a/product/tc2/scp_romfw/config_pik_clock.c
++++ b/product/tc2/scp_romfw/config_pik_clock.c
+@@ -20,7 +20,7 @@
+ /*
+  * Rate lookup tables
+  */
+-static const struct mod_pik_clock_rate rate_table_cpu_group_hayes[1] = {
++static const struct mod_pik_clock_rate rate_table_cpu_group_cortex_a520[1] = {
+     {
+         .rate = 1537 * FWK_MHZ,
+         .source = MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL0,
+@@ -41,8 +41,8 @@ static const struct fwk_element
+                         .control_reg = &CLUSTER_PIK_PTR->CORECLK[0].CTRL,
+                         .divext_reg = &CLUSTER_PIK_PTR->CORECLK[0].DIV,
+                         .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[0].MOD,
+-                        .rate_table = rate_table_cpu_group_hayes,
+-                        .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hayes),
++                        .rate_table = rate_table_cpu_group_cortex_a520,
++                        .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a520),
+                     }),
+                 },
+             [CLOCK_PIK_IDX_CLUS0_CPU1] =
+@@ -54,8 +54,8 @@ static const struct fwk_element
+                         .control_reg = &CLUSTER_PIK_PTR->CORECLK[1].CTRL,
+                         .divext_reg = &CLUSTER_PIK_PTR->CORECLK[1].DIV,
+                         .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[1].MOD,
+-                        .rate_table = rate_table_cpu_group_hayes,
+-                        .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hayes),
++                        .rate_table = rate_table_cpu_group_cortex_a520,
++                        .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a520),
+                     }),
+                 },
+             [CLOCK_PIK_IDX_CLUS0_CPU2] =
+@@ -67,8 +67,8 @@ static const struct fwk_element
+                         .control_reg = &CLUSTER_PIK_PTR->CORECLK[2].CTRL,
+                         .divext_reg = &CLUSTER_PIK_PTR->CORECLK[2].DIV,
+                         .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[2].MOD,
+-                        .rate_table = rate_table_cpu_group_hayes,
+-                        .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hayes),
++                        .rate_table = rate_table_cpu_group_cortex_a520,
++                        .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a520),
+                     }),
+                 },
+             [CLOCK_PIK_IDX_CLUS0_CPU3] =
+@@ -80,8 +80,8 @@ static const struct fwk_element
+                         .control_reg = &CLUSTER_PIK_PTR->CORECLK[3].CTRL,
+                         .divext_reg = &CLUSTER_PIK_PTR->CORECLK[3].DIV,
+                         .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[3].MOD,
+-                        .rate_table = rate_table_cpu_group_hayes,
+-                        .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hayes),
++                        .rate_table = rate_table_cpu_group_cortex_a520,
++                        .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a520),
+                     }),
+                 },
+             {0}
+diff --git a/product/tc2/scp_romfw/config_sds.c b/product/tc2/scp_romfw/config_sds.c
+index d1924f77..9c915fd4 100644
+--- a/product/tc2/scp_romfw/config_sds.c
++++ b/product/tc2/scp_romfw/config_sds.c
+@@ -41,7 +41,7 @@ const struct mod_sds_config sds_module_config = {
+     .regions = sds_module_regions,
+     .region_count = TC2_SDS_REGION_COUNT,
+     .clock_id =
+-        FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_CLOCK, CLOCK_IDX_CPU_GROUP_HAYES)
++        FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_CLOCK, CLOCK_IDX_CPU_GROUP_CORTEX_A520)
+ };
+ 
+ static struct fwk_element sds_element_table[4] = {
+diff --git a/product/tc2/scp_romfw/config_system_pll.c b/product/tc2/scp_romfw/config_system_pll.c
+index f07722ed..0d4e903f 100644
+--- a/product/tc2/scp_romfw/config_system_pll.c
++++ b/product/tc2/scp_romfw/config_system_pll.c
+@@ -17,9 +17,9 @@
+ #include <fwk_module.h>
+ 
+ static const struct fwk_element system_pll_element_table[2] = {
+-    [CLOCK_PLL_IDX_CPU_HAYES] =
++    [CLOCK_PLL_IDX_CPU_CORTEX_A520] =
+         {
+-            .name = "CPU_PLL_HAYES",
++            .name = "CPU_PLL_CORTEX_A520",
+             .data = &((struct mod_system_pll_dev_config){
+                 .control_reg = (void *)SCP_PLL_CPU0,
+                 .status_reg = (void *)&SCP_PIK_PTR->PLL_STATUS[1],
+-- 
+2.25.1
+

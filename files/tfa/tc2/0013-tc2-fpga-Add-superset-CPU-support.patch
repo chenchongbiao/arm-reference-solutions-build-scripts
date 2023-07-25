@@ -4,8 +4,8 @@ Date: Tue, 4 Apr 2023 09:54:54 +0100
 Subject: [PATCH 13/13] tc2-fpga: Add superset CPU support
 
 * Added core8 to core13.
-* Added support for Hunter-ELP min cores
-* With this, TC2 FPGA has 4xHayes, 5xHunter, 3xHunter-ELP min and 2xHunter-ELP cores
+* Added support for Cortex-A720 min cores
+* With this, TC2 FPGA has 4xCortex-A520, 5xCortex-A720, 3xCortex-X4 min and 2xCortex X4 cores
 * GIC redistributor (GICR) range increased
 * Buildroot boot completed with all 14 CPUs up
 

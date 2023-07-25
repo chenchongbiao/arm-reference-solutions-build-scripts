@@ -24,14 +24,14 @@ The following is a summary of the key software features of the release:
 
 Hardware Features
 -----------------
- - Booker CI with Memory Tagging Unit(MTU) support driver in SCP firmware;
+ - Booker aka CoreLink CI-700 with Memory Tagging Unit(MTU) support driver in SCP firmware;
  - GIC Clayton Initialization in Trusted Firmware-A;
  - Mali TTIx GPU;
  - Mali-D71 DPU and virtual encoder support for display in Linux;
  - MHUv2 Driver for SCP and AP communication;
  - UARTs, Timers, Flash, PIK, Clock drivers;
  - PL180 MMC;
- - DynamIQ Shared Unit (DSU) with 8 cores. 1 Hunter ELP + 3 Hunter + 4 Hayes cores configuration;
+ - DynamIQ Shared Unit (DSU) with 8 cores. 1 Cortex X4 + 3 Cortex A720 + 4 Cortex A520 cores configuration;
  - RSS based on Cortex M55;
  - SCP based on Cortex M3.
 

@@ -796,14 +796,14 @@ Attach and Debug
 .. figure:: Debug_control_console.png
 
 .. warning::
-    There is a known issue in connecting all AP cores together. The Hunter ELP core is missing from the cluster view.  As a workaround, you can create two target connections as described in the ``Creating a new connection`` section: one for ELP core alone and the other one for the rest of AP cores.
+    There is a known issue in connecting all AP cores together. The Cortex X4 core is missing from the cluster view.  As a workaround, you can create two target connections as described in the ``Creating a new connection`` section: one for ELP core alone and the other one for the rest of AP cores.
 
 
 Switch between SCP and AP
 #########################
 
 #. Right click on target and select ``Debug Configurations``;
-#. Under ``Connection``, select ``Cortex-M3`` for SCP and ``Arm-Hayes_x/Arm-Hunter_x`` for AP core x and then debug.
+#. Under ``Connection``, select ``Cortex-M3`` for SCP and ``Arm-Cortex A520_x/Arm-Cortex A720_x`` for AP core x and then debug.
 
 .. figure:: switch_cores.png
 
