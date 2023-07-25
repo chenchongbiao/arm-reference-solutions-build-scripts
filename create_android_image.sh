@@ -88,7 +88,7 @@ SYSTEM_IMG=${SYSTEM_IMG:-system.img}
 SYSTEM_SIZE=$(size_in_mb ${SYSTEM_IMG})
 USERDATA_IMG=${USERDATA_IMG:-userdata.img}
 USERDATA_SIZE=$(size_in_mb ${USERDATA_IMG})
-if [ "$TC_GPU" == true ]; then
+if [ ! "$TC_GPU" == "swr" ]; then
 	VENDOR_IMG=${VENDOR_IMG:-vendor.img}
 	VENDOR_SIZE=$(size_in_mb ${VENDOR_IMG})
 fi
@@ -100,13 +100,13 @@ then
 	BOOT_IMG=${BOOT_IMG:-boot.img}
 	BOOT_SIZE=$(size_in_mb ${BOOT_IMG})
 
-        if [ "$TC_GPU" == true ]; then
+        if [ ! "$TC_GPU" == "swr" ]; then
 	    IMAGE_LEN=$((BOOT_SIZE + VBMETA_SIZE + SYSTEM_SIZE + USERDATA_SIZE + VENDOR_SIZE + 2 ))
         else
 	    IMAGE_LEN=$((BOOT_SIZE + VBMETA_SIZE + SYSTEM_SIZE + USERDATA_SIZE + 2 ))
 	fi
 else
-        if [ "$TC_GPU" == true ]; then
+        if [ ! "$TC_GPU" == "swr" ]; then
 	    IMAGE_LEN=$((SYSTEM_SIZE + USERDATA_SIZE + VENDOR_SIZE + 2 ))
         else
 	    IMAGE_LEN=$((SYSTEM_SIZE + USERDATA_SIZE + 2 ))
@@ -127,7 +127,7 @@ then
 	PART4_END=$((PART4_START + BOOT_SIZE))
 fi
 
-if [ "$TC_GPU" == true ]; then
+if [ ! "$TC_GPU" == "swr" ]; then
     if [ "$AVB" == true ]; then
         PART5_START=${PART4_END}
     else
@@ -157,7 +157,7 @@ then
 	$PARTED $IMG unit s mkpart boot ext4 $((PART4_START * SEC_PER_MB)) $((PART4_END * SEC_PER_MB - 1))
 fi
 
-if [ "$TC_GPU" == true ]; then
+if [ ! "$TC_GPU" == "swr" ]; then
 	$PARTED $IMG unit s mkpart vendor ext4 $((PART5_START * SEC_PER_MB)) $((PART5_END * SEC_PER_MB - 1))
 fi
 
@@ -170,7 +170,7 @@ then
 	dd if=$VBMETA_IMG of=$IMG bs=1M seek=${PART3_START} conv=notrunc
 	dd if=$BOOT_IMG of=$IMG bs=1M seek=${PART4_START} conv=notrunc
 fi
-if [ "$TC_GPU" == true ]; then
+if [ ! "$TC_GPU" == "swr" ]; then
 	dd if=$VENDOR_IMG of=$IMG bs=1M seek=${PART5_START} conv=notrunc
 fi
 popd

@@ -21,12 +21,13 @@ readonly TC_TARGET_FLAVOR_OPTIONS=(
 )
 
 readonly TC_GPU_OPTIONS=(
-    "true"
-    "false"
+    "swr"
+    "hwr"
+    "hwr-prebuilt"
 )
 
 AVB_DEFAULT=false
-TC_GPU_DEFAULT=false
+TC_GPU_DEFAULT=hwr-prebuilt
 TC_TARGET_FLAVOR_DEFAULT=fvp
 
 readonly CMD_DEFAULT=( "build" )

@@ -46,9 +46,12 @@ fi
         scripts+=(
             "build-debian.sh"
         )
-        if [ "$TC_GPU" == "true" ]; then
+        if [ "$TC_GPU" == "hwr" ]; then
             info_echo "Debian will be built with Mali DDK!"
             scripts+=("build-debian-ddk.sh")
+        elif [ "$TC_GPU" == "hwr-prebuilt" ]; then
+            error_echo "Debian is not supporting hwr-prebuilt"
+	    exit 1
         else
             info_echo "Debian will be built without Mali DDK!"
         fi
