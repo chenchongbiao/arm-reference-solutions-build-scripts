@@ -1,7 +1,7 @@
-From 3dd1e13d4b9a9449b0a4d451ae3215d3a86b0463 Mon Sep 17 00:00:00 2001
+From a90b1ee0707990f452bad7dd3f3e44b9f8b34916 Mon Sep 17 00:00:00 2001
 From: Ben Horgan <ben.horgan@arm.com>
 Date: Tue, 27 Sep 2022 13:38:35 +0100
-Subject: [PATCH 15/18] tc2: fpga: Build modules required for fpga
+Subject: [PATCH 14/21] tc2: fpga: Build modules required for fpga
 
 Change-Id: I0c1dabb3841650ef51494527863fd314c0965dad
 Signed-off-by: Ben Horgan <ben.horgan@arm.com>

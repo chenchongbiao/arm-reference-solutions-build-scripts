@@ -1,7 +1,7 @@
-From c5221f2e51f8eae4c9fb56edbfb19a2792f540cc Mon Sep 17 00:00:00 2001
+From 606912694a2ccc03c731f649dbfe2a367b3d8c24 Mon Sep 17 00:00:00 2001
 From: QuocKhanh Le <QuocKhanh.Le@arm.com>
 Date: Thu, 23 Mar 2023 16:37:43 +0000
-Subject: [PATCH 19/20] FPGA and FVP: Use PLAT_FVP to separate code for FPGA
+Subject: [PATCH 17/21] FPGA and FVP: Use PLAT_FVP to seperate code for FPGA
  and FVP build in: - framework - module: system_pll, cmn_booker - product:tc2
 
 Signed-off-by: QuocKhanh Le <QuocKhanh.Le@arm.com>
@@ -15,19 +15,18 @@ Signed-off-by: QuocKhanh Le <QuocKhanh.Le@arm.com>
  module/system_pll/CMakeLists.txt          |  4 ++
  module/system_pll/src/mod_system_pll.c    |  2 +-
  product/tc2/include/clock_soc.h           |  6 +++
- product/tc2/include/scp_mmap.h            | 15 ++++++-
+ product/tc2/include/scp_mmap.h            | 11 ++++-
  product/tc2/include/scp_pik.h             |  3 ++
  product/tc2/scp_ramfw/config_clock.c      |  2 +
  product/tc2/scp_ramfw/config_gtimer.c     |  4 ++
  product/tc2/scp_ramfw/config_pik_clock.c  |  4 ++
  product/tc2/scp_ramfw/config_pl011.c      |  5 +++
- product/tc2/scp_ramfw/config_ppu_v1.c     | 16 +++++++
  product/tc2/scp_ramfw/config_system_pll.c |  2 +
  product/tc2/scp_romfw/Firmware.cmake      | 44 +++++++++++++------
  product/tc2/scp_romfw/config_clock.c      |  4 ++
  product/tc2/scp_romfw/config_pik_clock.c  | 12 +++++-
  product/tc2/scp_romfw/config_pl011.c      |  5 +++
- 21 files changed, 170 insertions(+), 29 deletions(-)
+ 20 files changed, 150 insertions(+), 29 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 50bde8b7..f3989b68 100644
@@ -264,12 +263,12 @@ index 7145f038..5bbeea0c 100644
  
      if (ctx->config->status_reg != NULL) {
 diff --git a/product/tc2/include/clock_soc.h b/product/tc2/include/clock_soc.h
-index 9e79cab6..82065260 100644
+index 3d18add3..2ca49fe2 100644
 --- a/product/tc2/include/clock_soc.h
 +++ b/product/tc2/include/clock_soc.h
 @@ -21,7 +21,9 @@ enum clock_pll_idx {
-     CLOCK_PLL_IDX_CPU_CORTEX_A720,
-     CLOCK_PLL_IDX_CPU_CORTEX_X4,
+     CLOCK_PLL_IDX_CPU_HUNTER,
+     CLOCK_PLL_IDX_CPU_HUNTER_ELP,
      CLOCK_PLL_IDX_SYS,
 +#if !defined(PLAT_FVP)
      CLOCK_PLL_IDX_INTERCONNECT,
@@ -294,11 +293,11 @@ index 9e79cab6..82065260 100644
 +#if !defined(PLAT_FVP)
      CLOCK_IDX_INTERCONNECT,
 +#endif
-     CLOCK_IDX_CPU_GROUP_CORTEX_A520,
-     CLOCK_IDX_CPU_GROUP_CORTEX_A720,
-     CLOCK_IDX_CPU_GROUP_CORTEX_X4,
+     CLOCK_IDX_CPU_GROUP_HAYES,
+     CLOCK_IDX_CPU_GROUP_HUNTER,
+     CLOCK_IDX_CPU_GROUP_HUNTER_ELP,
 diff --git a/product/tc2/include/scp_mmap.h b/product/tc2/include/scp_mmap.h
-index 47405bab..365badca 100644
+index fdbf02f3..4b18ac6a 100644
 --- a/product/tc2/include/scp_mmap.h
 +++ b/product/tc2/include/scp_mmap.h
 @@ -13,8 +13,13 @@
@@ -328,30 +327,6 @@ index 47405bab..365badca 100644
  #define SCP_PIK_SCP_BASE    (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE)
  
  #define SCP_REFCLK_CNTCONTROL_BASE (SCP_SYSTEM_ACCESS_PORT1_BASE + 0x2A430000)
-@@ -45,7 +54,9 @@
- #define SCP_PIK_CLUSTER_BASE (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE + 0x60000)
- #define SCP_PIK_SYSTEM_BASE  (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE + 0x40000)
- #define SCP_PIK_DPU_BASE     (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE + 0xE0000)
-+#if !defined(PLAT_FVP)
- #define SCP_PIK_GPU_BASE     (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE + 0xA0000)
-+#endif
- 
- #define SCP_UTILITY_BUS_BASE \
-     (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE + 0x1000000)
-@@ -61,11 +72,13 @@
- 
- #define SCP_PPU_SYS0_BASE (SCP_PIK_SYSTEM_BASE + 0x1000)
- 
-+#if !defined(PLAT_FVP)
- /* benhor01: Move this to Firmware.cmake */
- #define GPU_DPU
- 
- #define SCP_PPU_DPU_BASE (SCP_PIK_DPU_BASE + 0x1000)
- #define SCP_PPU_GPU_BASE (SCP_PIK_GPU_BASE + 0x1000)
-+#endif
- 
- #define SCP_MHU_AP_BASE (SCP_PERIPHERAL_BASE)
- 
 diff --git a/product/tc2/include/scp_pik.h b/product/tc2/include/scp_pik.h
 index 6b446e34..b0d29b49 100644
 --- a/product/tc2/include/scp_pik.h
@@ -369,7 +344,7 @@ index 6b446e34..b0d29b49 100644
  #define PLL_STATUS_0_DISPLAYPLL_LOCK UINT32_C(1 << 6)
  
 diff --git a/product/tc2/scp_ramfw/config_clock.c b/product/tc2/scp_ramfw/config_clock.c
-index 06c3bbcf..ea70bbe0 100644
+index efbf93ca..1969f5f8 100644
 --- a/product/tc2/scp_ramfw/config_clock.c
 +++ b/product/tc2/scp_ramfw/config_clock.c
 @@ -20,6 +20,7 @@
@@ -385,11 +360,11 @@ index 06c3bbcf..ea70bbe0 100644
              }),
          },
 +#endif
-     [CLOCK_IDX_CPU_GROUP_CORTEX_A520] =
+     [CLOCK_IDX_CPU_GROUP_HAYES] =
          {
-             .name = "CPU_GROUP_CORTEX_A520",
+             .name = "CPU_GROUP_HAYES",
 diff --git a/product/tc2/scp_ramfw/config_gtimer.c b/product/tc2/scp_ramfw/config_gtimer.c
-index dfb52912..6915c6a4 100644
+index dfb52912..0299d6bc 100644
 --- a/product/tc2/scp_ramfw/config_gtimer.c
 +++ b/product/tc2/scp_ramfw/config_gtimer.c
 @@ -28,7 +28,11 @@ static const struct fwk_element gtimer_dev_table[2] = {
@@ -397,7 +372,7 @@ index dfb52912..6915c6a4 100644
                  .clock_id = FWK_ID_ELEMENT_INIT(
                     FWK_MODULE_IDX_CLOCK,
 +#if defined(PLAT_FVP)
-+                    CLOCK_IDX_CPU_GROUP_CORTEX_A520),
++                    CLOCK_IDX_CPU_GROUP_HAYES),
 +#else
                      CLOCK_IDX_INTERCONNECT),
 +#endif
@@ -405,10 +380,10 @@ index dfb52912..6915c6a4 100644
      },
      [1] = { 0 },
 diff --git a/product/tc2/scp_ramfw/config_pik_clock.c b/product/tc2/scp_ramfw/config_pik_clock.c
-index f8e6697b..19a9b563 100644
+index 394b9ec1..19613eb7 100644
 --- a/product/tc2/scp_ramfw/config_pik_clock.c
 +++ b/product/tc2/scp_ramfw/config_pik_clock.c
-@@ -48,6 +48,7 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_cortex_x4[1] = {
+@@ -48,6 +48,7 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_hunter_elp[1] = {
      },
  };
  
@@ -425,7 +400,7 @@ index f8e6697b..19a9b563 100644
  static const struct mod_pik_clock_rate rate_table_gicclk[1] = {
      {
 @@ -201,6 +203,7 @@ static const struct fwk_element pik_clock_element_table[
-             .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_x4),
+             .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp),
          }),
      },
 +#if !defined(PLAT_FVP)
@@ -458,50 +433,8 @@ index ae567b06..df96f6f0 100644
                      .clock_id = FWK_ID_NONE_INIT,
                      .pd_id = FWK_ID_NONE_INIT,
                  },
-diff --git a/product/tc2/scp_ramfw/config_ppu_v1.c b/product/tc2/scp_ramfw/config_ppu_v1.c
-index 1f811a9a..deda9911 100644
---- a/product/tc2/scp_ramfw/config_ppu_v1.c
-+++ b/product/tc2/scp_ramfw/config_ppu_v1.c
-@@ -40,6 +40,7 @@ static struct mod_ppu_v1_config ppu_v1_config_data = {
-         MOD_PD_NOTIFICATION_IDX_POWER_STATE_TRANSITION),
- };
- 
-+#if !defined(PLAT_FVP)
- /* Identifiers for the static table */
- enum ppu_v1_static_element_idx {
-     PPU_V1_ELEMENT_IDX_SYS0,
-@@ -49,7 +50,21 @@ enum ppu_v1_static_element_idx {
- #endif
-     PPU_V1_ELEMENT_IDX_COUNT
- };
-+#endif
- 
-+#if defined(PLAT_FVP)
-+static const struct fwk_element ppu_v1_system_element_table[1] = {
-+    [0] =
-+        {
-+            .name = "SYS0",
-+            .data = &((struct mod_ppu_v1_pd_config){
-+                .pd_type = MOD_PD_TYPE_SYSTEM,
-+                .ppu.reg_base = SCP_PPU_SYS0_BASE,
-+                .observer_id = FWK_ID_NONE_INIT,
-+            }),
-+        },
-+};
-+#else
- static struct fwk_element ppu_v1_system_element_table[] = {
-     [PPU_V1_ELEMENT_IDX_SYS0] =
-         {
-@@ -83,6 +98,7 @@ static struct fwk_element ppu_v1_system_element_table[] = {
-         },
- #endif
- };
-+#endif
- 
- static const struct fwk_element *ppu_v1_get_element_table(fwk_id_t module_id)
- {
 diff --git a/product/tc2/scp_ramfw/config_system_pll.c b/product/tc2/scp_ramfw/config_system_pll.c
-index 98ef1e6d..f8428f18 100644
+index 46a34928..239e342c 100644
 --- a/product/tc2/scp_ramfw/config_system_pll.c
 +++ b/product/tc2/scp_ramfw/config_system_pll.c
 @@ -71,6 +71,7 @@ static const struct fwk_element system_pll_element_table[
@@ -578,7 +511,7 @@ index b994d760..0fe9e570 100644
 +endif()
 \ No newline at end of file
 diff --git a/product/tc2/scp_romfw/config_clock.c b/product/tc2/scp_romfw/config_clock.c
-index f497460d..fc7b8166 100644
+index 00c015b1..b4baecac 100644
 --- a/product/tc2/scp_romfw/config_clock.c
 +++ b/product/tc2/scp_romfw/config_clock.c
 @@ -25,6 +25,9 @@
@@ -596,14 +529,14 @@ index f497460d..fc7b8166 100644
              }),
          },
 +#endif
-     [CLOCK_IDX_CPU_GROUP_CORTEX_A520] =
+     [CLOCK_IDX_CPU_GROUP_HAYES] =
          {
-             .name = "CPU_GROUP_CORTEX_A520",
+             .name = "CPU_GROUP_HAYES",
 diff --git a/product/tc2/scp_romfw/config_pik_clock.c b/product/tc2/scp_romfw/config_pik_clock.c
-index a1ba616e..d33c42e3 100644
+index f8536af2..c0475889 100644
 --- a/product/tc2/scp_romfw/config_pik_clock.c
 +++ b/product/tc2/scp_romfw/config_pik_clock.c
-@@ -28,7 +28,7 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_cortex_a520[1] = {
+@@ -28,7 +28,7 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_hayes[1] = {
          .divider = 1, /* Rate adjusted via CPU PLL */
      },
  };
@@ -629,7 +562,7 @@ index a1ba616e..d33c42e3 100644
              [CLOCK_PIK_IDX_CLUS0_CPU0] =
                  {
 @@ -130,6 +136,9 @@ static const struct fwk_element
-                         .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a520),
+                         .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hayes),
                      }),
                  },
 +#if defined(PLAT_FVP)

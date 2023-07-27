@@ -1,20 +1,49 @@
-From 0aaf9ed2f9879f4db8c11a6bf3db7c50ee077ad9 Mon Sep 17 00:00:00 2001
+From a25138cbfbce72f82e50d55477f0b4924a5cfe08 Mon Sep 17 00:00:00 2001
 From: Ben Horgan <ben.horgan@arm.com>
-Date: Tue, 20 Sep 2022 14:54:50 +0100
-Subject: [PATCH 14/18] tc2: fpga: Power ON GPU and and DPU
+Date: Fri, 21 Jul 2023 14:24:34 +0100
+Subject: [PATCH 19/21] tc2: Power on the GPU and DPU
 
-Change-Id: Ic20d9e64a2eb3acb2f640c42aa579b6d7a45acb1
+This is required for FPGA but include for FVP too so can demonstrate
+controlling power domains.
+
 Signed-off-by: Ben Horgan <ben.horgan@arm.com>
 ---
- product/tc2/include/scp_mmap.h        |  7 ++++++
- product/tc2/scp_ramfw/config_ppu_v1.c | 36 +++++++++++++++++++++++++--
- 2 files changed, 41 insertions(+), 2 deletions(-)
+ product/tc2/include/config_ppu_v1.h   | 19 +++++++++++++++++++
+ product/tc2/include/scp_mmap.h        |  3 +++
+ product/tc2/scp_ramfw/config_ppu_v1.c | 27 ++++++++++++++++++++++++---
+ 3 files changed, 46 insertions(+), 3 deletions(-)
+ create mode 100644 product/tc2/include/config_ppu_v1.h
 
+diff --git a/product/tc2/include/config_ppu_v1.h b/product/tc2/include/config_ppu_v1.h
+new file mode 100644
+index 00000000..df384098
+--- /dev/null
++++ b/product/tc2/include/config_ppu_v1.h
+@@ -0,0 +1,19 @@
++/*
++ * Arm SCP/MCP Software
++ * Copyright (c) 2023, Arm Limited and Contributors. All rights reserved.
++ *
++ * SPDX-License-Identifier: BSD-3-Clause
++ */
++
++#ifndef CONFIG_PPU_V1_H
++#define CONFIG_PPU_V1_H
++
++/* Identifiers for the static table */
++enum ppu_v1_static_element_idx {
++    PPU_V1_ELEMENT_IDX_SYS0,
++    PPU_V1_ELEMENT_IDX_GPUTOP0,
++    PPU_V1_ELEMENT_IDX_DPUTOP0,
++    PPU_V1_ELEMENT_IDX_COUNT
++};
++
++#endif /* CONFIG_PPU_V1_H */
 diff --git a/product/tc2/include/scp_mmap.h b/product/tc2/include/scp_mmap.h
-index fdbf02f3..47405bab 100644
+index dcd3c445..233a822a 100644
 --- a/product/tc2/include/scp_mmap.h
 +++ b/product/tc2/include/scp_mmap.h
-@@ -45,6 +45,7 @@
+@@ -54,6 +54,7 @@
  #define SCP_PIK_CLUSTER_BASE (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE + 0x60000)
  #define SCP_PIK_SYSTEM_BASE  (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE + 0x40000)
  #define SCP_PIK_DPU_BASE     (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE + 0xE0000)
@@ -22,49 +51,48 @@ index fdbf02f3..47405bab 100644
  
  #define SCP_UTILITY_BUS_BASE \
      (SCP_ELEMENT_MANAGEMENT_PERIPHERAL_BASE + 0x1000000)
-@@ -60,6 +61,12 @@
+@@ -68,6 +69,8 @@
+ #define SCP_AMU_AMEVCNTR1X(CPU_IDX) (SCP_AMU_CORE_BASE(CPU_IDX) + 0x100)
  
  #define SCP_PPU_SYS0_BASE (SCP_PIK_SYSTEM_BASE + 0x1000)
- 
-+/* benhor01: Move this to Firmware.cmake */
-+#define GPU_DPU
-+
 +#define SCP_PPU_DPU_BASE (SCP_PIK_DPU_BASE + 0x1000)
 +#define SCP_PPU_GPU_BASE (SCP_PIK_GPU_BASE + 0x1000)
-+
+ 
  #define SCP_MHU_AP_BASE (SCP_PERIPHERAL_BASE)
  
- #define SCP_MHU_SCP_AP_RCV_NS_CLUS0 (SCP_MHU_AP_BASE + 0x2000)
 diff --git a/product/tc2/scp_ramfw/config_ppu_v1.c b/product/tc2/scp_ramfw/config_ppu_v1.c
-index a9490fe4..1f811a9a 100644
+index a9490fe4..d5f66654 100644
 --- a/product/tc2/scp_ramfw/config_ppu_v1.c
 +++ b/product/tc2/scp_ramfw/config_ppu_v1.c
-@@ -40,8 +40,18 @@ static struct mod_ppu_v1_config ppu_v1_config_data = {
+@@ -1,11 +1,12 @@
+ /*
+  * Arm SCP/MCP Software
+- * Copyright (c) 2022, Arm Limited and Contributors. All rights reserved.
++ * Copyright (c) 2022-2023, Arm Limited and Contributors. All rights reserved.
+  *
+  * SPDX-License-Identifier: BSD-3-Clause
+  */
+ 
+ #include "config_power_domain.h"
++#include "config_ppu_v1.h"
+ #include "scp_mmap.h"
+ #include "tc2_core.h"
+ 
+@@ -40,8 +41,8 @@ static struct mod_ppu_v1_config ppu_v1_config_data = {
          MOD_PD_NOTIFICATION_IDX_POWER_STATE_TRANSITION),
  };
  
 -static const struct fwk_element ppu_v1_system_element_table[1] = {
 -    [0] =
-+/* Identifiers for the static table */
-+enum ppu_v1_static_element_idx {
-+    PPU_V1_ELEMENT_IDX_SYS0,
-+#if defined(GPU_DPU)
-+    PPU_V1_ELEMENT_IDX_GPUTOP0,
-+    PPU_V1_ELEMENT_IDX_DPUTOP0,
-+#endif
-+    PPU_V1_ELEMENT_IDX_COUNT
-+};
-+
 +static struct fwk_element ppu_v1_system_element_table[] = {
 +    [PPU_V1_ELEMENT_IDX_SYS0] =
          {
              .name = "SYS0",
              .data = &((struct mod_ppu_v1_pd_config){
-@@ -50,6 +60,28 @@ static const struct fwk_element ppu_v1_system_element_table[1] = {
+@@ -50,6 +51,26 @@ static const struct fwk_element ppu_v1_system_element_table[1] = {
                  .observer_id = FWK_ID_NONE_INIT,
              }),
          },
-+#if defined(GPU_DPU)
 +    [PPU_V1_ELEMENT_IDX_GPUTOP0] =
 +        {
 +            .name = "GPUTOP0",
@@ -85,7 +113,6 @@ index a9490fe4..1f811a9a 100644
 +                .default_power_on = true,
 +            }),
 +        },
-+#endif
  };
  
  static const struct fwk_element *ppu_v1_get_element_table(fwk_id_t module_id)

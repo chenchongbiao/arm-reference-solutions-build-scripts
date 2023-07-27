@@ -1,7 +1,7 @@
-From 274ecbdd03cd05dfe4bbd7403b2198136544c7b4 Mon Sep 17 00:00:00 2001
+From 70b9cb48bea55e47b85616ffa622e5c8672a4972 Mon Sep 17 00:00:00 2001
 From: Ben Horgan <ben.horgan@arm.com>
 Date: Tue, 27 Sep 2022 13:43:10 +0100
-Subject: [PATCH 17/20] tc2: fpga: Clock updates
+Subject: [PATCH 15/21] tc2: fpga: Clock updates
 
 Change-Id: I58fb05ffd5cb68c499077a64a9ac6d8e4443eb1d
 Signed-off-by: Ben Horgan <ben.horgan@arm.com>
@@ -15,12 +15,12 @@ Signed-off-by: Ben Horgan <ben.horgan@arm.com>
  6 files changed, 169 insertions(+), 4 deletions(-)
 
 diff --git a/product/tc2/include/clock_soc.h b/product/tc2/include/clock_soc.h
-index 5b0aa835..9e79cab6 100644
+index 8574b752..3d18add3 100644
 --- a/product/tc2/include/clock_soc.h
 +++ b/product/tc2/include/clock_soc.h
 @@ -21,6 +21,7 @@ enum clock_pll_idx {
-     CLOCK_PLL_IDX_CPU_CORTEX_A720,
-     CLOCK_PLL_IDX_CPU_CORTEX_X4,
+     CLOCK_PLL_IDX_CPU_HUNTER,
+     CLOCK_PLL_IDX_CPU_HUNTER_ELP,
      CLOCK_PLL_IDX_SYS,
 +    CLOCK_PLL_IDX_INTERCONNECT,
      CLOCK_PLL_IDX_DPU,
@@ -39,11 +39,11 @@ index 5b0aa835..9e79cab6 100644
   */
  enum clock_idx {
 +    CLOCK_IDX_INTERCONNECT,
-     CLOCK_IDX_CPU_GROUP_CORTEX_A520,
-     CLOCK_IDX_CPU_GROUP_CORTEX_A720,
-     CLOCK_IDX_CPU_GROUP_CORTEX_X4,
+     CLOCK_IDX_CPU_GROUP_HAYES,
+     CLOCK_IDX_CPU_GROUP_HUNTER,
+     CLOCK_IDX_CPU_GROUP_HUNTER_ELP,
 diff --git a/product/tc2/scp_ramfw/config_clock.c b/product/tc2/scp_ramfw/config_clock.c
-index 201d2b26..06c3bbcf 100644
+index 8f98a9fa..efbf93ca 100644
 --- a/product/tc2/scp_ramfw/config_clock.c
 +++ b/product/tc2/scp_ramfw/config_clock.c
 @@ -20,6 +20,18 @@
@@ -62,27 +62,27 @@ index 201d2b26..06c3bbcf 100644
 +                    MOD_PIK_CLOCK_API_TYPE_CLOCK),
 +            }),
 +        },
-     [CLOCK_IDX_CPU_GROUP_CORTEX_A520] =
+     [CLOCK_IDX_CPU_GROUP_HAYES] =
          {
-             .name = "CPU_GROUP_CORTEX_A520",
+             .name = "CPU_GROUP_HAYES",
 diff --git a/product/tc2/scp_ramfw/config_gtimer.c b/product/tc2/scp_ramfw/config_gtimer.c
-index a65689a7..dfb52912 100644
+index 5cbef899..dfb52912 100644
 --- a/product/tc2/scp_ramfw/config_gtimer.c
 +++ b/product/tc2/scp_ramfw/config_gtimer.c
 @@ -28,7 +28,7 @@ static const struct fwk_element gtimer_dev_table[2] = {
                  .frequency = CLOCK_RATE_REFCLK,
                  .clock_id = FWK_ID_ELEMENT_INIT(
                     FWK_MODULE_IDX_CLOCK,
--                    CLOCK_IDX_CPU_GROUP_CORTEX_A520),
+-                    CLOCK_IDX_CPU_GROUP_HAYES),
 +                    CLOCK_IDX_INTERCONNECT),
          }),
      },
      [1] = { 0 },
 diff --git a/product/tc2/scp_ramfw/config_pik_clock.c b/product/tc2/scp_ramfw/config_pik_clock.c
-index 41f62dcd..f8e6697b 100644
+index f452646c..394b9ec1 100644
 --- a/product/tc2/scp_ramfw/config_pik_clock.c
 +++ b/product/tc2/scp_ramfw/config_pik_clock.c
-@@ -48,6 +48,15 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_cortex_x4[1] = {
+@@ -48,6 +48,15 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_hunter_elp[1] = {
      },
  };
  
@@ -99,7 +99,7 @@ index 41f62dcd..f8e6697b 100644
      {
          .rate = 2000 * FWK_MHZ,
 @@ -192,6 +201,18 @@ static const struct fwk_element pik_clock_element_table[
-             .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_x4),
+             .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp),
          }),
      },
 +    [CLOCK_PIK_IDX_INTERCONNECT] = {
@@ -118,7 +118,7 @@ index 41f62dcd..f8e6697b 100644
          .name = "GIC",
          .data = &((struct mod_pik_clock_dev_config) {
 diff --git a/product/tc2/scp_romfw/config_clock.c b/product/tc2/scp_romfw/config_clock.c
-index ab93c3ee..f497460d 100644
+index 1f3aee95..00c015b1 100644
 --- a/product/tc2/scp_romfw/config_clock.c
 +++ b/product/tc2/scp_romfw/config_clock.c
 @@ -25,7 +25,21 @@
@@ -141,14 +141,14 @@ index ab93c3ee..f497460d 100644
 +
 +            }),
 +        },
-     [CLOCK_IDX_CPU_GROUP_CORTEX_A520] =
+     [CLOCK_IDX_CPU_GROUP_HAYES] =
          {
-             .name = "CPU_GROUP_CORTEX_A520",
+             .name = "CPU_GROUP_HAYES",
 diff --git a/product/tc2/scp_romfw/config_pik_clock.c b/product/tc2/scp_romfw/config_pik_clock.c
-index 72ac2d9f..a1ba616e 100644
+index 79627abf..f8536af2 100644
 --- a/product/tc2/scp_romfw/config_pik_clock.c
 +++ b/product/tc2/scp_romfw/config_pik_clock.c
-@@ -29,8 +29,54 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_cortex_a520[1] = {
+@@ -29,8 +29,54 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_hayes[1] = {
      },
  };
  
@@ -205,7 +205,7 @@ index 72ac2d9f..a1ba616e 100644
              [CLOCK_PIK_IDX_CLUS0_CPU0] =
                  {
 @@ -84,7 +130,76 @@ static const struct fwk_element
-                         .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a520),
+                         .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hayes),
                      }),
                  },
 -            {0}

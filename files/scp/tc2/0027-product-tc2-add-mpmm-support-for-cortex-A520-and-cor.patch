@@ -13,7 +13,7 @@ Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
  1 file changed, 134 insertions(+), 10 deletions(-)
 
 diff --git a/product/tc2/scp_ramfw/config_mpmm.c b/product/tc2/scp_ramfw/config_mpmm.c
-index e5544347..d0f18de2 100644
+index 136f90fd..3f451fb9 100644
 --- a/product/tc2/scp_ramfw/config_mpmm.c
 +++ b/product/tc2/scp_ramfw/config_mpmm.c
 @@ -27,26 +27,66 @@ enum cpu_idx {
@@ -42,11 +42,11 @@ index e5544347..d0f18de2 100644
                  .threshold_bitmap = 0x1111,
 -                .perf_limit = 2271 * 1000000UL,
 +                .perf_limit = 1844 * 1000000UL,
-             },
-         },
-     },
++            },
++        },
++    },
 +    {
-+        .cores_online = 3,
++	.cores_online = 3,
 +        .default_perf_limit = 1844 * 1000000UL,
 +        .num_perf_limits = 2,
 +        .threshold_perf = {
@@ -68,9 +68,9 @@ index e5544347..d0f18de2 100644
 +            {
 +                .threshold_bitmap = 0x22,
 +                .perf_limit = 2152 * 1000000UL,
-+            },
-+        },
-+    },
+             },
+         },
+     },
 +    {
 +        .cores_online = 1,
 +        .default_perf_limit = 2152 * 1000000UL,
@@ -147,14 +147,14 @@ index e5544347..d0f18de2 100644
          .core_starts_online = false,
      },
 -    [3] = {
-+};
++}
 +
 +static const struct mod_mpmm_core_config cortex_x4_core_config[1] = {
 +    [0] = {
          .pd_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_POWER_DOMAIN, CORE7_IDX),
          .mpmm_reg_base = SCP_MPMM_CORE_BASE(CORE7_IDX),
          .amu_aux_reg_base = SCP_AMU_AMEVCNTR1X(CORE7_IDX),
-@@ -113,6 +201,19 @@ static const struct mod_mpmm_core_config cortex_a720_core_config[4] = {
+@@ -113,6 +201,20 @@ static const struct mod_mpmm_core_config cortex_a720_core_config[4] = {
      },
  };
  
@@ -171,10 +171,11 @@ index e5544347..d0f18de2 100644
 +    [1] = {0},
 +};
 +
++
  static const struct mod_mpmm_domain_config cortex_a720_domain_conf[2] = {
      [0] = {
          .perf_id = FWK_ID_ELEMENT_INIT(
-@@ -126,13 +227,36 @@ static const struct mod_mpmm_domain_config cortex_a720_domain_conf[2] = {
+@@ -126,13 +228,36 @@ static const struct mod_mpmm_domain_config cortex_a720_domain_conf[2] = {
      [1] = {0},
  };
  
@@ -182,7 +183,7 @@ index e5544347..d0f18de2 100644
 +static const struct mod_mpmm_domain_config cortex_x4_domain_conf[2] = {
      [0] = {
 +        .perf_id = FWK_ID_ELEMENT_INIT(
-+            FWK_MODULE_IDX_DVFS, DVFS_ELEMENT_IDX_CORTEX_X4),
++             FWK_MODULE_IDX_DVFS, DVFS_ELEMENT_IDX_CORTEX_X4),
 +        .pct = cortex_x4_pct,
 +        .pct_size = FWK_ARRAY_SIZE(cortex_x4_pct),
 +        .btc = 10,
@@ -199,7 +200,7 @@ index e5544347..d0f18de2 100644
 +        .data = cortex_a520_domain_conf,
 +    },
 +    [1] = {
-         .name = "MPMM_CORTEX_A720_ELEM",
+         .name = "MPMM_HUNTER_ELEM",
 -        .sub_element_count = 1,
 +        .sub_element_count = 3,
          .data = cortex_a720_domain_conf,

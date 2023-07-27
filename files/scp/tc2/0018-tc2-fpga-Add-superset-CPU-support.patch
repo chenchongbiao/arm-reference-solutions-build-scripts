@@ -1,11 +1,11 @@
-From 631c7c8b578a903e5851e13fe82bbfaf2895b064 Mon Sep 17 00:00:00 2001
+From beb28c16157a20e0d42f0f4f69a15482f3c0bbd7 Mon Sep 17 00:00:00 2001
 From: Tintu Thomas <tintu.thomas@arm.com>
 Date: Mon, 3 Apr 2023 13:50:19 +0100
-Subject: [PATCH 20/20] tc2-fpga: Add superset CPU support
+Subject: [PATCH 18/21] tc2-fpga: Add superset CPU support
 
-* Added support for the Cortex-X4 min cores
+* Added support for the Hunter-ELP min cores
 * Added CPU8 to CPU13
-* With this, TC2 FPGA has 4xCortex-A520, 5xCortex-A720, 3xCortex-X4 min and 2xCortex-X4 cores
+* With this, TC2 FPGA has 4xHayes, 5xHunter, 3xHunter-ELP min and 2xHunter-ELP cores
 
 Signed-off-by: Tintu Thomas <tintu.thomas@arm.com>
 ---
@@ -45,17 +45,17 @@ index e1278f31..6a7de19f 100644
  /* Power domain context */
  struct ppu_v1_pd_ctx {
 diff --git a/product/tc2/include/clock_soc.h b/product/tc2/include/clock_soc.h
-index 82065260..6c6ef855 100644
+index 2ca49fe2..674932b8 100644
 --- a/product/tc2/include/clock_soc.h
 +++ b/product/tc2/include/clock_soc.h
 @@ -19,6 +19,9 @@
  enum clock_pll_idx {
-     CLOCK_PLL_IDX_CPU_CORTEX_A520,
-     CLOCK_PLL_IDX_CPU_CORTEX_A720,
+     CLOCK_PLL_IDX_CPU_HAYES,
+     CLOCK_PLL_IDX_CPU_HUNTER,
 +#if !defined(PLAT_FVP)
-+    CLOCK_PLL_IDX_CPU_CORTEX_X4_MIN,
++    CLOCK_PLL_IDX_CPU_HUNTER_ELP_MIN,
 +#endif
-     CLOCK_PLL_IDX_CPU_CORTEX_X4,
+     CLOCK_PLL_IDX_CPU_HUNTER_ELP,
      CLOCK_PLL_IDX_SYS,
  #if !defined(PLAT_FVP)
 @@ -45,6 +48,14 @@ enum clock_pik_idx {
@@ -75,22 +75,22 @@ index 82065260..6c6ef855 100644
      CLOCK_PIK_IDX_SYSPERCLK,
 @@ -79,6 +90,9 @@ enum mod_clusclock_source_tc2 {
  enum clock_css_idx {
-     CLOCK_CSS_IDX_CPU_GROUP_CORTEX_A520,
-     CLOCK_CSS_IDX_CPU_GROUP_CORTEX_A720,
+     CLOCK_CSS_IDX_CPU_GROUP_HAYES,
+     CLOCK_CSS_IDX_CPU_GROUP_HUNTER,
 +#if !defined(PLAT_FVP)
-+    CLOCK_CSS_IDX_CPU_GROUP_CORTEX_X4_MIN,
++    CLOCK_CSS_IDX_CPU_GROUP_HUNTER_ELP_MIN,
 +#endif
-     CLOCK_CSS_IDX_CPU_GROUP_CORTEX_X4,
+     CLOCK_CSS_IDX_CPU_GROUP_HUNTER_ELP,
      CLOCK_CSS_IDX_DPU,
      CLOCK_CSS_IDX_COUNT
 @@ -93,6 +107,9 @@ enum clock_idx {
  #endif
-     CLOCK_IDX_CPU_GROUP_CORTEX_A520,
-     CLOCK_IDX_CPU_GROUP_CORTEX_A720,
+     CLOCK_IDX_CPU_GROUP_HAYES,
+     CLOCK_IDX_CPU_GROUP_HUNTER,
 +#if !defined(PLAT_FVP)
-+    CLOCK_IDX_CPU_GROUP_CORTEX_X4_MIN,
++    CLOCK_IDX_CPU_GROUP_HUNTER_ELP_MIN,
 +#endif
-     CLOCK_IDX_CPU_GROUP_CORTEX_X4,
+     CLOCK_IDX_CPU_GROUP_HUNTER_ELP,
      CLOCK_IDX_DPU,
      CLOCK_IDX_PIXEL_0,
 diff --git a/product/tc2/include/cpu_pik.h b/product/tc2/include/cpu_pik.h
@@ -110,10 +110,10 @@ index 041bbbce..1dd4195d 100644
  /*!
   * \brief PE Static Configuration register definitions
 diff --git a/product/tc2/include/scp_mmap.h b/product/tc2/include/scp_mmap.h
-index 365badca..4a1214b2 100644
+index 4b18ac6a..dcd3c445 100644
 --- a/product/tc2/include/scp_mmap.h
 +++ b/product/tc2/include/scp_mmap.h
-@@ -102,6 +102,7 @@
+@@ -91,6 +91,7 @@
  #define SCP_PLL_CPU0 (SCP_PLL_BASE + 0x00000100)
  #define SCP_PLL_CPU1 (SCP_PLL_BASE + 0x00000104)
  #define SCP_PLL_CPU2 (SCP_PLL_BASE + 0x00000108)
@@ -139,63 +139,63 @@ index 2ff1e138..d945d05b 100644
  
  static inline unsigned int tc2_core_get_cluster_count(void)
 diff --git a/product/tc2/include/tc2_dvfs.h b/product/tc2/include/tc2_dvfs.h
-index 28b58638..23705bee 100644
+index b8cdcd7a..75e079ab 100644
 --- a/product/tc2/include/tc2_dvfs.h
 +++ b/product/tc2/include/tc2_dvfs.h
 @@ -14,6 +14,9 @@
  enum dvfs_element_idx {
-     DVFS_ELEMENT_IDX_CORTEX_A520,
-     DVFS_ELEMENT_IDX_CORTEX_A720,
+     DVFS_ELEMENT_IDX_HAYES,
+     DVFS_ELEMENT_IDX_HUNTER,
 +#if !defined(PLAT_FVP)
-+    DVFS_ELEMENT_IDX_CORTEX_X4_MIN,
++    DVFS_ELEMENT_IDX_HUNTER_ELP_MIN,
 +#endif
-     DVFS_ELEMENT_IDX_CORTEX_X4,
+     DVFS_ELEMENT_IDX_HUNTER_ELP,
      DVFS_ELEMENT_IDX_COUNT
  };
 diff --git a/product/tc2/include/tc2_mock_psu.h b/product/tc2/include/tc2_mock_psu.h
-index 7b3c85ee..827025ca 100644
+index 571a7fe0..a571ca3a 100644
 --- a/product/tc2/include/tc2_mock_psu.h
 +++ b/product/tc2/include/tc2_mock_psu.h
 @@ -14,6 +14,9 @@
  enum mock_psu_id {
-     MOCK_PSU_ELEMENT_IDX_CORTEX_A520,
-     MOCK_PSU_ELEMENT_IDX_CORTEX_A720,
+     MOCK_PSU_ELEMENT_IDX_HAYES,
+     MOCK_PSU_ELEMENT_IDX_HUNTER,
 +#if !defined(PLAT_FVP)
-+    MOCK_PSU_ELEMENT_IDX_CORTEX_X4_MIN,
++    MOCK_PSU_ELEMENT_IDX_HUNTER_ELP_MIN,
 +#endif
-     MOCK_PSU_ELEMENT_IDX_CORTEX_X4,
+     MOCK_PSU_ELEMENT_IDX_HUNTER_ELP,
      MOCK_PSU_ELEMENT_IDX_COUNT,
  };
 diff --git a/product/tc2/include/tc2_psu.h b/product/tc2/include/tc2_psu.h
-index b0e55c2c..9c11ad11 100644
+index 9e8bba65..16288053 100644
 --- a/product/tc2/include/tc2_psu.h
 +++ b/product/tc2/include/tc2_psu.h
 @@ -14,6 +14,9 @@
  enum psu_id {
-     PSU_ELEMENT_IDX_CORTEX_A520,
-     PSU_ELEMENT_IDX_CORTEX_A720,
+     PSU_ELEMENT_IDX_HAYES,
+     PSU_ELEMENT_IDX_HUNTER,
 +#if !defined(PLAT_FVP)
-+    PSU_ELEMENT_IDX_CORTEX_X4_MIN,
++    PSU_ELEMENT_IDX_HUNTER_ELP_MIN,
 +#endif
-     PSU_ELEMENT_IDX_CORTEX_X4,
+     PSU_ELEMENT_IDX_HUNTER_ELP,
      PSU_ELEMENT_IDX_COUNT,
  };
 diff --git a/product/tc2/include/tc2_timer.h b/product/tc2/include/tc2_timer.h
-index 4cc2a818..4d67e1bf 100644
+index b3d340ef..2436163f 100644
 --- a/product/tc2/include/tc2_timer.h
 +++ b/product/tc2/include/tc2_timer.h
 @@ -11,6 +11,9 @@
  enum config_timer_refclk_sub_element_idx {
-     TC2_CONFIG_TIMER_DVFS_CPU_CORTEX_A520,
-     TC2_CONFIG_TIMER_DVFS_CPU_CORTEX_A720,
+     TC2_CONFIG_TIMER_DVFS_CPU_HAYES,
+     TC2_CONFIG_TIMER_DVFS_CPU_HUNTER,
 +#if !defined(PLAT_FVP)
-+    TC2_CONFIG_TIMER_DVFS_CPU_CORTEX_X4_MIN,
++    TC2_CONFIG_TIMER_DVFS_CPU_HUNTER_ELP_MIN,
 +#endif
-     TC2_CONFIG_TIMER_DVFS_CPU_CORTEX_X4,
+     TC2_CONFIG_TIMER_DVFS_CPU_HUNTER_ELP,
  #ifdef BUILD_HAS_SCMI_PERF_FAST_CHANNELS
      TC2_CONFIG_TIMER_FAST_CHANNEL_TIMER_IDX,
 diff --git a/product/tc2/scp_ramfw/config_clock.c b/product/tc2/scp_ramfw/config_clock.c
-index ea70bbe0..8d79b93d 100644
+index 1969f5f8..4587045f 100644
 --- a/product/tc2/scp_ramfw/config_clock.c
 +++ b/product/tc2/scp_ramfw/config_clock.c
 @@ -58,6 +58,20 @@ static const struct fwk_element clock_dev_desc_table[CLOCK_IDX_COUNT + 1] = {
@@ -203,33 +203,33 @@ index ea70bbe0..8d79b93d 100644
              }),
          },
 +#if !defined(PLAT_FVP)
-+    [CLOCK_IDX_CPU_GROUP_CORTEX_X4_MIN] =
++    [CLOCK_IDX_CPU_GROUP_HUNTER_ELP_MIN] =
 +        {
-+            .name = "CPU_GROUP_CORTEX_X4_MIN",
++            .name = "CPU_GROUP_HUNTER_ELP_MIN",
 +            .data = &((struct mod_clock_dev_config){
 +                .driver_id = FWK_ID_ELEMENT_INIT(
 +                    FWK_MODULE_IDX_CSS_CLOCK,
-+                    CLOCK_CSS_IDX_CPU_GROUP_CORTEX_X4_MIN),
++                    CLOCK_CSS_IDX_CPU_GROUP_HUNTER_ELP_MIN),
 +                .api_id = FWK_ID_API_INIT(
 +                    FWK_MODULE_IDX_CSS_CLOCK,
 +                    MOD_CSS_CLOCK_API_TYPE_CLOCK),
 +            }),
 +        },
 +#endif
-     [CLOCK_IDX_CPU_GROUP_CORTEX_X4] =
+     [CLOCK_IDX_CPU_GROUP_HUNTER_ELP] =
          {
-             .name = "CPU_GROUP_CORTEX_X4",
+             .name = "CPU_GROUP_HUNTER_ELP",
 diff --git a/product/tc2/scp_ramfw/config_css_clock.c b/product/tc2/scp_ramfw/config_css_clock.c
-index 3a993187..46db2216 100644
+index 9f6ff764..dd4e27bf 100644
 --- a/product/tc2/scp_ramfw/config_css_clock.c
 +++ b/product/tc2/scp_ramfw/config_css_clock.c
-@@ -123,6 +123,62 @@ static const struct mod_css_clock_rate rate_table_cpu_group_cortex_a720[5] = {
+@@ -123,6 +123,62 @@ static const struct mod_css_clock_rate rate_table_cpu_group_hunter[5] = {
      },
  };
  
 +#if !defined(PLAT_FVP)
 +//todo: update with correct values
-+static const struct mod_css_clock_rate rate_table_cpu_group_cortex_x4_min[5] = {
++static const struct mod_css_clock_rate rate_table_cpu_group_hunter_elp_min[5] = {
 +    {
 +        /* Super Underdrive */
 +        .rate = 1088 * FWK_MHZ,
@@ -283,15 +283,15 @@ index 3a993187..46db2216 100644
 +};
 +#endif
 +
- static const struct mod_css_clock_rate rate_table_cpu_group_cortex_x4[5] = {
+ static const struct mod_css_clock_rate rate_table_cpu_group_hunter_elp[5] = {
      {
          /* Super Underdrive */
-@@ -183,6 +239,26 @@ static const fwk_id_t member_table_cpu_group_cortex_a520[4] = {
+@@ -183,6 +239,26 @@ static const fwk_id_t member_table_cpu_group_hayes[4] = {
      FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU3),
  };
  
 +#if !defined(PLAT_FVP)
-+static const fwk_id_t member_table_cpu_group_cortex_a720[5] = {
++static const fwk_id_t member_table_cpu_group_hunter[5] = {
 +    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU4),
 +    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU5),
 +    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU6),
@@ -299,22 +299,22 @@ index 3a993187..46db2216 100644
 +    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU8),
 +};
 +
-+static const fwk_id_t member_table_cpu_group_cortex_x4_min[3] = {
++static const fwk_id_t member_table_cpu_group_hunter_elp_min[3] = {
 +    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU9),
 +    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU10),
 +    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU11),
 +};
 +
-+static const fwk_id_t member_table_cpu_group_cortex_x4[2] = {
++static const fwk_id_t member_table_cpu_group_hunter_elp[2] = {
 +    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU12),
 +    FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU13),
 +};
 +#else
- static const fwk_id_t member_table_cpu_group_cortex_a720[3] = {
+ static const fwk_id_t member_table_cpu_group_hunter[3] = {
      FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU4),
      FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU5),
-@@ -192,6 +268,7 @@ static const fwk_id_t member_table_cpu_group_cortex_a720[3] = {
- static const fwk_id_t member_table_cpu_group_cortex_x4[1] = {
+@@ -192,6 +268,7 @@ static const fwk_id_t member_table_cpu_group_hunter[3] = {
+ static const fwk_id_t member_table_cpu_group_hunter_elp[1] = {
      FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PIK_CLOCK, CLOCK_PIK_IDX_CLUS0_CPU7),
  };
 +#endif
@@ -326,24 +326,24 @@ index 3a993187..46db2216 100644
              }),
          },
 +#if !defined(PLAT_FVP)
-+    [CLOCK_CSS_IDX_CPU_GROUP_CORTEX_X4_MIN] =
++    [CLOCK_CSS_IDX_CPU_GROUP_HUNTER_ELP_MIN] =
 +        {
-+            .name = "CPU_GROUP_CORTEX_X4_MIN",
++            .name = "CPU_GROUP_HUNTER_ELP_MIN",
 +            .data = &((struct mod_css_clock_dev_config){
 +                .clock_type = MOD_CSS_CLOCK_TYPE_INDEXED,
-+                .rate_table = rate_table_cpu_group_cortex_x4_min,
-+                .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_x4_min),
++                .rate_table = rate_table_cpu_group_hunter_elp_min,
++                .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp_min),
 +                .clock_switching_source =
 +                    MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL2,
 +                .pll_id = FWK_ID_ELEMENT_INIT(
 +                    FWK_MODULE_IDX_SYSTEM_PLL,
-+                    CLOCK_PLL_IDX_CPU_CORTEX_X4_MIN),
++                    CLOCK_PLL_IDX_CPU_HUNTER_ELP_MIN),
 +                .pll_api_id = FWK_ID_API_INIT(
 +                    FWK_MODULE_IDX_SYSTEM_PLL,
 +                    MOD_SYSTEM_PLL_API_TYPE_DEFAULT),
-+                .member_table = member_table_cpu_group_cortex_x4_min,
++                .member_table = member_table_cpu_group_hunter_elp_min,
 +                .member_count =
-+                    FWK_ARRAY_SIZE(member_table_cpu_group_cortex_x4_min),
++                    FWK_ARRAY_SIZE(member_table_cpu_group_hunter_elp_min),
 +                .member_api_id = FWK_ID_API_INIT(
 +                    FWK_MODULE_IDX_PIK_CLOCK,
 +                    MOD_PIK_CLOCK_API_TYPE_CSS),
@@ -352,111 +352,111 @@ index 3a993187..46db2216 100644
 +            }),
 +        },
 +#endif
-     [CLOCK_CSS_IDX_CPU_GROUP_CORTEX_X4] =
+     [CLOCK_CSS_IDX_CPU_GROUP_HUNTER_ELP] =
          {
-             .name = "CPU_GROUP_CORTEX_X4",
+             .name = "CPU_GROUP_HUNTER_ELP",
 diff --git a/product/tc2/scp_ramfw/config_dvfs.c b/product/tc2/scp_ramfw/config_dvfs.c
-index 5b2043d8..76e17965 100644
+index cb2f42f9..ec1592e1 100644
 --- a/product/tc2/scp_ramfw/config_dvfs.c
 +++ b/product/tc2/scp_ramfw/config_dvfs.c
 @@ -31,9 +31,10 @@
   */
  
  /* dynamic-power-coeffient/1000 */
--#define CORTEX_A520_DPC      0.230
--#define CORTEX_A720_DPC     0.495
--#define CORTEX_X4_DPC 1.054
-+#define CORTEX_A520_DPC          0.230
-+#define CORTEX_A720_DPC         0.495
-+#define CORTEX_X4_MIN_DPC 1.054
-+#define CORTEX_X4_DPC     1.054
+-#define HAYES_DPC      0.230
+-#define HUNTER_DPC     0.495
+-#define HUNTER_ELP_DPC 1.054
++#define HAYES_DPC          0.230
++#define HUNTER_DPC         0.495
++#define HUNTER_ELP_MIN_DPC 1.054
++#define HUNTER_ELP_DPC     1.054
  
- static struct mod_dvfs_opp operating_points_cortex_a520[6] = {
+ static struct mod_dvfs_opp operating_points_hayes[6] = {
      {
-@@ -103,6 +104,42 @@ static struct mod_dvfs_opp operating_points_cortex_a720[6] = {
+@@ -103,6 +104,42 @@ static struct mod_dvfs_opp operating_points_hunter[6] = {
      { 0 }
  };
  
 +#if !defined(PLAT_FVP)
-+static struct mod_dvfs_opp operating_points_cortex_x4_min[6] = {
++static struct mod_dvfs_opp operating_points_hunter_elp_min[6] = {
 +    {
 +        .level = 1088 * 1000000UL,
 +        .frequency = 1088 * FWK_KHZ,
 +        .voltage = 550,
-+        .power = (uint32_t)(CORTEX_X4_MIN_DPC * 1088 * 0.550 * 0.550),
++        .power = (uint32_t)(HUNTER_ELP_MIN_DPC * 1088 * 0.550 * 0.550),
 +    },
 +    {
 +        .level = 1632 * 1000000UL,
 +        .frequency = 1632 * FWK_KHZ,
 +        .voltage = 650,
-+        .power = (uint32_t)(CORTEX_X4_MIN_DPC * 1632 * 0.650 * 0.650),
++        .power = (uint32_t)(HUNTER_ELP_MIN_DPC * 1632 * 0.650 * 0.650),
 +    },
 +    {
 +        .level = 2176 * 1000000UL,
 +        .frequency = 2176 * FWK_KHZ,
 +        .voltage = 750,
-+        .power = (uint32_t)(CORTEX_X4_MIN_DPC * 2176 * 0.750 * 0.750),
++        .power = (uint32_t)(HUNTER_ELP_MIN_DPC * 2176 * 0.750 * 0.750),
 +    },
 +    {
 +        .level = 2612 * 1000000UL,
 +        .frequency = 2612 * FWK_KHZ,
 +        .voltage = 850,
-+        .power = (uint32_t)(CORTEX_X4_MIN_DPC * 2612 * 0.850 * 0.850),
++        .power = (uint32_t)(HUNTER_ELP_MIN_DPC * 2612 * 0.850 * 0.850),
 +    },
 +    {
 +        .level = 3047 * 1000000UL,
 +        .frequency = 3047 * FWK_KHZ,
 +        .voltage = 950,
-+        .power = (uint32_t)(CORTEX_X4_MIN_DPC * 3047 * 0.950 * 0.950),
++        .power = (uint32_t)(HUNTER_ELP_MIN_DPC * 3047 * 0.950 * 0.950),
 +    },
 +    { 0 }
 +};
 +#endif
 +
- static struct mod_dvfs_opp operating_points_cortex_x4[6] = {
+ static struct mod_dvfs_opp operating_points_hunter_elp[6] = {
      {
          .level = 1088 * 1000000UL,
-@@ -165,6 +202,24 @@ static const struct mod_dvfs_domain_config cpu_group_cortex_a720 = {
-     .opps = operating_points_cortex_a720,
+@@ -165,6 +202,24 @@ static const struct mod_dvfs_domain_config cpu_group_hunter = {
+     .opps = operating_points_hunter,
  };
  
 +#if !defined(PLAT_FVP)
-+static const struct mod_dvfs_domain_config cpu_group_cortex_x4_min = {
++static const struct mod_dvfs_domain_config cpu_group_hunter_elp_min = {
 +    .psu_id =
-+        FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PSU, PSU_ELEMENT_IDX_CORTEX_X4_MIN),
++        FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PSU, PSU_ELEMENT_IDX_HUNTER_ELP_MIN),
 +    .clock_id = FWK_ID_ELEMENT_INIT(
 +        FWK_MODULE_IDX_CLOCK,
-+        CLOCK_IDX_CPU_GROUP_CORTEX_X4_MIN),
++        CLOCK_IDX_CPU_GROUP_HUNTER_ELP_MIN),
 +    .alarm_id = FWK_ID_SUB_ELEMENT_INIT(
 +        FWK_MODULE_IDX_TIMER,
 +        0,
-+        TC2_CONFIG_TIMER_DVFS_CPU_CORTEX_X4_MIN),
++        TC2_CONFIG_TIMER_DVFS_CPU_HUNTER_ELP_MIN),
 +    .retry_ms = 1,
 +    .latency = 1200,
 +    .sustained_idx = 2,
-+    .opps = operating_points_cortex_x4_min,
++    .opps = operating_points_hunter_elp_min,
 +};
 +#endif
 +
- static const struct mod_dvfs_domain_config cpu_group_cortex_x4 = {
+ static const struct mod_dvfs_domain_config cpu_group_hunter_elp = {
      .psu_id =
-         FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PSU, PSU_ELEMENT_IDX_CORTEX_X4),
+         FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PSU, PSU_ELEMENT_IDX_HUNTER_ELP),
 @@ -192,6 +247,13 @@ static const struct fwk_element element_table[DVFS_ELEMENT_IDX_COUNT + 1] = {
-             .name = "CPU_GROUP_CORTEX_A720",
-             .data = &cpu_group_cortex_a720,
+             .name = "CPU_GROUP_HUNTER",
+             .data = &cpu_group_hunter,
          },
 +#if !defined(PLAT_FVP)
-+    [DVFS_ELEMENT_IDX_CORTEX_X4_MIN] =
++    [DVFS_ELEMENT_IDX_HUNTER_ELP_MIN] =
 +        {
-+            .name = "CPU_GROUP_CORTEX_X4_MIN",
-+            .data = &cpu_group_cortex_x4_min,
++            .name = "CPU_GROUP_HUNTER_ELP_MIN",
++            .data = &cpu_group_hunter_elp_min,
 +        },
 +#endif
-     [DVFS_ELEMENT_IDX_CORTEX_X4] =
+     [DVFS_ELEMENT_IDX_HUNTER_ELP] =
          {
-             .name = "CPU_GROUP_CORTEX_X4",
+             .name = "CPU_GROUP_HUNTER_ELP",
 diff --git a/product/tc2/scp_ramfw/config_mock_psu.c b/product/tc2/scp_ramfw/config_mock_psu.c
-index 7dc2ddbe..162f9598 100644
+index 50bd1f5b..1f7bdabc 100644
 --- a/product/tc2/scp_ramfw/config_mock_psu.c
 +++ b/product/tc2/scp_ramfw/config_mock_psu.c
 @@ -41,6 +41,22 @@ static const struct fwk_element element_table[MOCK_PSU_ELEMENT_IDX_COUNT + 1] =
@@ -464,8 +464,8 @@ index 7dc2ddbe..162f9598 100644
              },
      },
 +#if !defined(PLAT_FVP)
-+    [MOCK_PSU_ELEMENT_IDX_CORTEX_X4_MIN] = {
-+        .name = "DVFS_GROUP_CORTEX_X4_MIN",
++    [MOCK_PSU_ELEMENT_IDX_HUNTER_ELP_MIN] = {
++        .name = "DVFS_GROUP_HUNTER_ELP_MIN",
 +        .data =
 +            &(const struct mod_mock_psu_element_cfg){
 +                .async_alarm_id = FWK_ID_NONE_INIT,
@@ -479,19 +479,19 @@ index 7dc2ddbe..162f9598 100644
 +            },
 +    },
 +#endif
-     [MOCK_PSU_ELEMENT_IDX_CORTEX_X4] = {
-         .name = "DVFS_GROUP_CORTEX_X4",
+     [MOCK_PSU_ELEMENT_IDX_HUNTER_ELP] = {
+         .name = "DVFS_GROUP_HUNTER_ELP",
          .data =
 diff --git a/product/tc2/scp_ramfw/config_pik_clock.c b/product/tc2/scp_ramfw/config_pik_clock.c
-index 19a9b563..0f6e5516 100644
+index 19613eb7..6ca587f6 100644
 --- a/product/tc2/scp_ramfw/config_pik_clock.c
 +++ b/product/tc2/scp_ramfw/config_pik_clock.c
-@@ -49,6 +49,16 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_cortex_x4[1] = {
+@@ -49,6 +49,16 @@ static const struct mod_pik_clock_rate rate_table_cpu_group_hunter_elp[1] = {
  };
  
  #if !defined(PLAT_FVP)
 +//todo: update with correct value
-+static const struct mod_pik_clock_rate rate_table_cpu_group_cortex_x4_min[1] = {
++static const struct mod_pik_clock_rate rate_table_cpu_group_hunter_elp_min[1] = {
 +    {
 +        .rate = 2176 * FWK_MHZ,
 +        .source = MOD_PIK_CLOCK_CLUSCLK_SOURCE_TC2_PLL2,
@@ -504,7 +504,7 @@ index 19a9b563..0f6e5516 100644
      {
          .rate = 2000 * FWK_MHZ,
 @@ -191,6 +201,7 @@ static const struct fwk_element pik_clock_element_table[
-             .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a720),
+             .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter),
          }),
      },
 +#if defined(PLAT_FVP)
@@ -512,7 +512,7 @@ index 19a9b563..0f6e5516 100644
          .name = "CLUS0_CPU7",
          .data = &((struct mod_pik_clock_dev_config) {
 @@ -203,7 +214,91 @@ static const struct fwk_element pik_clock_element_table[
-             .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_x4),
+             .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp),
          }),
      },
 -#if !defined(PLAT_FVP)
@@ -525,8 +525,8 @@ index 19a9b563..0f6e5516 100644
 +            .control_reg = &CLUSTER_PIK_PTR->CORECLK[7].CTRL,
 +            .divext_reg = &CLUSTER_PIK_PTR->CORECLK[7].DIV,
 +            .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[7].MOD,
-+            .rate_table = rate_table_cpu_group_cortex_a720,
-+            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a720),
++            .rate_table = rate_table_cpu_group_hunter,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter),
 +        }),
 +    },
 +    [CLOCK_PIK_IDX_CLUS0_CPU8] = {
@@ -537,8 +537,8 @@ index 19a9b563..0f6e5516 100644
 +            .control_reg = &CLUSTER_PIK_PTR->CORECLK[8].CTRL,
 +            .divext_reg = &CLUSTER_PIK_PTR->CORECLK[8].DIV,
 +            .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[8].MOD,
-+            .rate_table = rate_table_cpu_group_cortex_a720,
-+            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_a720),
++            .rate_table = rate_table_cpu_group_hunter,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter),
 +        }),
 +    },
 +    [CLOCK_PIK_IDX_CLUS0_CPU9] = {
@@ -549,8 +549,8 @@ index 19a9b563..0f6e5516 100644
 +            .control_reg = &CLUSTER_PIK_PTR->CORECLK[9].CTRL,
 +            .divext_reg = &CLUSTER_PIK_PTR->CORECLK[9].DIV,
 +            .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[9].MOD,
-+            .rate_table = rate_table_cpu_group_cortex_x4_min,
-+            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_x4_min),
++            .rate_table = rate_table_cpu_group_hunter_elp_min,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp_min),
 +        }),
 +    },
 +    [CLOCK_PIK_IDX_CLUS0_CPU10] = {
@@ -561,8 +561,8 @@ index 19a9b563..0f6e5516 100644
 +            .control_reg = &CLUSTER_PIK_PTR->CORECLK[10].CTRL,
 +            .divext_reg = &CLUSTER_PIK_PTR->CORECLK[10].DIV,
 +            .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[10].MOD,
-+            .rate_table = rate_table_cpu_group_cortex_x4_min,
-+            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_x4_min),
++            .rate_table = rate_table_cpu_group_hunter_elp_min,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp_min),
 +        }),
 +    },
 +    [CLOCK_PIK_IDX_CLUS0_CPU11] = {
@@ -573,8 +573,8 @@ index 19a9b563..0f6e5516 100644
 +            .control_reg = &CLUSTER_PIK_PTR->CORECLK[11].CTRL,
 +            .divext_reg = &CLUSTER_PIK_PTR->CORECLK[11].DIV,
 +            .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[11].MOD,
-+            .rate_table = rate_table_cpu_group_cortex_x4_min,
-+            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_x4_min),
++            .rate_table = rate_table_cpu_group_hunter_elp_min,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp_min),
 +        }),
 +    },
 +    [CLOCK_PIK_IDX_CLUS0_CPU12] = {
@@ -585,8 +585,8 @@ index 19a9b563..0f6e5516 100644
 +            .control_reg = &CLUSTER_PIK_PTR->CORECLK[12].CTRL,
 +            .divext_reg = &CLUSTER_PIK_PTR->CORECLK[12].DIV,
 +            .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[12].MOD,
-+            .rate_table = rate_table_cpu_group_cortex_x4,
-+            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_x4),
++            .rate_table = rate_table_cpu_group_hunter_elp,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp),
 +        }),
 +    },
 +    [CLOCK_PIK_IDX_CLUS0_CPU13] = {
@@ -597,8 +597,8 @@ index 19a9b563..0f6e5516 100644
 +            .control_reg = &CLUSTER_PIK_PTR->CORECLK[13].CTRL,
 +            .divext_reg = &CLUSTER_PIK_PTR->CORECLK[13].DIV,
 +            .modulator_reg = &CLUSTER_PIK_PTR->CORECLK[13].MOD,
-+            .rate_table = rate_table_cpu_group_cortex_x4,
-+            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_cortex_x4),
++            .rate_table = rate_table_cpu_group_hunter_elp,
++            .rate_count = FWK_ARRAY_SIZE(rate_table_cpu_group_hunter_elp),
 +        }),
 +    },
      [CLOCK_PIK_IDX_INTERCONNECT] = {
@@ -614,7 +614,7 @@ index 19a9b563..0f6e5516 100644
          .name = "GIC",
          .data = &((struct mod_pik_clock_dev_config) {
 diff --git a/product/tc2/scp_ramfw/config_psu.c b/product/tc2/scp_ramfw/config_psu.c
-index 9015dcd2..7e8b0288 100644
+index 4fa8778e..2d34e20e 100644
 --- a/product/tc2/scp_ramfw/config_psu.c
 +++ b/product/tc2/scp_ramfw/config_psu.c
 @@ -36,6 +36,18 @@ static const struct fwk_element element_table[PSU_ELEMENT_IDX_COUNT + 1] = {
@@ -622,22 +622,22 @@ index 9015dcd2..7e8b0288 100644
                      MOD_MOCK_PSU_API_IDX_DRIVER) },
      },
 +#if !defined(PLAT_FVP)
-+    [PSU_ELEMENT_IDX_CORTEX_X4_MIN] = {
-+        .name = "PSU_GROUP_CORTEX_X4_MIN",
++    [PSU_ELEMENT_IDX_HUNTER_ELP_MIN] = {
++        .name = "PSU_GROUP_HUNTER_ELP_MIN",
 +        .data =
 +            &(const struct mod_psu_element_cfg){
 +                .driver_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_MOCK_PSU,
-+                    MOCK_PSU_ELEMENT_IDX_CORTEX_X4_MIN),
++                    MOCK_PSU_ELEMENT_IDX_HUNTER_ELP_MIN),
 +                .driver_api_id = FWK_ID_API_INIT(
 +                    FWK_MODULE_IDX_MOCK_PSU,
 +                    MOD_MOCK_PSU_API_IDX_DRIVER) },
 +    },
 +#endif
-     [PSU_ELEMENT_IDX_CORTEX_X4] = {
-         .name = "PSU_GROUP_CORTEX_X4",
+     [PSU_ELEMENT_IDX_HUNTER_ELP] = {
+         .name = "PSU_GROUP_HUNTER_ELP",
          .data =
 diff --git a/product/tc2/scp_ramfw/config_scmi_perf.c b/product/tc2/scp_ramfw/config_scmi_perf.c
-index 96a55088..4bebdf37 100644
+index bd99f60d..f3b5c3be 100644
 --- a/product/tc2/scp_ramfw/config_scmi_perf.c
 +++ b/product/tc2/scp_ramfw/config_scmi_perf.c
 @@ -104,6 +104,32 @@ static const struct mod_scmi_perf_domain_config
@@ -645,36 +645,36 @@ index 96a55088..4bebdf37 100644
  #endif
          },
 +#if !defined(PLAT_FVP)
-+        [DVFS_ELEMENT_IDX_CORTEX_X4_MIN] = {
++        [DVFS_ELEMENT_IDX_HUNTER_ELP_MIN] = {
 +#ifdef BUILD_HAS_SCMI_PERF_FAST_CHANNELS
 +         .fast_channels_addr_scp = (uint64_t[]) {
 +            [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_SET] =
-+                FC_LEVEL_SET_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4_MIN),
++                FC_LEVEL_SET_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
 +            [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_SET] =
-+                FC_LIMIT_SET_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4_MIN),
++                FC_LIMIT_SET_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
 +            [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_GET] =
-+                FC_LEVEL_GET_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4_MIN),
++                FC_LEVEL_GET_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
 +            [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_GET] =
-+                FC_LIMIT_GET_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4_MIN),
++                FC_LIMIT_GET_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
 +        },
 +         .fast_channels_addr_ap = (uint64_t[]) {
 +            [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_SET] =
-+                FC_LEVEL_SET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4_MIN),
++                FC_LEVEL_SET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
 +            [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_SET] =
-+                FC_LIMIT_SET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4_MIN),
++                FC_LIMIT_SET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
 +            [MOD_SCMI_PERF_FAST_CHANNEL_LEVEL_GET] =
-+                FC_LEVEL_GET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4_MIN),
++                FC_LEVEL_GET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
 +            [MOD_SCMI_PERF_FAST_CHANNEL_LIMIT_GET] =
-+                FC_LIMIT_GET_AP_ADDR(DVFS_ELEMENT_IDX_CORTEX_X4_MIN),
++                FC_LIMIT_GET_AP_ADDR(DVFS_ELEMENT_IDX_HUNTER_ELP_MIN),
 +        },
 +#endif
 +        },
 +#endif
-         [DVFS_ELEMENT_IDX_CORTEX_X4] = {
+         [DVFS_ELEMENT_IDX_HUNTER_ELP] = {
  #ifdef BUILD_HAS_SCMI_PERF_FAST_CHANNELS
           .fast_channels_addr_scp = (uint64_t[]) {
 diff --git a/product/tc2/scp_ramfw/config_system_pll.c b/product/tc2/scp_ramfw/config_system_pll.c
-index f8428f18..e242a503 100644
+index 239e342c..a0da05c8 100644
 --- a/product/tc2/scp_ramfw/config_system_pll.c
 +++ b/product/tc2/scp_ramfw/config_system_pll.c
 @@ -45,6 +45,21 @@ static const struct fwk_element system_pll_element_table[
@@ -682,9 +682,9 @@ index f8428f18..e242a503 100644
                  }),
              },
 +#if !defined(PLAT_FVP)
-+        [CLOCK_PLL_IDX_CPU_CORTEX_X4_MIN] =
++        [CLOCK_PLL_IDX_CPU_HUNTER_ELP_MIN] =
 +            {
-+                .name = "CPU_PLL_CORTEX_X4_MIN",
++                .name = "CPU_PLL_HUNTER_ELP_MIN",
 +                .data = &((struct mod_system_pll_dev_config){
 +                    .control_reg = (void *)SCP_PLL_CPU3,
 +                    .status_reg = (void *)&SCP_PIK_PTR->PLL_STATUS[1],
@@ -696,9 +696,9 @@ index f8428f18..e242a503 100644
 +                }),
 +            },
 +#endif
-         [CLOCK_PLL_IDX_CPU_CORTEX_X4] =
+         [CLOCK_PLL_IDX_CPU_HUNTER_ELP] =
              {
-                 .name = "CPU_PLL_CORTEX_X4",
+                 .name = "CPU_PLL_HUNTER_ELP",
 -- 
 2.25.1
 

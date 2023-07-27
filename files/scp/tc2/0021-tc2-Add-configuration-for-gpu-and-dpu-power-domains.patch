@@ -1,0 +1,133 @@
+From 218d192003618af526f3e24a0a8a17965dd27c91 Mon Sep 17 00:00:00 2001
+From: Ben Horgan <ben.horgan@arm.com>
+Date: Fri, 21 Jul 2023 14:32:18 +0100
+Subject: [PATCH 21/21] tc2: Add configuration for gpu and dpu power domains
+
+Can now turn the gpu power off and on via the scmi power domain
+protocol. Also, for the dpu.
+
+Signed-off-by: Ben Horgan <ben.horgan@arm.com>
+---
+ product/tc2/include/config_power_domain.h   |  2 +
+ product/tc2/scp_ramfw/config_power_domain.c | 55 ++++++++++++++++++++-
+ product/tc2/scp_ramfw/config_ppu_v1.c       |  4 +-
+ 3 files changed, 58 insertions(+), 3 deletions(-)
+
+diff --git a/product/tc2/include/config_power_domain.h b/product/tc2/include/config_power_domain.h
+index 435e9cd9..3c136564 100644
+--- a/product/tc2/include/config_power_domain.h
++++ b/product/tc2/include/config_power_domain.h
+@@ -19,6 +19,8 @@
+  * core_count + cluster_count + pd_static_dev_idx
+  */
+ enum pd_static_dev_idx {
++    PD_STATIC_DEV_IDX_GPUTOP,
++    PD_STATIC_DEV_IDX_DPUTOP,
+     PD_STATIC_DEV_IDX_SYSTOP,
+     PD_STATIC_DEV_IDX_COUNT,
+     PD_STATIC_DEV_IDX_NONE = UINT32_MAX
+diff --git a/product/tc2/scp_ramfw/config_power_domain.c b/product/tc2/scp_ramfw/config_power_domain.c
+index 8269e1cf..012e146e 100644
+--- a/product/tc2/scp_ramfw/config_power_domain.c
++++ b/product/tc2/scp_ramfw/config_power_domain.c
+@@ -6,6 +6,7 @@
+  */
+ 
+ #include "config_power_domain.h"
++#include "config_ppu_v1.h"
+ #include "tc2_core.h"
+ #include "tc2_power_domain.h"
+ 
+@@ -34,6 +35,26 @@ static const uint32_t systop_allowed_state_mask_table[1] = {
+     [0] = MOD_PD_STATE_ON_MASK
+ };
+ 
++/* Mask of the allowed states for the gputop power domain depending on the
++ * system states.
++ */
++static const uint32_t gputop_allowed_state_mask_table[] = {
++    [MOD_PD_STATE_OFF] = MOD_PD_STATE_OFF_MASK,
++    [MOD_PD_STATE_ON] = MOD_PD_STATE_OFF_MASK | MOD_PD_STATE_ON_MASK,
++    [MOD_SYSTEM_POWER_POWER_STATE_SLEEP0] = MOD_PD_STATE_OFF_MASK,
++    [MOD_SYSTEM_POWER_POWER_STATE_SLEEP1] = MOD_PD_STATE_OFF_MASK
++};
++
++/* Mask of the allowed states for the dputop power domain depending on the
++ * system states.
++ */
++static const uint32_t dputop_allowed_state_mask_table[] = {
++    [MOD_PD_STATE_OFF] = MOD_PD_STATE_OFF_MASK,
++    [MOD_PD_STATE_ON] = MOD_PD_STATE_OFF_MASK | MOD_PD_STATE_ON_MASK,
++    [MOD_SYSTEM_POWER_POWER_STATE_SLEEP0] = MOD_PD_STATE_OFF_MASK,
++    [MOD_SYSTEM_POWER_POWER_STATE_SLEEP1] = MOD_PD_STATE_OFF_MASK
++};
++
+ /*
+  * Mask of the allowed states for the cluster power domain depending on the
+  * system states.
+@@ -52,7 +73,39 @@ static const uint32_t core_pd_allowed_state_mask_table[2] = {
+ /* Power module specific configuration data (none) */
+ static const struct mod_power_domain_config tc2_power_domain_config = { 0 };
+ 
+-static struct fwk_element tc2_power_domain_static_element_table[1] = {
++static struct fwk_element tc2_power_domain_static_element_table[] = {
++    [PD_STATIC_DEV_IDX_GPUTOP] =
++        {
++            .name = "GPUTOP",
++            .data = &((struct mod_power_domain_element_config) {
++                .attributes.pd_type = MOD_PD_TYPE_DEVICE,
++                .driver_id = FWK_ID_ELEMENT_INIT(
++                    FWK_MODULE_IDX_PPU_V1,
++                    CORES_PER_CLUSTER * NUMBER_OF_CLUSTERS +
++                    NUMBER_OF_CLUSTERS + PPU_V1_ELEMENT_IDX_GPUTOP0),
++                .api_id = FWK_ID_API_INIT(
++                    FWK_MODULE_IDX_PPU_V1,
++                    MOD_PPU_V1_API_IDX_POWER_DOMAIN_DRIVER),
++                .allowed_state_mask_table = gputop_allowed_state_mask_table,
++                .allowed_state_mask_table_size =
++                    FWK_ARRAY_SIZE(gputop_allowed_state_mask_table) }),
++        },
++    [PD_STATIC_DEV_IDX_DPUTOP] =
++        {
++            .name = "DPUTOP",
++            .data = &((struct mod_power_domain_element_config) {
++                .attributes.pd_type = MOD_PD_TYPE_DEVICE,
++                .driver_id = FWK_ID_ELEMENT_INIT(
++                    FWK_MODULE_IDX_PPU_V1,
++                    CORES_PER_CLUSTER * NUMBER_OF_CLUSTERS +
++                    NUMBER_OF_CLUSTERS + PPU_V1_ELEMENT_IDX_DPUTOP0),
++                .api_id = FWK_ID_API_INIT(
++                    FWK_MODULE_IDX_PPU_V1,
++                    MOD_PPU_V1_API_IDX_POWER_DOMAIN_DRIVER),
++                .allowed_state_mask_table = dputop_allowed_state_mask_table,
++                .allowed_state_mask_table_size =
++                    FWK_ARRAY_SIZE(dputop_allowed_state_mask_table) }),
++        },
+     [PD_STATIC_DEV_IDX_SYSTOP] =
+         {
+             .name = "SYSTOP",
+diff --git a/product/tc2/scp_ramfw/config_ppu_v1.c b/product/tc2/scp_ramfw/config_ppu_v1.c
+index d5f66654..577838f8 100644
+--- a/product/tc2/scp_ramfw/config_ppu_v1.c
++++ b/product/tc2/scp_ramfw/config_ppu_v1.c
+@@ -58,7 +58,7 @@ static struct fwk_element ppu_v1_system_element_table[] = {
+                 .pd_type = MOD_PD_TYPE_DEVICE,
+                 .ppu.reg_base = SCP_PPU_GPU_BASE,
+                 .observer_id = FWK_ID_NONE_INIT,
+-                .default_power_on = true,
++                .default_power_on = false,
+             }),
+         },
+     [PPU_V1_ELEMENT_IDX_DPUTOP0] =
+@@ -68,7 +68,7 @@ static struct fwk_element ppu_v1_system_element_table[] = {
+                 .pd_type = MOD_PD_TYPE_DEVICE,
+                 .ppu.reg_base = SCP_PPU_DPU_BASE,
+                 .observer_id = FWK_ID_NONE_INIT,
+-                .default_power_on = true,
++                .default_power_on = false,
+             }),
+         },
+ };
+-- 
+2.25.1
+
