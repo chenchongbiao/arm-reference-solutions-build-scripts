@@ -1,0 +1,38 @@
+From 2153030c543b2a3879f5b990ed419ae065838690 Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Mon, 3 Jul 2023 11:54:45 +0530
+Subject: [PATCH 2/2] tc2: Do not enable MPMM and Aux AMU counters always
+
+There are requirements in which the MPMM and Auxiliary AMU counters have
+to be disabled. Hence removing the "override" here which helps in
+disabling them during the build.
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+---
+ plat/arm/board/tc/platform.mk | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/plat/arm/board/tc/platform.mk b/plat/arm/board/tc/platform.mk
+index df10d1e8f..5645c3c0e 100644
+--- a/plat/arm/board/tc/platform.mk
++++ b/plat/arm/board/tc/platform.mk
+@@ -172,11 +172,12 @@ override CTX_INCLUDE_PAUTH_REGS	:= 1
+ override ENABLE_SPE_FOR_LOWER_ELS	:= 0
+ 
+ override ENABLE_AMU := 1
+-override ENABLE_AMU_AUXILIARY_COUNTERS := 1
+-override ENABLE_AMU_FCONF := 1
+ 
+-override ENABLE_MPMM := 1
+-override ENABLE_MPMM_FCONF := 1
++ENABLE_AMU_AUXILIARY_COUNTERS := 1
++ENABLE_AMU_FCONF := 1
++
++ENABLE_MPMM := 1
++ENABLE_MPMM_FCONF := 1
+ 
+ # Include Measured Boot makefile before any Crypto library makefile.
+ # Crypto library makefile may need default definitions of Measured Boot build
+-- 
+2.34.1
+

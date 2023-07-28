@@ -1,0 +1,75 @@
+From 08bb4f25cff1d3aa5bf6142be41fbe3abb3bf733 Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Fri, 9 Jun 2023 12:18:52 +0530
+Subject: [PATCH 2/6] module: mpmm: write gears only if it changed
+
+Write to the gear registers only if the gear to be changed is different
+from the current gear. This prevents the register writes to happen for
+every fastchannel tick.
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+---
+ module/mpmm/src/mod_mpmm.c | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/module/mpmm/src/mod_mpmm.c b/module/mpmm/src/mod_mpmm.c
+index fc4bea01..852e26d6 100644
+--- a/module/mpmm/src/mod_mpmm.c
++++ b/module/mpmm/src/mod_mpmm.c
+@@ -11,6 +11,7 @@
+ #include <mod_power_domain.h>
+ #include <mod_scmi_perf.h>
+ 
++#include <fwk_log.h>
+ #include <fwk_assert.h>
+ #include <fwk_core.h>
+ #include <fwk_id.h>
+@@ -32,6 +33,9 @@ struct mod_mpmm_core_ctx {
+     /* The core is online */
+     bool online;
+ 
++    /* Update only when the threshold changes */
++    bool needs_threshold_update;
++
+     /* Current selected threshold */
+     uint32_t threshold;
+ 
+@@ -210,7 +214,11 @@ static void mpmm_domain_set_thresholds(struct mod_mpmm_domain_ctx *ctx)
+ 
+     for (core_idx = 0; core_idx < ctx->num_cores; core_idx++) {
+         core_ctx = &ctx->core_ctx[core_idx];
+-        if (core_ctx->online) {
++        if (core_ctx->online && core_ctx->needs_threshold_update) {
++            FWK_LOG_INFO("domain %d: core %d: setting gear to %ld\n",
++			    ctx->domain_id.element.element_idx,
++			    core_ctx->core_id.sub_element.sub_element_idx,
++			    core_ctx->threshold & MPMM_MPMMCR_GEAR_MASK);
+             mpmm_core_set_threshold(core_ctx);
+         }
+     }
+@@ -221,6 +229,7 @@ static void mpmm_core_evaluate_threshold(
+     struct mod_mpmm_core_ctx *core_ctx)
+ {
+     bool enabled;
++    uint32_t new_threshold;
+ 
+     /* If counters are not enabled exit */
+     mpmm_core_check_enabled(core_ctx, &enabled);
+@@ -233,7 +242,13 @@ static void mpmm_core_evaluate_threshold(
+     mpmm_core_counters_delta(domain_ctx, core_ctx);
+ 
+     /* Threshold selection policy */
+-    core_ctx->threshold = mpmm_core_threshold_policy(domain_ctx, core_ctx);
++    new_threshold = mpmm_core_threshold_policy(domain_ctx, core_ctx);
++    if (new_threshold != core_ctx->threshold) {
++	    core_ctx->threshold = new_threshold;
++	    core_ctx->needs_threshold_update = true;
++    } else {
++	    core_ctx->needs_threshold_update = false;
++    }
+ 
+     return;
+ }
+-- 
+2.34.1
+

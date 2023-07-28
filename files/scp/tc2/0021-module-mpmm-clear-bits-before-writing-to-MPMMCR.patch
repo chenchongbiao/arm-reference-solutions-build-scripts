@@ -1,0 +1,33 @@
+From 7b343a89284d10e4d89d1d96f7efa0d3c9078501 Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Tue, 6 Jun 2023 12:05:16 +0530
+Subject: [PATCH 1/6] module: mpmm: clear bits before writing to MPMMCR
+
+Clear the bits of the MPMMCR register before writing new bits.
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+---
+ module/mpmm/src/mod_mpmm.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/module/mpmm/src/mod_mpmm.c b/module/mpmm/src/mod_mpmm.c
+index fefee5a1..fc4bea01 100644
+--- a/module/mpmm/src/mod_mpmm.c
++++ b/module/mpmm/src/mod_mpmm.c
+@@ -114,7 +114,12 @@ static void mpmm_core_check_enabled(
+ /* Set the MPMM threshold for a specific core. */
+ static void mpmm_core_set_threshold(struct mod_mpmm_core_ctx *core_ctx)
+ {
+-    core_ctx->mpmm->MPMMCR |=
++
++    uint32_t temp;
++
++    temp = core_ctx->mpmm->MPMMCR;
++    temp &= ~(MPMM_MPMMCR_GEAR_MASK << MPMM_MPMMCR_GEAR_POS);
++    core_ctx->mpmm->MPMMCR = temp |
+         ((core_ctx->threshold & MPMM_MPMMCR_GEAR_MASK) << MPMM_MPMMCR_GEAR_POS);
+ }
+ 
+-- 
+2.34.1
+

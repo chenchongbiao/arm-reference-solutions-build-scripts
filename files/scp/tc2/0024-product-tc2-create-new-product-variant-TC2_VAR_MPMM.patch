@@ -1,0 +1,89 @@
+From 67ac500a9b8608ae981e76515e3e79d9debd90c0 Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Tue, 6 Jun 2023 12:18:26 +0530
+Subject: [PATCH 4/6] product/tc2: create new product variant TC2_VAR_MPMM
+
+This product variant is the addition of the only the MPMM module to
+the standard variant.
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+---
+ product/tc2/scp_ramfw/CMakeLists.txt     | 17 +++++++++++++++++
+ product/tc2/scp_ramfw/config_scmi_perf.c | 12 ++++++++++--
+ 2 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/product/tc2/scp_ramfw/CMakeLists.txt b/product/tc2/scp_ramfw/CMakeLists.txt
+index e7f22ac4..8b2d2720 100644
+--- a/product/tc2/scp_ramfw/CMakeLists.txt
++++ b/product/tc2/scp_ramfw/CMakeLists.txt
+@@ -19,9 +19,11 @@ add_executable(tc2-bl2)
+ #   - MPMM on CORTEX_A720 cores
+ #   - THERMAL_MANAGEMENT for the entire system, with a simplified/dummy power
+ #     model
++# - 'TC2_VAR_MPMM' for TC2 with only the MPMM scmi-perf plugin addition
+ 
+ target_compile_definitions(tc2-bl2 PUBLIC -DTC2_VARIANT_STD=0)
+ target_compile_definitions(tc2-bl2 PUBLIC -DTC2_VAR_EXPERIMENT_POWER=1)
++target_compile_definitions(tc2-bl2 PUBLIC -DTC2_VAR_MPMM=2)
+ 
+ if(SCP_ENABLE_PLAT_FVP)
+     target_compile_definitions(tc2-bl2 PUBLIC -DPLAT_FVP=1)
+@@ -59,9 +61,24 @@ if (SCP_PLATFORM_VARIANT STREQUAL "1")
+         "${CMAKE_CURRENT_LIST_DIR}/../module/tc2_power_model")
+     target_sources(tc2-bl2 PRIVATE "config_tc2_power_model.c")
+ 
++elseif (SCP_PLATFORM_VARIANT STREQUAL "2")
++    message(NOTICE "SCP_PLATFORM_VARIANT set to: MPMM (tc2-bl2)\n")
++
++    target_compile_definitions(tc2-bl2
++        PUBLIC -DPLATFORM_VARIANT=TC2_VAR_MPMM)
++
++    set(SCP_ENABLE_PLUGIN_HANDLER TRUE PARENT_SCOPE)
++    set(SCP_ENABLE_SCMI_PERF_FAST_CHANNELS TRUE PARENT_SCOPE)
++
++    list(APPEND SCP_MODULES "mpmm")
++    target_sources(tc2-bl2 PRIVATE "config_mpmm.c")
++
+ else()
++    message(NOTICE "SCP_PLATFORM_VARIANT set to: STD (tc2-bl2)\n")
++
+     target_compile_definitions(tc2-bl2
+         PUBLIC -DPLATFORM_VARIANT=TC2_VARIANT_STD)
++
+ endif()
+ 
+ 
+diff --git a/product/tc2/scp_ramfw/config_scmi_perf.c b/product/tc2/scp_ramfw/config_scmi_perf.c
+index 4bebdf37..fa9a1bc7 100644
+--- a/product/tc2/scp_ramfw/config_scmi_perf.c
++++ b/product/tc2/scp_ramfw/config_scmi_perf.c
+@@ -171,6 +171,16 @@ static const struct mod_scmi_plugin_config plugins_table[] = {
+         .dom_type = PERF_PLUGIN_DOM_TYPE_FULL,
+     },
+ };
++#elif (PLATFORM_VARIANT == TC2_VAR_MPMM)
++static const struct mod_scmi_plugin_config plugins_table[] = {
++    [0] = {
++        .id = FWK_ID_MODULE_INIT(FWK_MODULE_IDX_MPMM),
++        .dom_type = PERF_PLUGIN_DOM_TYPE_PHYSICAL,
++    },
++};
++#else
++static const struct mod_scmi_plugin_config plugins_table[] = {
++};
+ #endif
+ 
+ const struct fwk_module_config config_scmi_perf = {
+@@ -183,9 +193,7 @@ const struct fwk_module_config config_scmi_perf = {
+ #else
+         .fast_channels_alarm_id = FWK_ID_NONE_INIT,
+ #endif
+-#if (PLATFORM_VARIANT == TC2_VAR_EXPERIMENT_POWER)
+         .plugins = plugins_table,
+         .plugins_count = FWK_ARRAY_SIZE(plugins_table),
+-#endif
+     }),
+ };
+-- 
+2.34.1
+

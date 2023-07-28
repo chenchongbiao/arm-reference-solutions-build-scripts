@@ -1,0 +1,188 @@
+From 259d4b000bcfb926a23744c2e27aeb37d4711da4 Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Fri, 16 Jun 2023 12:56:04 +0530
+Subject: [PATCH 1/2] feat(plat/tc): enable mpmm and amu counters for the FPGA
+ variant
+
+Add infromation about the mpmm and amu counters in the tc2 fpga dts.
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+---
+ fdts/tc_fpga.dts              | 47 +++++++++++++++++++++++++++++++++++
+ plat/arm/board/tc/platform.mk |  2 --
+ 2 files changed, 47 insertions(+), 2 deletions(-)
+
+diff --git a/fdts/tc_fpga.dts b/fdts/tc_fpga.dts
+index b5f759b5f..a1aaa0410 100644
+--- a/fdts/tc_fpga.dts
++++ b/fdts/tc_fpga.dts
+@@ -71,6 +71,25 @@
+ 			};
+ 		};
+ 
++		amus {
++			amu: amu-0 {
++				#address-cells = <1>;
++				#size-cells = <0>;
++				mpmm_gear0: counter@0 {
++					reg = <0>;
++					enable-at-el3;
++				};
++				mpmm_gear1: counter@1 {
++					reg = <1>;
++					enable-at-el3;
++				};
++				mpmm_gear2: counter@2 {
++					reg = <2>;
++					enable-at-el3;
++				};
++			};
++		};
++
+ 		/*
+ 		 * The timings below are just to demonstrate working cpuidle.
+ 		 * These values may be inaccurate.
+@@ -83,6 +102,8 @@
+ 			enable-method = "psci";
+ 			clocks = <&scmi_dvfs 0>;
+ 			capacity-dmips-mhz = <280>;
++			amu = <&amu>;
++			supports-mpmm;
+ 		};
+ 
+ 		CPU1:cpu@100 {
+@@ -92,6 +113,8 @@
+ 			enable-method = "psci";
+ 			clocks = <&scmi_dvfs 0>;
+ 			capacity-dmips-mhz = <280>;
++			amu = <&amu>;
++			supports-mpmm;
+ 		};
+ 
+ 		CPU2:cpu@200 {
+@@ -101,6 +124,8 @@
+ 			enable-method = "psci";
+ 			clocks = <&scmi_dvfs 0>;
+ 			capacity-dmips-mhz = <280>;
++			amu = <&amu>;
++			supports-mpmm;
+ 		};
+ 
+ 		CPU3:cpu@300 {
+@@ -110,6 +135,8 @@
+ 			enable-method = "psci";
+ 			clocks = <&scmi_dvfs 0>;
+ 			capacity-dmips-mhz = <280>;
++			amu = <&amu>;
++			supports-mpmm;
+ 		};
+ 
+ 		CPU4:cpu@400 {
+@@ -119,6 +146,8 @@
+ 			enable-method = "psci";
+ 			clocks = <&scmi_dvfs 1>;
+ 			capacity-dmips-mhz = <775>;
++			amu = <&amu>;
++			supports-mpmm;
+ 		};
+ 
+ 		CPU5:cpu@500 {
+@@ -128,6 +157,8 @@
+ 			enable-method = "psci";
+ 			clocks = <&scmi_dvfs 1>;
+ 			capacity-dmips-mhz = <775>;
++			amu = <&amu>;
++			supports-mpmm;
+ 		};
+ 
+ 		CPU6:cpu@600 {
+@@ -137,6 +168,8 @@
+ 			enable-method = "psci";
+ 			clocks = <&scmi_dvfs 1>;
+ 			capacity-dmips-mhz = <775>;
++			amu = <&amu>;
++			supports-mpmm;
+ 		};
+ 
+ 		CPU7:cpu@700 {
+@@ -146,6 +179,8 @@
+ 			enable-method = "psci";
+ 			clocks = <&scmi_dvfs 1>;
+ 			capacity-dmips-mhz = <775>;
++			amu = <&amu>;
++			supports-mpmm;
+ 		};
+ 
+ 		CPU8:cpu@800 {
+@@ -155,6 +190,8 @@
+ 			enable-method = "psci";
+ 			clocks = <&scmi_dvfs 1>;
+ 			capacity-dmips-mhz = <775>;
++			amu = <&amu>;
++			supports-mpmm;
+ 		};
+ 
+ 		CPU9:cpu@900 {
+@@ -164,6 +201,8 @@
+ 			enable-method = "psci";
+ 			clocks = <&scmi_dvfs 2>;
+ 			capacity-dmips-mhz = <930>;
++			amu = <&amu>;
++			supports-mpmm;
+ 		};
+ 
+ 		CPU10:cpu@A00 {
+@@ -173,6 +212,8 @@
+ 			enable-method = "psci";
+ 			clocks = <&scmi_dvfs 2>;
+ 			capacity-dmips-mhz = <930>;
++			amu = <&amu>;
++			supports-mpmm;
+ 		};
+ 
+ 		CPU11:cpu@B00 {
+@@ -182,6 +223,8 @@
+ 			enable-method = "psci";
+ 			clocks = <&scmi_dvfs 2>;
+ 			capacity-dmips-mhz = <930>;
++			amu = <&amu>;
++			supports-mpmm;
+ 		};
+ 
+ 		CPU12:cpu@C00 {
+@@ -191,6 +234,8 @@
+ 			enable-method = "psci";
+ 			clocks = <&scmi_dvfs 3>;
+ 			capacity-dmips-mhz = <1024>;
++			amu = <&amu>;
++			supports-mpmm;
+ 		};
+ 
+ 		CPU13:cpu@D00 {
+@@ -200,6 +245,8 @@
+ 			enable-method = "psci";
+ 			clocks = <&scmi_dvfs 3>;
+ 			capacity-dmips-mhz = <1024>;
++			amu = <&amu>;
++			supports-mpmm;
+ 		};
+ 
+ 	};
+diff --git a/plat/arm/board/tc/platform.mk b/plat/arm/board/tc/platform.mk
+index ee0c9657a..df10d1e8f 100644
+--- a/plat/arm/board/tc/platform.mk
++++ b/plat/arm/board/tc/platform.mk
+@@ -175,10 +175,8 @@ override ENABLE_AMU := 1
+ override ENABLE_AMU_AUXILIARY_COUNTERS := 1
+ override ENABLE_AMU_FCONF := 1
+ 
+-ifeq (${TARGET_PLATFORM}, fvp)
+ override ENABLE_MPMM := 1
+ override ENABLE_MPMM_FCONF := 1
+-endif
+ 
+ # Include Measured Boot makefile before any Crypto library makefile.
+ # Crypto library makefile may need default definitions of Measured Boot build
+-- 
+2.34.1
+

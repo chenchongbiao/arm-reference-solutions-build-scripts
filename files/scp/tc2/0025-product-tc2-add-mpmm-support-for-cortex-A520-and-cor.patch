@@ -1,0 +1,219 @@
+From df0e0b9693f13dec1c835d6d195340777c237383 Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Tue, 6 Jun 2023 14:26:37 +0530
+Subject: [PATCH 5/6] product/tc2: add mpmm support for cortex-A520 and
+ cortex-X4
+
+MPMM functionality is present in the cortex-A520 and cortex-X4 cores.
+Hence adding them as well.
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+---
+ product/tc2/scp_ramfw/config_mpmm.c | 144 ++++++++++++++++++++++++++--
+ 1 file changed, 134 insertions(+), 10 deletions(-)
+
+diff --git a/product/tc2/scp_ramfw/config_mpmm.c b/product/tc2/scp_ramfw/config_mpmm.c
+index e5544347..d0f18de2 100644
+--- a/product/tc2/scp_ramfw/config_mpmm.c
++++ b/product/tc2/scp_ramfw/config_mpmm.c
+@@ -27,26 +27,66 @@ enum cpu_idx {
+     CORE7_IDX
+ };
+ 
+-static struct mod_mpmm_pct_table cortex_a720_pct[4] = {
++static struct mod_mpmm_pct_table cortex_a520_pct[4] = {
+     {
+         .cores_online = 4,
+-        .default_perf_limit = 1419 * 1000000UL,
++        .default_perf_limit = 1153 * 1000000UL,
+         .num_perf_limits = 3,
+         .threshold_perf = {
+             {
+                 .threshold_bitmap = 0x2222,
+-                .perf_limit = 1419 * 1000000UL,
++                .perf_limit = 1153 * 1000000UL,
+             },
+             {
+                 .threshold_bitmap = 0x2211,
+-                .perf_limit = 1893 * 1000000UL,
++                .perf_limit = 1537 * 1000000UL,
+             },
+             {
+                 .threshold_bitmap = 0x1111,
+-                .perf_limit = 2271 * 1000000UL,
++                .perf_limit = 1844 * 1000000UL,
+             },
+         },
+     },
++    {
++        .cores_online = 3,
++        .default_perf_limit = 1844 * 1000000UL,
++        .num_perf_limits = 2,
++        .threshold_perf = {
++            {
++                .threshold_bitmap = 0x222,
++                .perf_limit = 1844 * 1000000UL,
++            },
++            {
++                .threshold_bitmap = 0x111,
++                .perf_limit = 2152 * 1000000UL,
++            },
++        },
++    },
++    {
++        .cores_online = 2,
++        .default_perf_limit = 2152 * 1000000UL,
++        .num_perf_limits = 1,
++        .threshold_perf = {
++            {
++                .threshold_bitmap = 0x22,
++                .perf_limit = 2152 * 1000000UL,
++            },
++        },
++    },
++    {
++        .cores_online = 1,
++        .default_perf_limit = 2152 * 1000000UL,
++        .num_perf_limits = 1,
++        .threshold_perf = {
++            {
++                .threshold_bitmap = 0x2,
++                .perf_limit = 2152 * 1000000UL,
++            },
++        },
++    },
++};
++
++static struct mod_mpmm_pct_table cortex_a720_pct[3] = {
+     {
+         .cores_online = 3,
+         .default_perf_limit = 1893 * 1000000UL,
+@@ -86,7 +126,52 @@ static struct mod_mpmm_pct_table cortex_a720_pct[4] = {
+     },
+ };
+ 
+-static const struct mod_mpmm_core_config cortex_a720_core_config[4] = {
++static struct mod_mpmm_pct_table cortex_x4_pct[1] = {
++    {
++        .cores_online = 1,
++        .default_perf_limit = 2612 * 1000000UL,
++        .num_perf_limits = 2,
++        .threshold_perf = {
++            {
++                .threshold_bitmap = 0x2,
++                .perf_limit = 2612 * 1000000UL,
++            },
++            {
++                .threshold_bitmap = 0x1,
++                .perf_limit = 3047 * 1000000UL,
++            },
++        },
++    },
++};
++
++static const struct mod_mpmm_core_config cortex_a520_core_config[4] = {
++    [0] = {
++        .pd_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_POWER_DOMAIN, CORE0_IDX),
++        .mpmm_reg_base = SCP_MPMM_CORE_BASE(CORE0_IDX),
++        .amu_aux_reg_base = SCP_AMU_AMEVCNTR1X(CORE0_IDX),
++        .core_starts_online = true,
++    },
++    [1] = {
++        .pd_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_POWER_DOMAIN, CORE1_IDX),
++        .mpmm_reg_base = SCP_MPMM_CORE_BASE(CORE1_IDX),
++        .amu_aux_reg_base = SCP_AMU_AMEVCNTR1X(CORE1_IDX),
++        .core_starts_online = false,
++    },
++    [2] = {
++        .pd_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_POWER_DOMAIN, CORE2_IDX),
++        .mpmm_reg_base = SCP_MPMM_CORE_BASE(CORE2_IDX),
++        .amu_aux_reg_base = SCP_AMU_AMEVCNTR1X(CORE2_IDX),
++        .core_starts_online = false,
++    },
++    [3] = {
++        .pd_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_POWER_DOMAIN, CORE3_IDX),
++        .mpmm_reg_base = SCP_MPMM_CORE_BASE(CORE3_IDX),
++        .amu_aux_reg_base = SCP_AMU_AMEVCNTR1X(CORE3_IDX),
++        .core_starts_online = false,
++    },
++};
++
++static const struct mod_mpmm_core_config cortex_a720_core_config[3] = {
+     [0] = {
+         .pd_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_POWER_DOMAIN, CORE4_IDX),
+         .mpmm_reg_base = SCP_MPMM_CORE_BASE(CORE4_IDX),
+@@ -105,7 +190,10 @@ static const struct mod_mpmm_core_config cortex_a720_core_config[4] = {
+         .amu_aux_reg_base = SCP_AMU_AMEVCNTR1X(CORE6_IDX),
+         .core_starts_online = false,
+     },
+-    [3] = {
++};
++
++static const struct mod_mpmm_core_config cortex_x4_core_config[1] = {
++    [0] = {
+         .pd_id = FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_POWER_DOMAIN, CORE7_IDX),
+         .mpmm_reg_base = SCP_MPMM_CORE_BASE(CORE7_IDX),
+         .amu_aux_reg_base = SCP_AMU_AMEVCNTR1X(CORE7_IDX),
+@@ -113,6 +201,19 @@ static const struct mod_mpmm_core_config cortex_a720_core_config[4] = {
+     },
+ };
+ 
++static const struct mod_mpmm_domain_config cortex_a520_domain_conf[2] = {
++    [0] = {
++        .perf_id = FWK_ID_ELEMENT_INIT(
++            FWK_MODULE_IDX_DVFS, DVFS_ELEMENT_IDX_CORTEX_A520),
++        .pct = cortex_a520_pct,
++        .pct_size = FWK_ARRAY_SIZE(cortex_a520_pct),
++        .btc = 10,
++        .num_threshold_counters = 3,
++        .core_config = cortex_a520_core_config,
++    },
++    [1] = {0},
++};
++
+ static const struct mod_mpmm_domain_config cortex_a720_domain_conf[2] = {
+     [0] = {
+         .perf_id = FWK_ID_ELEMENT_INIT(
+@@ -126,13 +227,36 @@ static const struct mod_mpmm_domain_config cortex_a720_domain_conf[2] = {
+     [1] = {0},
+ };
+ 
+-static const struct fwk_element element_table[2] = {
++static const struct mod_mpmm_domain_config cortex_x4_domain_conf[2] = {
+     [0] = {
++        .perf_id = FWK_ID_ELEMENT_INIT(
++            FWK_MODULE_IDX_DVFS, DVFS_ELEMENT_IDX_CORTEX_X4),
++        .pct = cortex_x4_pct,
++        .pct_size = FWK_ARRAY_SIZE(cortex_x4_pct),
++        .btc = 10,
++        .num_threshold_counters = 3,
++        .core_config = cortex_x4_core_config,
++    },
++    [1] = {0},
++};
++
++static const struct fwk_element element_table[4] = {
++    [0] = {
++        .name = "MPMM_CORTEX_A520_ELEM",
++        .sub_element_count = 4,
++        .data = cortex_a520_domain_conf,
++    },
++    [1] = {
+         .name = "MPMM_CORTEX_A720_ELEM",
+-        .sub_element_count = 1,
++        .sub_element_count = 3,
+         .data = cortex_a720_domain_conf,
+     },
+-    [1] = { 0 },
++    [2] = {
++        .name = "MPMM_CORTEX_X4_ELEM",
++        .sub_element_count = 1,
++        .data = cortex_x4_domain_conf,
++    },
++    [3] = { 0 },
+ };
+ 
+ static const struct fwk_element *mpmm_get_element_table(fwk_id_t module_id)
+-- 
+2.34.1
+

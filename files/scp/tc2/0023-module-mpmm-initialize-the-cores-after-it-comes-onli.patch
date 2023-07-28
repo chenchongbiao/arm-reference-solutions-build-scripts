@@ -1,0 +1,124 @@
+From 088bd473934bbe53187b53984960da2b55627baa Mon Sep 17 00:00:00 2001
+From: Davidson K <davidson.kumaresan@arm.com>
+Date: Tue, 13 Jun 2023 22:04:58 +0530
+Subject: [PATCH 3/6] module: mpmm: initialize the cores after it comes online
+
+Reading the registers of the cores while offline will result in
+unexpected values. Hence read them and initialize accordingly only after
+they come online.
+
+Signed-off-by: Davidson K <davidson.kumaresan@arm.com>
+---
+ module/mpmm/src/mod_mpmm.c | 60 +++++++++++++++++++++++++++-----------
+ 1 file changed, 43 insertions(+), 17 deletions(-)
+
+diff --git a/module/mpmm/src/mod_mpmm.c b/module/mpmm/src/mod_mpmm.c
+index 852e26d6..d31653bd 100644
+--- a/module/mpmm/src/mod_mpmm.c
++++ b/module/mpmm/src/mod_mpmm.c
+@@ -50,6 +50,9 @@ struct mod_mpmm_core_ctx {
+ 
+     /* Cookie to un-block the PD transition from OFF to ON */
+     uint32_t cookie;
++
++    /* The core is initialized */
++    bool initialized;
+ };
+ 
+ struct mod_mpmm_domain_ctx {
+@@ -497,6 +500,32 @@ static int mpmm_init(
+     return FWK_SUCCESS;
+ }
+ 
++static int mpmm_core_init(
++    struct mod_mpmm_domain_ctx *domain_ctx,
++    struct mod_mpmm_core_ctx *core_ctx)
++{
++    uint32_t num_thresholds;
++
++    mpmm_core_get_number_of_thresholds(core_ctx, &num_thresholds);
++
++    if (num_thresholds !=
++        domain_ctx->domain_config->num_threshold_counters) {
++        return FWK_E_DEVICE;
++    }
++
++    /* Create counters storage */
++    core_ctx->cached_counters = fwk_mm_calloc(
++        domain_ctx->domain_config->num_threshold_counters,
++        sizeof(uint32_t));
++    core_ctx->delta = fwk_mm_calloc(
++        domain_ctx->domain_config->num_threshold_counters,
++        sizeof(uint32_t));
++
++    core_ctx->initialized = true;
++
++    return FWK_SUCCESS;
++}
++
+ static int mpmm_element_init(
+     fwk_id_t domain_id,
+     unsigned int sub_element_count,
+@@ -506,7 +535,7 @@ static int mpmm_element_init(
+     struct mod_mpmm_core_ctx *core_ctx;
+     struct mod_mpmm_core_config const *core_config;
+     uint32_t core_idx;
+-    uint32_t num_thresholds;
++    int status;
+ 
+     if ((sub_element_count == 0) ||
+         (sub_element_count > MPMM_MAX_NUM_CORES_IN_DOMAIN)) {
+@@ -535,22 +564,11 @@ static int mpmm_element_init(
+         core_ctx->mpmm = (struct mpmm_reg *)core_config->mpmm_reg_base;
+         core_ctx->amu_aux = (struct amu_reg *)core_config->amu_aux_reg_base;
+ 
+-        mpmm_core_get_number_of_thresholds(core_ctx, &num_thresholds);
+-
+-        if (num_thresholds !=
+-            domain_ctx->domain_config->num_threshold_counters) {
+-            return FWK_E_DEVICE;
+-        }
+-
+-        /* Create counters storage */
+-        core_ctx->cached_counters = fwk_mm_calloc(
+-            domain_ctx->domain_config->num_threshold_counters,
+-            sizeof(uint32_t));
+-        core_ctx->delta = fwk_mm_calloc(
+-            domain_ctx->domain_config->num_threshold_counters,
+-            sizeof(uint32_t));
+-
+         if (core_config->core_starts_online) {
++            status = mpmm_core_init(domain_ctx, core_ctx);
++            if (status != FWK_SUCCESS) {
++                return status;
++            }
+             domain_ctx->num_cores_online++;
+             core_ctx->online = true;
+         }
+@@ -607,6 +625,7 @@ static int mpmm_process_notification(
+     struct mod_mpmm_domain_ctx *domain_ctx;
+     uint32_t core_idx;
+     uint32_t perf_limit;
++    int status;
+ 
+     fwk_assert(fwk_module_is_valid_element_id(event->target_id));
+     domain_ctx = get_domain_ctx(event->target_id);
+@@ -680,7 +699,14 @@ static int mpmm_process_notification(
+             /* The core transitioned to offline */
+             domain_ctx->num_cores_online--;
+             domain_ctx->core_ctx[core_idx].online = false;
+-        }
++        } else {
++	    if (domain_ctx->core_ctx[core_idx].initialized != true) {
++                status = mpmm_core_init(domain_ctx, &domain_ctx->core_ctx[core_idx]);
++                if (status != FWK_SUCCESS) {
++                    return status;
++                }
++            }
++	}
+     }
+ 
+     return FWK_SUCCESS;
+-- 
+2.34.1
+
