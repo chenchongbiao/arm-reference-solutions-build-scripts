@@ -3,9 +3,9 @@
 
 Instructions: Obtaining Total Compute software deliverables
 -----------------------------------------------------------
- * To build the TC2 software stack please refer to the :ref:`user guide <docs/totalcompute/tc2/user-guide>`;
- * For the list of changes and features added please refer to the :ref:`changelog <docs/totalcompute/tc2/change-log>`;
- * For further details on the latest release and features please refer to the :ref:`release notes <docs/totalcompute/tc2/release_notes>`.
+ * To build the TC2 software stack, please refer to the :ref:`user guide <docs/totalcompute/tc2/user-guide>`;
+ * For the list of changes and features added, please refer to the :ref:`changelog <docs/totalcompute/tc2/change-log>`;
+ * For further details on the latest release and features, please refer to the :ref:`release notes <docs/totalcompute/tc2/release_notes>`.
 
 TC Software Stack Overview
 --------------------------

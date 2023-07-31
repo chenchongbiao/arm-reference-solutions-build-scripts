@@ -9,23 +9,29 @@ Total Compute Platform Software Components
 
 RSS Firmware
 ------------
-Runtime Security Subsystem (RSS) serves as the Root of Trust for Total Compute platform.
+Runtime Security Subsystem (RSS) serves as the Root of Trust for the Total Compute platform.
 	
 RSS BL1 code is the first software that executes right after a cold reset or Power-on.
 	
 RSS initially boots from immutable code (BL1_1) in its internal ROM, before jumping to BL1_2, which is provisioned and hash-locked in RSS OTP.
-The updatable MCUBoot BL2 boot stage is loaded from the flash into RSS SRAM, where it is authenticated.
+The updatable MCUboot BL2 boot stage is loaded from the flash into RSS SRAM, where it is authenticated.
 BL2 loads and authenticates the TF-M runtime into RSS SRAM from host flash. BL2 is also responsible for loading initial boot code into other subsystems within Total Compute as below.
 
  #. SCP BL1
  #. AP BL1
+
+The following diagram illustrates the boot flow sequence:
+
+.. figure:: tc2_bootflow.svg
+   :alt: Total Compute boot flow sequence
+
 
 SCP Firmware
 ------------
 The System Control Processor (SCP) is a compute unit of Total Compute and is responsible for low-level system management. The SCP is a Cortex-M3 processor with a set of dedicated peripherals and interfaces that you can extend.
 SCP firmware supports:
 
- #. Powerup sequence and system start-up
+ #. Power-up sequence and system start-up
  #. Initial hardware configuration
  #. Clock management
  #. Servicing power state requests from the OS Power Management (OSPM) software
@@ -48,13 +54,23 @@ It performs the following functions:
  #. Power Domain management
  #. Clock management
 
+System MMU (aka SMMU or IOMMU)
+..............................
+System MMU, also known as SMMUv3 or IOMMU, is the Arm IP that isolates direct memory accesses from devices (DMA), and enables devices to access non-contiguous physical memory with configurable memory attributes.
+
+Linux has two SMMUv3 drivers:
+ * ``CONFIG_ARM_SMMU_V3`` enables the normal kernel driver that executes at ``EL1``;
+ * ``CONFIG_ARM_SMMU_V3_PKVM`` enables a split driver that executes partly at ``EL2``, in the pKVM hypervisor.
+
+When pKVM is enabled (``kvm-arm.mode=protected``), the pKVM SMMU driver takes precedence over the normal driver, and protects hypervisor and guest VMs from host DMA. Host device drivers still configure DMA using the Linux DMA API, and the hypervisor installs the requested virtual-to-physical translations into the SMMU stage-2 page tables, after making sure that a compromised host is not attempting via DMA to access memory it does not own.
+
 AP Secure World Software
 ------------------------
 Secure software/firmware is a trusted software component that runs in the AP secure world. It mainly consists of AP firmware, Secure Partition Manager and Secure Partitions (OP-TEE, Trusted Services).
 
 AP firmware
 ...........
-The AP firmware consists of the code that is required to boot Total Compute platform up the point where the OS execution starts. This firmware performs architecture and platform initialization. It also loads and initializes secure world images like Secure partition manager and Trusted OS.
+The AP firmware consists of the code that is required to boot Total Compute platform up to the point where the OS execution starts. This firmware performs architecture and platform initialization. It also loads and initializes secure world images like Secure partition manager and Trusted OS.
 
 Trusted Firmware-A (TF-A) BL1
 +++++++++++++++++++++++++++++
@@ -72,7 +88,7 @@ BL2 runs at S-EL1 and performs architectural initialization required for subsequ
 
 Trusted Firmware-A (TF-A) BL31
 ++++++++++++++++++++++++++++++
-BL2 loads EL3 Runtime Software (BL31) and BL1 passes control to BL31 at EL3. In Total Compute BL31 runs at trusted SRAM. It provides below mentioned runtime services:
+BL2 loads EL3 Runtime Software (BL31) and BL1 passes control to BL31 at EL3. In Total Compute BL31 runs at trusted SRAM. It provides the below mentioned runtime services:
 
  #. Power State Coordination Interface (PSCI)
  #. Secure Monitor framework
@@ -126,7 +142,7 @@ The Total Compute device profile defines the required variables for Android such
 
  #. Software rendering: This profile has support for Android UI and boots Android to home screen. It uses SwiftShader to achieve this. Swiftshader is a CPU base implementation of the Vulkan graphics API by Google.
 
- #. Hardware rendering: This profile also has support for Android UI and boots Android to home screen. The Mali TTIx GPU model used for rendering.
+ #. Hardware rendering: This profile also has support for Android UI and boots Android to home screen. The Mali-G720 GPU model used for rendering.
 
 Microdroid
 ++++++++++
@@ -137,12 +153,12 @@ Buildroot
 A minimal rootfs that is useful for testing the bsp and boots quickly. The interface is text only and no graphics are supported.
 
 Debian
-.........
-This variant is based on the Debian filesystem and supports hardware or software rendering.
+......
+This variant is based on the Debian 12 filesystem and supports hardware rendering based on DDK source code.
 
 TensorFlow Lite Machine Learning
 ................................
-A minimal CMake wrapper project for building TensorFlow Lite applications for Total Compute targets is provided. By default, this project will build the ``benchmark_model`` application which allows to profile and validate ML inference flows. However, the developer can easily adapt the project and build any application exposed by TensorFlow Lite.
+A minimal CMake wrapper project for building TensorFlow Lite applications for Total Compute targets is provided. By default, this project will build the ``benchmark_model`` application, which allows to profile and validate ML inference flows. However, the developer can easily adapt the project and build any application exposed by TensorFlow Lite.
 
 --------------
 

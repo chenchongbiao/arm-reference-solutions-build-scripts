@@ -8,6 +8,19 @@ Change Log
 This document contains a summary of the new features, changes and
 fixes in each release of TC2 software stack.
 
+
+Version TC2-2023.08.15-rc0
+--------------------------
+
+Features added
+~~~~~~~~~~~~~~
+- Added support for TensorFlow Lite Machine Learning;
+- Extended Docker build support to Debian TC build variant;
+- Added support for the following Cortex A720/Cortex A520 (also known as Hunter/Hayes respectively) CPU architectural features: AFP, ECV and WFxt;
+- Added support for GPU DVFS/Idle power states;
+- GPU hardware rendering based on DDK source code compilation and pre-built binaries;
+
+
 Version 2023.04.21
 ------------------
 
@@ -15,13 +28,14 @@ Features added
 ~~~~~~~~~~~~~~
 - Added support for EAS;
 - Added support for MPAM;
-- Added support for Mali TTIx GPU;
+- Added support for Mali-G720 GPU;
 - Added support for Android Hardware Rendering.
 
 Changes
 ~~~~~~~
 - Updated to Android 13;
 - GPU and DPU are using S1 translation with SMMU-600.
+
 
 Version 2022.12.07
 ------------------
@@ -33,6 +47,7 @@ Features added
 - Enabled VHE support in Hafnium to support S-EL0 partitions;
 - Enabled S2 translation for GPU and DPU using SMMU-700;
 - Enabled protected nVHE support for pKVM hypervisor.
+
 
 Version 2022.08.12
 ------------------

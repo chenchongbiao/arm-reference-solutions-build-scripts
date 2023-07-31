@@ -17,7 +17,8 @@ Prerequisites
 
 These instructions assume that:
  * Your host PC is running Ubuntu Linux 20.04;
- * You are running the provided scripts in a ``bash`` shell environment.
+ * You are running the provided scripts in a ``bash`` shell environment;
+ * This release requires TC2 Fast Model platform (FVP) version 11.22.34.
 
 To get the latest repo tool from Google, please run the following commands:
 ::
@@ -28,9 +29,17 @@ To get the latest repo tool from Google, please run the following commands:
     export PATH=~/bin:$PATH
 
 To build and run Android, the minimum requirements for the host machine can be found at https://source.android.com/setup/build/requirements. These include:
- * At least 250GB of free disk space to check out the code and an extra 150 GB to build it. If you conduct multiple builds, you need additional space.
- * At least 32 GB of available RAM/swap.
- * Git configured properly using ``git config`` otherwise it may throw error while fetching the code.
+ * at least 250 GB of free disk space to check out the code and an extra 150 GB to build it. If you conduct multiple builds, you need additional space;
+ * at least 32 GB of available RAM/swap.
+
+To avoid errors while attempting to clone/fetch the different TC software components, your system should have a proper minimum ``git config`` configuration. The following command exemplifies the typical ``git config`` configuration required:
+
+::
+
+	git config --global user.name "<user name>"
+	git config --global user.email "<email>"
+	git config --global protocol.version 2
+
 
 To install and allow access to docker, please run the following commands:
 ::
@@ -48,11 +57,11 @@ To manage Docker as a non-root user, please run the following commands:
     newgrp docker
 
 Download the source code and build
-------------------------------------
+----------------------------------
 
 The TC2 software stack supports the following distros:
  * Buildroot (a minimal distro containing Busybox);
- * Debian (based on Debian 11 Bullseye);
+ * Debian (based on Debian 12 Bookworm);
  * Android (based on Android 13).
 
 Download the source code
@@ -64,29 +73,29 @@ in these instructions.
 
     mkdir <TC2_WORKSPACE>
     cd <TC2_WORKSPACE>
-    export TC2_RELEASE=refs/tags/TC2-2023.04.21
+    export TC2_RELEASE=refs/tags/TC2-2023.08.15-rc0
 
-To sync Buildroot source code, please run the following repo commands:
+To sync **Buildroot or Debian source code**, please run the following repo commands:
 ::
 
-    repo init -u ssh://git@git.gitlab.oss.arm.com/engineering/tc/manifests -m tc2.xml -b ${TC2_RELEASE} -g bsp
+    repo init -u ssh://git@git.gitlab.oss.arm.com/engineering/tc/manifests \
+		-m tc2.xml \
+		-b ${TC2_RELEASE} \
+		-g bsp
     repo sync -j `nproc` --fetch-submodules
 
-To sync Debian source code, please run the following repo commands:
+
+To sync **Android source code**, please run the following repo commands:
 ::
 
-    export TC_DEBIAN=refs/tags/TC2-2023.05.16
-    repo init -u ssh://git@git.gitlab.oss.arm.com/engineering/tc/manifests -m tc2.xml -b ${TC_DEBIAN} -g bsp
-    repo sync -j `nproc` --fetch-submodules
-
-To sync Android source code, please run the following repo commands:
-::
-
-    repo init -u ssh://git@git.gitlab.oss.arm.com/engineering/tc/manifests -m tc2.xml -b ${TC2_RELEASE} -g android
+    repo init -u ssh://git@git.gitlab.oss.arm.com/engineering/tc/manifests \
+		-m tc2.xml \
+		-b ${TC2_RELEASE} \
+		-g android
     repo sync -j `nproc` --fetch-submodules
 
 .. warning::
-    Synchronization of the Android code from Google servers may fail due to connection problems and/or to an enforced rate limit related with the maximum number of concurrent fetching jobs. The previous commands assume that the maximum number of jobs concurrently fetching code will be a perfect match of the number of CPU cores available, which should work fine most of the times. If experiencing constant errors on consecutive fetch code attempts, please do consider deleting your entire workspace (which will ensure a clean of the support ``.repo`` folder containing the previously partial fetched files), by running the command ``cd .. ; rm -rf <TC2_WORKSPACE>`` and repeat the previous commands listed in this section to recreate the workspace (optionally, also reducing the number of jobs, for example to a maximum of 4, by adopting the following command ``repo sync -j 4 --fetch-submodules``).
+    Synchronization of the Android code from Google servers may fail due to connection problems and/or to an enforced rate limit related with the maximum number of concurrent fetching jobs. The previous commands assume that the maximum number of jobs concurrently fetching code will be a perfect match of the number of CPU cores available, which should work fine most of the time. If experiencing constant errors on consecutive fetch code attempts, please do consider deleting your entire workspace (which will ensure a clean of the support ``.repo`` folder containing the previously partial fetched files), by running the command ``cd .. ; rm -rf <TC2_WORKSPACE>`` and repeat the previous commands listed in this section to recreate the workspace (optionally, also reducing the number of jobs, for example to a maximum of 6, by adopting the following command ``repo sync -j 6 --fetch-submodules``).
 
 Once the previous process finishes, the current ``<TC2_WORKSPACE>`` should have the following structure: 
  * ``build-scripts/``: the components build scripts;
@@ -98,14 +107,66 @@ Initial Setup
 
 The setup includes two parts:
  1. setup a docker image;
- 2. setup the environmet to build TC images.
+ 2. setup the environment to build TC images.
 
 Setting up a docker image involves pulling the prebuilt docker image from a docker registry. If that fails, it will build a local docker image.
 
-To setup a docker image, patch the components, install the toolchains and build tools, please run the following listed commands according to the distro and variant of interest.
+To setup a docker image, patch the components, install the toolchains and build tools, please run the commands mentioned in the following :ref:`Build variants configuration <docs/totalcompute/tc2/user-guide_build_variants_conf>` section, according to the distro and variant of interest.
 
-The various tools will be installed in the ``tools/`` directory at the root of the workspace.
+The various tools will be installed in the ``<TC2_WORKSPACE>/tools/`` directory.
 
+
+Build options
+#############
+
+Debian OS build variant
+***********************
+
+Currently, the Debian OS build distro support is limited to the variant with Mali GPU hardware rendering based on DDK source code compilation, by explicitly setting the build environment variable as ``TC_GPU=hwr``.
+
+.. note::
+    GPU DDK source code is available only to licensee partners (please contact support@arm.com).
+
+Android OS build variants
+*************************
+
+.. note::
+    Android based stack takes considerable time to build, so start the build and go grab a cup of coffee!
+
+Hardware vs Software rendering
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Android OS based build distro supports the following variants regarding the use of the GPU rendering:
+
++--------------+--------------------------------------------------------------------------------+
+| TC_GPU value | Description                                                                    |
++==============+================================================================================+
+| swr          | Android display with Swiftshader (software rendering)                          |
++--------------+--------------------------------------------------------------------------------+
+| hwr          | Mali GPU (hardware rendering based on DDK source code - please see below note) |
++--------------+--------------------------------------------------------------------------------+
+| hwr-prebuilt | Mali GPU (hardware rendering based on prebuilt binaries)                       |
++--------------+--------------------------------------------------------------------------------+
+
+If not explicitly defined by the user, the default value used for the ``TC_GPU`` environment variable is ``hwr-prebuilt``.
+
+.. note::
+    GPU DDK source code is available only to licensee partners (please contact support@arm.com).
+
+Android Verified Boot (AVB) with/without authentication
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Android images can be built with or without authentication enabled using Android Verified Boot (AVB) through the use of the ``-a`` option.
+AVB build is done in userdebug mode and takes a longer time to boot as the images are verified.
+This option does not influence the way the system boots, rather it adds an optional sanity check on the prerequisite images.
+
+.. _docs/totalcompute/tc2/user-guide_build_variants_conf:
+
+
+Build variants configuration
+############################
+
+This section provides a quick guide on how to build the different TC build variants using the most common options.
 
 Buildroot build
 ***************
@@ -115,6 +176,7 @@ To build the Buildroot distro, please run the following commands:
 
     export PLATFORM=tc2
     export FILESYSTEM=buildroot
+    export TC_TARGET_FLAVOR=fvp
     cd build-scripts
     ./setup.sh
 
@@ -122,50 +184,75 @@ To build the Buildroot distro, please run the following commands:
 Debian build
 ************
 
-Debian build supports GPU hardware rendering by setting the ``TC_GPU=true`` environment variable accordingly as described in the following command usage examples.
+Debian build supports GPU hardware rendering based on DDK source code by setting the ``TC_GPU=hwr`` build environment variable accordingly, as described in the following command usage examples. At the moment, hardware rendering based on prebuilt userspace binaries is not supported. Software rendering is possible but current image does not provide mesa support.
 
-Debian build with hardware rendering support
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To build the Debian distro with hardware rendering, please run the following commands:
+Debian build with hardware rendering support based on DDK source code
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To build the Debian distro with hardware rendering based on DDK source code, please run the following commands:
 ::
 
     export PLATFORM=tc2
     export FILESYSTEM=debian
-    export TC_GPU=true
-    export GPU_DDK_REPO=<PATH TO GPU DDK SOURCE CODE>
-    export GPU_DDK_VERSION=r40p0_01eac0
+    export TC_GPU=hwr
+    export TC_TARGET_FLAVOR=fvp
+    export DEB_DDK_REPO=<PATH TO GPU DDK SOURCE CODE>
+    export DEB_DDK_VERSION="releases/r41p0_01eac0"
     export LM_LICENSE_FILE=<LICENSE FILE>
     export ARMLMD_LICENSE_FILE=<LICENSE FILE>
     export ARMCLANG_TOOL=<PATH TO ARMCLANG TOOLCHAIN>
     cd build-scripts
     ./setup.sh
 
+.. note::
+    GPU DDK source code is available only to licensee partners (please contact support@arm.com).
 
 Android build
 *************
 
-Android can be built with or without GPU hardware rendering support by setting the ``TC_GPU`` environment variable accordingly as described in the following command usage examples.
+To build Android with Android Verified Boot (AVB) enabled, please run the next command to enable the corresponding flag in addition to any of the following Android command variants (please note that this needs to be run before running ``./setup.sh``):
+::
 
-Android build with hardware rendering support
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    export AVB=true
 
-To build the Android distro with hardware rendering, please run the following commands:
+Android can be built with or without GPU hardware rendering support by setting the ``TC_GPU`` environment variable accordingly, as described in the following command usage examples.
+
+Android build with hardware rendering support based on prebuilt binaries
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To build the Android distro with hardware rendering based on prebuilt binaries, please run the following commands:
 ::
 
     export PLATFORM=tc2
     export FILESYSTEM=android-fvp
-    export TC_GPU=true
+    export TC_GPU=hwr-prebuilt
+    export TC_TARGET_FLAVOR=fvp
+    cd build-scripts
+    ./setup.sh
+
+
+Android build with hardware rendering support based on DDK source code
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To build the Android distro with hardware rendering based on DDK source code, please run the following commands:
+::
+
+    export PLATFORM=tc2
+    export FILESYSTEM=android-fvp
+    export TC_GPU=hwr
     export TC_TARGET_FLAVOR=fvp
     export GPU_DDK_REPO=<PATH TO GPU DDK SOURCE CODE>
-    export GPU_DDK_VERSION=r40p0_01eac0
+    export GPU_DDK_VERSION="releases/r41p0_01eac0"
     export LM_LICENSE_FILE=<LICENSE FILE>
-    export ARM_PRODUCT_DEF=<PATH TO ELMAP FILE IN ARMCLANG>
     export ARMLMD_LICENSE_FILE=<LICENSE FILE>
-    export ANDROID_TEST_EXAMPLES=<PATH TO GPU DDK TEST EXAMPLES>
     export ARMCLANG_TOOL=<PATH TO ARMCLANG TOOLCHAIN>
     cd build-scripts
     ./setup.sh
+
+.. note::
+    GPU DDK source code is available only to licensee partners (please contact support@arm.com).
+
 
 Android build with software rendering support
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -174,18 +261,11 @@ To build the Android distro with software rendering, please run the following co
 ::
 
     export PLATFORM=tc2
-    export TC_GPU=false
+    export TC_GPU=swr
     export TC_TARGET_FLAVOR=fvp
     export FILESYSTEM=android-fvp
     cd build-scripts
     ./setup.sh
-
-
-
-To build Android with Android Verified Boot (AVB) enabled, please run the following command to enable the corresponding flag in addition to any of the two previous Android command variants (please note that this needs to be run before running ``./setup.sh``):
-::
-
-    export AVB=true
 
 .. warning::
     If building the TC2 software stack for more than one target, please ensure you run a clean build between each different build to avoid setup/building errors (refer to the next section "*More about the build system*" for command usage examples on how to do this).
@@ -197,35 +277,13 @@ To build Android with Android Verified Boot (AVB) enabled, please run the follow
     Most builds will be done in parallel using all the available cores by default. To change this number, run ``export PARALLELISM=<number of cores>``
 
 
-Build options
-#############
-
-Android OS build
-****************
-
-* tc2_fvp with ``TC_GPU=false``  : this supports Android display with swiftshader (software rendering);
-* tc2_fvp with ``TC_GPU=true``  : this supports Android display with Mali GPU (hardware rendering). GPU DDK source code is available only to licensee partners (please contact support@arm.com).
-
-The Android images can be built with or without authentication enabled using Android Verified Boot (AVB) through the use of the ``-a`` option.
-AVB build is done in userdebug mode and takes a longer time to boot as the images are verified.
-This option does not influence the way the system boots, rather it adds an optional sanity check on the prerequisite images.
-
-.. note::
-    Android based stack takes considerable time to build, so start the build and go grab a cup of coffee!
-
-
 Build command
 #############
 
-To build the whole TC2 software stack for Buildroot or Android distros, simply run:
+To build the whole TC2 software stack for any of the supported distros, simply run:
 ::
 
     ./run_docker.sh ./build-all.sh build
-
-For the Debian distro, there is currently no support for docker and as such, the build script needs to be invoked as follows:
-::
-
-    ./build-all.sh
 
 
 Once the previous process finishes, the previously defined environment variable ``$FILESYSTEM`` will be automatically used and the current ``<TC2_WORKSPACE>`` should have the following structure:
@@ -249,7 +307,11 @@ For example, to build, deploy, and clean SCP, run:
 The platform and filesystem used should be defined as described previously, but they can also be specified as the following example:
 ::
 
-    ./run_docker.sh ./build-all.sh -p $PLATFORM -f $FILESYSTEM -t $TC_TARGET_FLAVOR -g $TC_GPU build
+    ./run_docker.sh ./build-all.sh \
+		-p $PLATFORM \
+		-f $FILESYSTEM \
+		-t $TC_TARGET_FLAVOR \
+		-g $TC_GPU build
 
 Build Components and its dependencies
 #####################################
@@ -299,7 +361,7 @@ Based on `SCP Firmware <https://github.com/ARM-software/SCP-firmware>`__
 U-Boot
 ******
 
-Based on `U-Boot gitlab <https://gitlab.denx.de/u-boot/u-boot>`__
+Based on `U-Boot <https://gitlab.denx.de/u-boot/u-boot>`__
 
 +--------+---------------------------------------------------------------------------------------+
 | Script | <TC2_WORKSPACE>/build-scripts/build-u-boot.sh                                         |
@@ -372,8 +434,8 @@ Distributions
 Buildroot Linux distro
 **********************
 
-The layer is based on the `buildroot <https://github.com/buildroot/buildroot/>`__ Linux distribution.
-The provided distribution is based on BusyBox and built using glibc.
+The layer is based on the `Buildroot <https://github.com/buildroot/buildroot/>`__ Linux distribution.
+The provided distribution is based on BusyBox and built using ``glibc``.
 
 +--------+-------------------------------------------------------------------------------------------------+
 | Script | <TC2_WORKSPACE>/build-scripts/build-buildroot.sh                                                |
@@ -415,7 +477,7 @@ stack. Usage descriptions for the various scripts are provided in the following 
 Obtaining the TC2 FVP
 ---------------------
 
-The TC2 FVP is available to partners for build and run on Linux host environments.
+The TC2 FVP is available to partners to build and run on Linux host environments.
 Please contact Arm to have access (support@arm.com).
 
 
@@ -470,13 +532,15 @@ Running Debian
 Running Android
 ###############
 
-Android with AVB disabled
-*************************
+Android general common run command
+**********************************
 
-To run Android with AVB disabled, please run the following command:
+The following command is common to Android builds with AVB disabled, software or any of the hardware rendering variants.
+To run any of the mentioned Android variants, please run the following command:
 ::
- 
+
     ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-fvp
+
 
 Android with AVB enabled
 ************************
@@ -485,18 +549,6 @@ To run Android with AVB enabled, please run the following command:
 ::
 
     ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-fvp -a true
-
-Android with hardware rendering enabled
-***************************************
-
-To run Android with hardware rendering enabled, please run the following command:
-::
-
-    ./run-scripts/tc2/run_model.sh -m <model binary path> -d android-fvp -- --plugin=<Crypto.so>
-
-
-.. note::
-    ``Crypto.so`` is part of your FVP bundle.
 
 
 Expected behaviour
@@ -508,24 +560,27 @@ When the script is run, four terminal instances will be launched:
  * ``terminal_s0`` used for the SCP logs;
  * ``terminal_s1`` used by RSS logs (no output by default).
 
-Once the FVP is running, hardware Root of Trust will verify AP and SCP
+Once the FVP is running, the hardware Root of Trust will verify AP and SCP
 images, initialize various crypto services and then handover execution to the
 SCP. SCP will bring the AP out of reset. The AP will start booting from its
 ROM and then proceed to boot Trusted Firmware-A, Hafnium,
 Secure Partitions (OP-TEE, Trusted Services in Buildroot and Trusty in Android) then
 U-Boot, and finally the corresponding Linux Kernel distro.
 
-When booting Buildroot, the model will boot Linux and present a login prompt on terminal_uart_ap. Login
-using the username ``root``. You may need to hit Enter for the prompt to appear.
+When booting Buildroot or Debian, the model will boot the Linux kernel and present a login prompt on the ``terminal_uart_ap`` window. Login
+using the username ``root`` and the password ``root`` (password is only required for Debian). You may need to hit ``Enter`` for the prompt to appear.
 
 When booting Android, the GUI window ``Fast Models - Total Compute 2 DP0`` shows the Android logo and on boot completion,
-the window will show the Android home screen.
-
-When booting Android with Android Verified Boot (``AVB=true``), the GUI window will display an error, as illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_bootAndroidAVB>` document section. This is expected with the current TC release.
+the window will show the typical Android home screen.
 
 
 Running sanity tests
------------------------------------
+--------------------
+
+This section provides information on some of the suggested sanity tests that can be executed to exercise and validate the TC Software stack functionality, as well as information regarding the expected behaviour and test results.
+
+.. note::
+    **The information presented for any of the sanity tests described in this section should NOT be considered as indicative of hardware performance.** These tests and the FVP model are only intended to validate the functional flow and behaviour for each of the features.
 
 
 Validate the TensorFlow Lite ML flow
@@ -542,14 +597,14 @@ Prerequisites
 
 For this test, two files will be required:
  * ``benchmark_model`` binary: this file is part of the TC build and is automatically built when targeting Buildroot or Debian distros;
- * ``<any model>.tflite`` model: there is no requirement for a specific model file as long as it is specified in a valid ``.tflite`` format; for the simplicity of just running a sanitiy test, two models are provided with the build and are automatically integrated into the distro filesystem (being located at ``/opt/arm/ml``).
+ * ``<any model>.tflite`` model: there is no requirement for a specific model file as long as it is specified in a valid ``.tflite`` format; for the simplicity of just running a sanity test, two models are provided with the build and are automatically integrated into the distro filesystem (being located at ``/opt/arm/ml``).
 
 Running the provided TensorFlow Lite ML model examples
 ******************************************************
 
 The following command describes how to run the ``benchmark_model`` application to profile the "Mobile Object Localizer" TensorFlow Lite model, which is one of the provided TensorFlow Lite ML model examples.
 
-Although the command arguments are expected to greatly vary according to different use cases and models, this example provides the typical command usage skeleton for most of models.
+Although the command arguments are expected to greatly vary according to different use cases and models, this example provides the typical command usage skeleton for most of the models.
 
 More information on the Model Benchmark Tool and command usage examples can be found `here <https://github.com/tensorflow/tensorflow/blob/v2.13.0/tensorflow/lite/tools/benchmark/README.md>`__.
 
@@ -561,12 +616,13 @@ To run the ``benchmark_model`` to profile the "Mobile Object Localizer" model, p
 
 		# the following command ensures correct path location to load the provided example ML models
 		cd /opt/arm/ml
-		benchmark_model --graph=mobile_object_localizer_v1.tflite --num_threads=4 --num_runs=1 --min_secs=0.01
+		benchmark_model --graph=mobile_object_localizer_v1.tflite \
+			--num_threads=4 --num_runs=1 --min_secs=0.01
 
 The benchmark model application will run profiling the Mobile Object Localizer model and after a few seconds, some statistics and execution info will be presented on the terminal.
 
 .. note::
-    This test is specific to Buildroot and Debian distros only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_ml_tensorflow>` document section.
+    This test is specific to Buildroot and Debian distros only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_ml_tensorflow>` document section.
 
 Manually uploading a TensorFlow Lite ML model
 *********************************************
@@ -600,12 +656,12 @@ To run the ``benchmark_model`` application and profile the "MobileNet Graph" mod
 
 
 Testing GPU with Debian
-########################
+#######################
 
 Prerequisites
 *************
 
-If GPU is enabled then GPU files will need to be pushed into the device using secure copy (scp).
+If GPU is enabled, then GPU files will need to be pushed into the device using secure copy (scp).
 This can be achieved by following the next steps:
 
  * login to the device using username ``root`` and password ``root`` as follows:
@@ -632,43 +688,43 @@ Using ``terminal_uart_ap``, login to the device/FVP model running TC and run the
     tar -xvf mali.tar.xz
     # once extraction completes, to free some space, delete the tar file
     rm -rf mali.tar.xz
-    ./mali/run_weston.sh
+    source /mali/wayland/run_weston.sh
 
 Once the ``Fast Models - Total Compute 2 DP0`` display is up (grey screen), run ``weston-flower`` to render the image. You can also run various unit tests available under ``/lib/aarch64-linux-gnu/mali/wayland/bin``.
 
 .. note::
-    This test is specific to Debian only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_gpuDebian>` document section.
+    This test is specific to Debian only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_gpuDebian>` document section.
 
 
 OP-TEE
-###############
+######
 
 For OP-TEE, the TEE sanity test suite can be run using command ``xtest`` on the ``terminal_uart_ap``.
 
 Please be aware that this test suite will take some time to run all its related tests.
 
 .. note::
-    This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_optee>` document section.
+    This test is specific to Buildroot only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_optee>` document section.
 
 
 Trusted Services and Client application
-########################################
+#######################################
 
 For Trusted Services, please run the command ``ts-service-test -sg ItsServiceTests -sg PsaCryptoApiTests -sg CryptoServicePackedcTests -sg CryptoServiceProtobufTests -sg CryptoServiceLimitTests -v`` for Service API level tests, and run ``ts-demo`` for the demonstration of the client application.
 
 .. note::
-    This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_ts>` document section.
+    This test is specific to Buildroot only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_ts>` document section.
 
 
 Trusty
-###############
+######
 
 On the Android distribution, Trusty provides a Trusted Execution Environment (TEE).
 The functionality of Trusty IPC can be tested using the command ``tipc-test -t ta2ta-ipc`` with root privilege
 (once Android boots to prompt, run ``su 0`` for root access).
 
 .. note::
-    This test is specific to Android only. An example of the expected test result for this test is ilustrated in the :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_trusty>` document section.
+    This test is specific to Android only. An example of the expected test result for this test is illustrated in the :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_trusty>` document section.
 
 
 Microdroid demo
@@ -683,7 +739,7 @@ For running a demo Microdroid, boot TC FVP with Android distribution. Once the A
     ./run-scripts/tc2/run_microdroid_demo.sh
 
 .. note::
-    This test is specific to Android only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_microdroid>` document section.
+    This test is specific to Android only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_microdroid>` document section.
 
 
 Kernel Selftest
@@ -691,7 +747,7 @@ Kernel Selftest
 
 Tests are located at ``/usr/bin/selftest`` on the device.
 
-To run all the tests in one go, use ``./run_kselftest.sh`` script. Tests can be run individually also.
+To run all the tests in one go, use ``./run_kselftest.sh`` script. Tests can also be run individually.
 ::
 
     ./run_kselftest.sh --summary
@@ -700,7 +756,7 @@ To run all the tests in one go, use ``./run_kselftest.sh`` script. Tests can be 
     KSM driver is not a part of the TC2 kernel. Hence, one of the MTE Kselftests will fail for the ``check_ksm_options`` test.
 
 .. note::
-    This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_kernel>` document section.
+    This test is specific to Buildroot only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_kernel>` document section.
 
 
 MPAM
@@ -709,94 +765,79 @@ MPAM
 The hardware and the software requirements required for the MPAM feature can be verified by running the command ``testing_mpam.sh`` on ``terminal_uart_ap`` (this script is located inside the `/bin` folder, which is part of the default `$PATH` environment variable, allowing this command to be executed from any location in the device filesystem).
 
 .. note::
-    This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mpam>` document section.
+    This test is specific to Buildroot only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mpam>` document section.
 
 
 MPMM
 ####
 
-The functionality of MPMM module in the SCP firmware can be split into two:
- * To set the proper gear for each core based on the workload.  This can be verified by checking the ``INFO`` level SCP logs while executing the ``vector_workload`` test application.
- * To enforce the maximum clock frequency for a group of cores of the same type based on the current gear set for each core in that group.
+.. note::
+    The following two tests require to execute the FVP-model enforcing the additional load of the ``ScalableVectorExtension.so`` plugin (which is provided and part of your FVP bundle). The following command demonstrates the typical command skeleton required to execute the fvp-model in this situation:
 
-There are 2 files added to facilitate the verfication of MPMM.
- * vector_workload - This is a C application that runs vector instructions continuously.
- * test_mpmm.sh - This is a shell script that runs ``vector_workload`` on different cores and ensure the maximum clock frequency for a group of cores of the same type doesn't exceed the values set in PCT of the MPMM module in the SCP firmware.
+    ::
 
-To execute the testing script,
-::
+        ./run-scripts/tc2/run_model.sh -m <fvp-model binary path> -d buildroot \
+			-- \
+			--plugin <fvp-model plugin path/ScalableVectorExtension.so>
 
-    test_mpmm.sh fvp
+The functionality of the MPMM module in the SCP firmware can be leveraged to:
+ * set the proper gear for each core based on the workload. This functionality can be verified by checking the ``INFO`` level SCP logs while executing the ``vector_workload`` test application on the ``terminal_uart_ap`` window as follows:
+
+  ::
+
+		vector_workload
+
+ * enforce the maximum clock frequency for a group of cores of the same type, based on the current gear set for each core in that group. This functionality can be exercised by running the provided shell script ``test_mpmm.sh`` which will run ``vector_workload`` on the different cores. This test ensures that the maximum clock frequency for a group of cores of the same type does not exceed the values set in Perf Constraint Lookup Table (PCT) of the MPMM module in the SCP firmware.
+
+  To run this test, please run the following command in the ``terminal_uart_ap`` window:
+  ::
+
+		test_mpmm.sh fvp
 
 .. note::
-    To execute ``vector_workload``, the ``ScalableVectorExtension.so`` plugin have to be loaded while executing the model.
-
-.. note::
-    This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mpmm>` document section.
+    These tests are specific to Buildroot only. An example of the expected test result for the second test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mpmm>` document section.
 
 
 BTI
 ###
 
-To run the BTI unit test, navigate to ``<TC2_WORKSPACE>`` and run:
-::
-
-    adb connect 127.0.0.1:5555
-    cd <TC2_WORKSPACE>/src/android/out/target/product/tc_fvp/testcases/bti-unit-tests/arm64
-    adb push bti-unit-tests /data/local/tmp
-    cd <TC2_WORKSPACE>/src/android/out/target
-    adb push ./product/tc_fvp/obj/SHARED_LIBRARIES/libbti_basic_function_intermediates/libbti_basic_function.so /data/local/tmp
-
 On the ``terminal_uart_ap`` run:
 ::
 
-    cd /data/local/tmp
+    cd /data/nativetest64/bti-unit-tests/
     ./bti-unit-tests
 
 .. note::
-    This test is specific to Android builds with hardware rendering configuration enabled (i.e. `TC_GPU=true`). An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_bti>` document section.
+    This test is specific to Android builds. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_bti>` document section.
 
 
 MTE
 ###
 
-To run the MTE unit test, navigate to ``<TC2_WORKSPACE>`` and run:
-::
-
-    adb connect 127.0.0.1:5555
-    cd <TC2_WORKSPACE>/src/android/out/target/product/tc_fvp/testcases/mte-unit-tests/arm64
-    adb push mte-unit-tests /data/local/tmp
-
 On the ``terminal_uart_ap`` run:
 ::
 
-    cd /data/local/tmp
+    cd /data/nativetest64/mte-unit-tests/
     ./mte-unit-tests
 
 .. note::
-    This test is specific to Android builds with hardware rendering configuration enabled (i.e. `TC_GPU=true`). An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mte>` document section.
+    This test is specific to Android builds. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mte>` document section.
 
 
 PAUTH
 #####
 
-To run the PAUTH unit test, navigate to ``<TC2_WORKSPACE>`` and run:
-::
-
-    adb connect 127.0.0.1:5555
-    cd <TC2_WORKSPACE>/src/android/out/target/product/tc_fvp/testcases/pauth-unit-tests/arm64
-    adb push pauth-unit-tests /data/local/tmp
-
 On the ``terminal_uart_ap`` run:
 ::
 
-    cd /data/local/tmp
+    su
+    cd /data/nativetest64/pauth-unit-tests/
     ./pauth-unit-tests
 
 .. note::
-    This test is specific to Android builds with hardware rendering configuration enabled (i.e. `TC_GPU=true`). An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_pauth>` document section.
-	
-	
+    This test is specific to Android builds. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_pauth>` document section.
+
+
 EAS with LISA
 #############
 
@@ -851,7 +892,66 @@ The following excerpt illustrates the contents of the ``target_conf_buildroot.ym
 
 
 .. note::
-    This test is specific to Buildroot only. An example of the expected test result for this test is ilustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_eas>` document section.
+    This test is specific to Buildroot only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_eas>` document section.
+
+
+pKVM SMMUv3 driver support validation
+#####################################
+
+The SMMUv3 driver support can be validated by checking the bootlog messages or by running the following presented command. This section describes and educates what output to expect for both situations where the driver is loaded and enabled, or when it fails or is disabled.
+
+On the ``terminal_uart_ap`` run:
+::
+
+    realpath /sys/bus/platform/devices/9050000.smmuv3/driver
+
+
+When the **pKVM driver is loaded and enabled with success**, the previous command should report an output similar to the following one:
+::
+
+    $ realpath /sys/bus/platform/devices/9050000.smmuv3/driver
+    /sys/bus/platform/drivers/kvm-arm-smmu-v3
+
+If the **pKVM driver fails to load or is disabled**, the previous command should report an output similar to the following one:
+::
+
+    $ realpath /sys/bus/platform/devices/9050000.smmuv3/driver
+    /sys/bus/platform/drivers/arm-smmu-v3
+
+More information about the pKVM driver loading and initialisation phase can be checked during the bootlog messages or by running the command ``dmesg``, which should contain an entry similar to the following:
+::
+
+	(...)
+	[    0.672336][    T1] kvm [1]: IPA Size Limit: 44 bits
+	[    0.730093][    T1] kvm-arm-smmu-v3 9050000.smmuv3: DEBUG is enabled, weakening isolation
+	[    0.730838][    T1] kvm-arm-smmu-v3 9050000.smmuv3: ias 48-bit, oas 48-bit (features 0x00008505)
+	[    0.734961][    T1] kvm-arm-smmu-v3 9050000.smmuv3: allocated 65536 entries for cmdq
+	[    0.735111][    T1] kvm-arm-smmu-v3 9050000.smmuv3: allocated 128 entries for evtq
+	[    0.745273][    T1] kvm [1]: GICv3: no GICV resource entry
+	[    0.745429][    T1] kvm [1]: disabling GICv2 emulation
+	[    0.745637][    T1] kvm [1]: GIC system register CPU interface enabled
+	[    0.746536][    T1] kvm [1]: vgic interrupt IRQ9
+	[    0.749926][    T1] kvm [1]: Protected nVHE mode initialized successfully
+	(...)
+
+Considering the previous output excerpt, the last line confirms that the system is using pKVM instead of the classic KVM driver.
+
+.. note::
+    This test is applicable to all TC build distro variants.
+
+
+CPU hardware capabilities
+#########################
+
+The Buildroot build variant provides a script that allows to validate the advertisement for the ``FEAT_AFP``, ``FEAT_ECV`` and ``FEAT_WFxT`` CPU hardware capabilities.
+
+On the ``terminal_uart_ap`` run:
+::
+
+    test_feats_arch.sh
+
+.. note::
+    This test is specific to Buildroot only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_cpu_feat>` document section.
 
 
 Debugging on Arm Development Studio
@@ -859,47 +959,48 @@ Debugging on Arm Development Studio
 
 This section describes the steps to debug the TC software stack using `Arm Development Studio <https://developer.arm.com/Tools%20and%20Software/Arm%20Development%20Studio>`_.
 
-Creating a new connection
-#########################
-
-To create a new connection, please follow the next steps:
-
-#. Select ``File->New->Model Connection``;
-#. Provide the name for the new ``Debug Connection`` and click the ``next`` button;
-#. Click on the ``Add a new model...`` button;
-#. Select ``CADI`` as the model interface and click the ``next`` button;
-#. Select ``Launch and connect to specific model``;
-#. Select the location on your system containing the TC2 FVP model path and click the ``Finish`` button;
-#. Once the import process of the model finishes, you can close the ``Model Connection`` window (used to add the new model).
 
 Attach and Debug
 ################
 
 #. Build the target with debug enabled (the file ``<TC2_WORKSPACE>/build-scripts/config`` can be configured to enable debug);
-#. Run the distro as described in the section ``Running the software on FVP`` with the extra parameters ``-- -S`` to attach to the debugger. The full command should look like the following:
+#. Run the distro as described in the section ``Running the software on FVP`` with the extra parameters ``-- -I`` to attach to the debugger. The full command should look like the following:
 
 	::
 	
-	./run-scripts/tc2/run_model.sh -m <model binary path> -d <distro> -- -S
+	./run-scripts/tc2/run_model.sh -m <model binary path> -d <distro> -- -I
 
-#. Select the target created as mentioned in ``Creating a new connection`` and ``connect to target`` from debug control console.
+#. Select the target ``Arm FVP -> TC2 -> Bare Metal Debug -> Hayesx4/Hunterx3/HunterELP SMP``
 #. After connection, use options in debug control console (highlighted in the below diagram) or the keyboard shortcuts to ``step``, ``run`` or ``halt``.
 #. To add debug symbols, right click on target -> ``Debug configurations`` and under ``files`` tab add path to ``elf`` files.
 #. Debug options such as ``break points``, ``variable watch``, ``memory view`` and so on can be used.
 
 .. figure:: Debug_control_console.png
 
-.. warning::
-    There is a known issue in connecting all AP cores together. The Cortex X4 core is missing from the cluster view.  As a workaround, you can create two target connections as described in the ``Creating a new connection`` section: one for ELP core alone and the other one for the rest of AP cores.
+.. note::
+    This configuration requires Arm DS version 2023.a or later. The names of the cores shown are based on codenames instead of product names.
+    The mapping for the actual names follows the below described convention:
+    
+	+-------------+--------------+
+	| Codename    | Product name |
+	+=============+==============+
+	| Hayes       | Cortex A520  |
+	+-------------+--------------+
+	| Hunter      | Cortex A720  |
+	+-------------+--------------+
+	| Hunter ELP  | Cortex X4    |
+	+-------------+--------------+
 
 
 Switch between SCP and AP
 #########################
 
 #. Right click on target and select ``Debug Configurations``;
-#. Under ``Connection``, select ``Cortex-M3`` for SCP and ``Arm-Cortex A520_x/Arm-Cortex A720_x`` for AP core x and then debug.
+#. Under ``Connection``, select ``Cortex-M3`` for SCP or any of the remaining targets to attach to a specific AP (please refer to the previous note regarding the matching between the used codenames and actual product names);
+#. Press the ``Debug`` button to confirm and start your debug session.
 
 .. figure:: switch_cores.png
+
 
 Enable LLVM parser (for Dwarf5 support)
 #######################################
@@ -924,13 +1025,16 @@ The previous steps apply to the following Arm DS Platinum version/build:
     Arm DS Platinum is only available to licensee partners. Please contact Arm to have access (support@arm.com).
 
 
+Feature Guide
+-------------
+
 Firmware Update
----------------
+###############
 Currently, the firmware update functionality is only supported with the buildroot distro.
 
 
 Creating Capsule
-################
+****************
 
 Firmware Update in the total compute platform uses the capsule update mechanism. Hence, the Firmware Image Package (FIP) binary
 has to be converted to a capsule. This can be done with ``GenerateCapsule`` which is present in ``BaseTools/BinWrappers/PosixLike``
@@ -939,15 +1043,20 @@ of the `edk2 project <https://github.com/tianocore/edk2>`__.
 To generate the capsule from the fip binary, run the following command:
 ::
 
-    ./GenerateCapsule -e -o efi_capsule --fw-version 1 --lsv 0 --guid 0d5c011f-0776-5b38-8e81-36fbdf6743e2 --update-image-index 0 --verbose fip-tc.bin
+    ./GenerateCapsule -e -o efi_capsule \
+		--fw-version 1 \
+		--lsv 0 \
+		--guid 0d5c011f-0776-5b38-8e81-36fbdf6743e2 \
+		--update-image-index 0 \
+		--verbose fip-tc.bin
 
-Command arguments explanation:
+Command argument's explanation:
  * ``fip-tc.bin`` is the input fip file that has the firmware binaries of the total compute platform;
  * ``efi_capsule`` is the name of capsule to be generated;
  * ``0d5c011f-0776-5b38-8e81-36fbdf6743e2`` is the image type UUID for the FIP image.
 
 Loading Capsule
-###############
+***************
 
 The capsule generated using the above steps has to be loaded into memory during the execution of the model by providing the below FVP arguments:
 
@@ -963,11 +1072,13 @@ The final command to run the model for buildroot should look like the following:
 
 ::
 
-    ./run-scripts/tc2/run_model.sh -m <model binary path> -d buildroot -- --data board.dram=<location of capsule>/efi_capsule@0x2000000
+    ./run-scripts/tc2/run_model.sh -m <model binary path> -d buildroot \
+		-- \
+		--data board.dram=<location of capsule>/efi_capsule@0x2000000
 
 
 Updating Firmware
-#################
+*****************
 
 During the normal boot of the platform, stop at the U-Boot prompt and execute the following command:
 
@@ -976,6 +1087,386 @@ During the normal boot of the platform, stop at the U-Boot prompt and execute th
     TOTAL_COMPUTE# efidebug capsule update -v 0x82000000
 
 This will update the firmware. After it is completed, reboot the platform using the FVP GUI.
+
+
+AutoFDO in Android
+##################
+Feedback Directed Optimization (FDO), also known as Profile Guided Optimization (PGO), uses the profile of a program's execution to guide the optimizations performed by the compiler.
+
+More information about the AutoFDO process in ARM can be found `here <https://github.com/Linaro/OpenCSD/blob/master/decoder/tests/auto-fdo/autofdo.md>`__.
+
+Prerequisites
+*************
+
+To make use of this feature, the following two requisites should be observed:
+
+* the application must be compiled to include sufficient debug information to map instructions back to source lines. For ``clang``/``llvm``, this translates into adding the ``-fdebug-info-for-profiling`` and ``-gline-tables-only`` compiler options;
+
+* ``simpleperf`` will identify the active program or library using the build identifier stored in the elf file. This requires the use of the following compiler flag ``-Wl,--build-id=sha1`` to be added during link time.
+
+The following example demonstrates how to compile a sample C program named ``program.c`` using ``clang`` and observing these two prerequisites:
+
+::
+
+	clang --fdebug-info-for-profiling -gline-tables-only -Wl,--build-id=sha1 program.c -o program
+
+Steps to use AutoFDO
+********************
+
+The following steps describe how to upload the resulting ``program`` binary object to the fvp-model, how to generate and convert the execution trace into source level profiles, and how to download and reuse that to optimize the next compiler builds:
+
+#. connect to the fvp-model running instance;
+
+	Please refer to the :ref:`ADB - Connect to the running FVP-model instance <docs/totalcompute/tc2/user-guide_adb-connect>` section for more info how to do this.
+
+#. upload the previous resulting ``program`` binary object to the remote ``/usr/bin`` path location;
+
+	Please refer to the :ref:`ADB - Upload a file <docs/totalcompute/tc2/user-guide_adb-upload>` section for more info how to do this.
+
+#. using the ``terminal_uart_ap`` window, navigate into ``/storage/self`` path location and elevate your privilege level to ``root`` (required and crucial for next steps). This can be achieved by running the following commands on the specified terminal window:
+
+	::
+
+		cd /storage/self
+		su
+
+#. record the execution trace of the program;
+
+	The ``simpleperf`` application in Android is used to record the execution trace of the application. This trace will be captured by collecting the ``cs_etm`` event from ``simpleperf`` and will be stored in a ``perf.data`` file.
+
+	The following command demonstrates how to make use of the ``simpleperf`` application to record the execution trace of the ``program`` application (this command is intended to be run on the fvp-model via the ``terminal_uart_ap`` window):
+
+	::
+
+		simpleperf record -e cs-etm program
+
+	More info on the ``simpleperf`` tool can be found `here <https://developer.android.com/ndk/guides/simpleperf>`__.
+
+#. convert the execution trace to instruction samples with branch histories;
+
+	The execution trace can be converted to an instruction profile using the ``simpleperf`` application. The following ``simpleperf inject`` command will decode the execution trace and generate branch histories in text format accepted by AutoFDO (this command is intended to be run on the fvp-model via the ``terminal_uart_ap`` window):
+
+	::
+
+		simpleperf inject -i perf.data -o inj.data --output autofdo --binary program
+
+#. convert the instruction samples to source level profiles;
+
+	The `AutoFDO <https://github.com/google/autofdo>`__ tool is used to convert the instruction profiles to source profiles for the ``GCC`` and ``clang``/``llvm`` compilers.
+
+	This requires to pull the instruction profile (generated in the previous step and saved as ``inj.data`` file), from the model to the host machine using the ``adb`` command (please refer to the :ref:`ADB - Download a file <docs/totalcompute/tc2/user-guide_adb-download>` section for more info how to do this).
+
+	The instruction samples produced by ``simpleperf inject`` will be passed to the AutoFDO tool to generate source level profiles for the compiler. The following line demonstrates the usage command for ``clang``/``llvm`` (this command is intended to be run on the host machine):
+
+	::
+
+		create_llvm_prof -binary=program -profile=inj.data -out=program.llvmprof
+
+#. use the source level profile with the compiler;
+
+	The profile produced by the above steps can now be provided to the compiler to optimize the next build of the ``program`` application. For ``clang``, use the ``-fprofile-sample-use`` compiler option as follows (this command is intended to be run on the host machine):
+
+	::
+
+		clang -O2 -fprofile-sample-use=program.llvmprof -o program program.c
+
+.. _docs/totalcompute/tc2/user-guide_adb:
+
+ADB connection on Android
+#########################
+
+This section applies to Android distros and describes the steps required to use ADB protocol to perform the following actions (always considering a remote running FVP-model Android instance):
+ * connect to a running fvp-model instance;
+ * upload a file;
+ * download a file;
+ * execute a command via ADB shell.
+
+.. _docs/totalcompute/tc2/user-guide_adb-connect:
+
+Connect to the running FVP-model instance
+*****************************************
+
+#. run the fvp-model and wait for the instance to fully boot up (this may take a considerable amount of time depending on the distro under test and the host hardware specification);
+#. once the Android distro boot completes (and the ``Fast Models - Total Compute 2 DP0`` window shows the complete Android home screen), run the following commands on a new host terminal session to connect to the fvp-model running instance via the ``adb`` protocol:
+
+  ::
+
+		adb connect 127.0.0.1:5555
+		adb devices
+
+  The following excerpt capture demonstrates the execution and expected output from the previous commands:
+
+  ::
+
+	# adb connect 127.0.0.1:5555
+	* daemon not running; starting now at tcp:5037
+	* daemon started successfully
+	connected to 127.0.0.1:5555
+	# adb devices
+	List of devices attached
+	127.0.0.1:5555	offline
+
+.. note::
+    If the previous command fails to connect, please wait a few more minutes and retry. Due to the indeterministic services boot flow nature, this may circumvent situations where the fvp-model Android instance takes a bit longer to start all the required services and correctly allow communications to happen.
+
+.. warning::
+    If running more than one FVP-model on the same host, each instance will get a different ADB port assigned. The assigned ADB port is mentioned during the FVP-model start up phase. Please ensure you are using the correct assigned/mentioned ADB port and adapt the commands mentioned in this entire section as needed (i.e. replacing default port ``5555`` or ``<fvp adb port>`` mentions with the correct port being used).
+
+.. _docs/totalcompute/tc2/user-guide_adb-upload:
+
+Upload a file
+*************
+#. connect or ensure that an ADB connection to the fvp-model is established;
+#. run the following command to upload a local file to the remote fvp-model Android running instance:
+
+  ::
+
+	adb -s <fvp adb port> push <local host location for original file> <remote absolute path location to save file>
+
+.. note::
+    It may happen that the ADB connection is lost between the connection moment and the moment that the previous command is run. If that happens, please repeat the connection step and the previous command.
+
+.. _docs/totalcompute/tc2/user-guide_adb-download:
+
+Download a file
+***************
+#. connect or ensure that an ADB connection to the fvp-model is established;
+#. run the following command to download a remote file to your local host system:
+
+  ::
+
+	adb -s <fvp adb port> pull <remote absolute path location for original file> <local host location where to save file>
+
+.. note::
+    It may happen that the ADB connection is lost between the connection moment and the moment that the previous command is run. If that happens, please repeat the connection step and the previous command.
+
+.. _docs/totalcompute/tc2/user-guide_adb-shell:
+
+Execute a remote command
+************************
+
+  ::
+
+	adb -s <fvp adb port> shell <command>
+
+Example:
+
+  ::
+
+	adb -s <fvp adb port> shell ls -la
+
+.. note::
+    It may happen that the ADB connection is lost between the connection moment and the moment that the previous command is run. If that happens, please repeat the connection step and the previous command.
+
+
+Set up TAP interface for Android ADB
+####################################
+
+This section applies to Android and details the steps required to set up the tap interface on the host for model networking for ADB.
+
+The following method relies on ``libvirt`` handling the network bridge. This solution provides a safer approach in which, in cases where a bad configuration is used, the primary network interface should continue operational.
+
+
+Steps to set up the tap interface
+*********************************
+
+To set up the tap interface, please follow the next steps (unless otherwise mentioned, all commands are intended to be run on the host system):
+
+#. install ``libvirt`` on your development host system:
+
+    ::
+
+	sudo apt-get update && sudo apt-get install libvirt-daemon-system libvirt-clients
+
+    The host system should now list a new interface with a name similar to ``virbr0`` and an IP address of ``192.168.122.1``.
+    This can be verified by running the command ``ifconfig -a`` (or alternatively ``ip a s`` for newer distributions) which will produce an output similar to the following:
+
+    ::
+
+	$ ifconfig -a
+	virbr0: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
+        inet 192.168.122.1  netmask 255.255.255.0  broadcast 192.168.122.255
+        ether XX:XX:XX:XX:XX:XX  txqueuelen 1000  (Ethernet)
+        RX packets 0  bytes 0 (0.0 B)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 0  bytes 0 (0.0 B)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+	virbr0-nic: flags=4098<BROADCAST,MULTICAST>  mtu 1500
+        ether XX:XX:XX:XX:XX:XX  txqueuelen 1000  (Ethernet)
+        RX packets 0  bytes 0 (0.0 B)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 0  bytes 0 (0.0 B)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+	$
+
+
+#. create the ``tap0`` interface:
+
+    ::
+
+	sudo ip tuntap add dev tap0 mode tap user $(whoami)
+	sudo ifconfig tap0 0.0.0.0 promisc up
+	sudo brctl addif virbr0 tap0
+
+#. download and install the Android SDK from `here <https://developer.android.com/studio>`__ or, alternatively, install the ``adb`` tool package as follows:
+
+    ::
+
+	sudo apt-get install adb
+
+#. run the FVP model providing the additional parameter ``-t "tap0"`` to enable the tap interface:
+
+    ::
+
+	./run-scripts/tc2/run_model.sh -m <model binary path> -d android-fvp -t "tap0"
+
+
+    Before proceeding, please allow Android FVP model to fully boot and the Android home screen display to be visible on the ``Fast Models - Total Compute 2 DP0`` window.
+
+    .. note::
+	Running and booting the Android FVP model will take considerable time, potentially taking easily 2-3+ hours depending on your host system hardware specification. Please grab a coffee and relax.
+
+#. once the Android FVP model boots, the Android instance should get an IP address similar to ``192.168.122.62``, as illustrated in the next figure:
+
+	.. figure:: tap_interface_ip_addr.png
+		:alt: Android FVP-model IP address configuration
+
+#. validate the connection between the host ``tap0`` interface and the Android FVP model by running the following command **on the fvp-model** via the ``terminal_uart_ap`` window:
+
+    ::
+
+	ping 192.168.122.1
+
+
+    Alternatively, it is also possible to validate if the fvp-model can reach a valid internet gateway by pinging, for instance, the IP address ``8.8.8.8`` instead.
+
+#. at this stage, you should also be able to establish an ADB connection and upload/download files as described in section :ref:`ADB connection on Android <docs/totalcompute/tc2/user-guide_adb>`.
+
+Steps to graceful disable and remove the tap interface
+******************************************************
+
+To revert the configuration of your host system (removing the ``tap0`` interface), please follow the next steps:
+
+#. remove the ``tap0`` from the bridge configuration:
+
+    ::
+
+	sudo brctl delif virbr0 tap0
+
+#. disable the bridge interface:
+
+    ::
+
+	sudo ip link set virbr0 down
+
+#. remove the bridge interface:
+
+    ::
+
+	sudo brctl delbr virbr0
+
+#. remove the ``libvirt`` package:
+
+    ::
+
+	sudo apt-get remove libvirt-daemon-system libvirt-clients
+
+
+.. _docs/totalcompute/tc2/user-guide_fvp_traces:
+
+Running and Collecting FVP tracing information
+##############################################
+
+This section describes how to run the FVP-model, enabling the output of trace information for debug and troubleshooting purposes.
+To illustrate proper trace output information that can be obtained at different stages, the following command examples will use the SMMU-700 block component. However, any of the commands mentioned, can be extended or adapted easily for any other component.
+
+.. note::
+    This functionality requires to execute the FVP-model enforcing the additional load of the ``GenericTrace.so`` or ``ListTraceSources.so`` plugins (which are provided and part of your FVP bundle).
+
+Getting the list of trace sources
+*********************************
+
+To get the list of trace sources available on the FVP-model, please run the following command:
+
+    ::
+
+	<fvp-model binary path>/FVP_TC2 \
+		--plugin <fvp-model plugin path/ListTraceSources.so> \
+		>& /tmp/trace-sources-fvp-tc2.txt
+
+This will start the model and use the ``ListTraceSources.so`` plugin to dump the list to a file. Please note that the file size can easily extend to tens of megabytes, as the list is quite extensive.
+
+The following excerpt illustrates the output information related with the example component SMMU-700:
+
+    ::
+
+	Component (1437) providing trace: TC2.css.smmu (MMU_700, 11.22.13)
+	=============================================================================
+	Component is of type "MMU_700"
+	Version is "11.22.13"
+	#Sources: 299
+
+	Source ArchMsg.Error.error (These messages are about activity occurring on the SMMU that is considered an error.
+	Messages will only come out here if parameter all_error_messages_through_trace is true.
+
+	DISPLAY %{output})
+		Field output type:MTI_STRING size:0 max_size:120 (The stream output)
+
+
+Executing the FVP-model with traces enabled
+*******************************************
+
+To execute the FVP-model with trace information enabled, please run the following command:
+
+    ::
+
+	./run-scripts/tc2/run_model.sh -m <model binary path> -d <distro> \
+		-- \
+		--plugin <fvp-model plugin path/GenericTrace.so> \
+		-C 'TRACE.GenericTrace.trace-sources="TC2.css.smmu.*"' \
+		-C TRACE.GenericTrace.flush=true
+
+Multiple trace sources can be requested by separating the trace-sources strings with commas.
+By default, the trace information will be displayed to the standard output (e.g. display), which due to its verbosity may not be always the ideal solution. For such situations, it is suggested to redirect and capture the trace information into a file, which can be achieved by running the following command:
+
+    ::
+
+	./run-scripts/tc2/run_model.sh -m <model binary path> -d <distro> \
+		-- \
+		--plugin <fvp-model plugin path/GenericTrace.so> \
+		-C 'TRACE.GenericTrace.trace-sources="TC2.css.smmu.*"' \
+		-C TRACE.GenericTrace.flush=true \
+		>& /tmp/trace-fvp-tc2.txt
+
+
+The following output excerpt illustrates an example of the trace information captured for the DPU (``streamid=0x00000100``) and GPU (``streamid=0x00000200``):
+
+    ::
+
+	(...)
+	start_ptw_read: trans_id=0x000000000000020f streamid=0x00000100 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x0000008083fdc018 input_address=0x00000000ffe00000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 inner_cache=rawaWB outer_cache=rawaWB aprot=DNP adomain=ish mpam_pmg_and_partid=0x00000000 ssd=ns pas=ns mecid=0xffffffff
+	verbose_commentary: output="Performing a Table Walk read as:-"
+	verbose_commentary: output="    trans_id:527-st2-final-l1-aa64-ttb0-vmid:0-ns-sid:256"
+	verbose_commentary: output="to ns-0x0000008083fdc018-PND-u0x53000009-m0xffffffff-ish-osh-rawaC-rawaC of size 8B"
+	verbose_commentary: output="Table Walk finished:-"
+	verbose_commentary: output="    trans_id:527-st2-final-l1-aa64-ttb0-vmid:0-ns-sid:256"
+	verbose_commentary: output="got:-"
+	verbose_commentary: output="    0x0000008083fdc018: 0x0000008085c31003"
+	ptw_read: trans_id=0x000000000000020f streamid=0x00000100 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x0000008083fdc018 input_address=0x00000000ffe00000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 inner_cache=rawaWB outer_cache=rawaWB aprot=DNP adomain=ish abort=ok data=0x0000008085c31003 ssd=ns pas=ns mecid=0xffffffff
+	ptw_read_st2_table_descriptor: trans_id=0x000000000000020f streamid=0x00000100 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x0000008083fdc018 input_address=0x00000000ffe00000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 APTable=aptable_no_effect XNTable=N PXNTable=N TableAddress=0x0000008085c31000 ssd=ns pas=ns mecid=0xffffffff
+	(...)
+	start_ptw_read: trans_id=0x000000000000033b streamid=0x00000200 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x00000080872a7010 input_address=0x00000080844db000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 inner_cache=rawaWB outer_cache=rawaWB aprot=DNP adomain=ish mpam_pmg_and_partid=0x00000000 ssd=ns pas=ns mecid=0xffffffff
+	verbose_commentary: output="Performing a Table Walk read as:-"
+	verbose_commentary: output="    trans_id:827-st2-final-l1-aa64-ttb0-vmid:1-ns-sid:512"
+	verbose_commentary: output="to ns-0x00000080872a7010-PND-u0x53000109-m0xffffffff-ish-osh-rawaC-rawaC of size 8B"
+	verbose_commentary: output="Table Walk finished:-"
+	verbose_commentary: output="    trans_id:827-st2-final-l1-aa64-ttb0-vmid:1-ns-sid:512"
+	verbose_commentary: output="got:-"
+	verbose_commentary: output="    0x00000080872a7010: 0x000000808a52d003"
+	ptw_read: trans_id=0x000000000000033b streamid=0x00000200 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x00000080872a7010 input_address=0x00000080844db000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 inner_cache=rawaWB outer_cache=rawaWB aprot=DNP adomain=ish abort=ok data=0x000000808a52d003 ssd=ns pas=ns mecid=0xffffffff
+	ptw_read_st2_table_descriptor: trans_id=0x000000000000033b streamid=0x00000200 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x00000080872a7010 input_address=0x00000080844db000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 APTable=aptable_no_effect XNTable=N PXNTable=N TableAddress=0x000000808a52d000 ssd=ns pas=ns mecid=0xffffffff
+	(...)
 
 
 --------------

@@ -22,7 +22,7 @@ Total Compute focuses on optimizing Performance, Security, and Developer Access 
 
 .. raw:: html
 
-   <h3>Latest TC release: TC2-2023.04.21</h3>
+   <h3>Latest TC release: TC2-2023.08.15</h3>
 
 
 .. toctree::

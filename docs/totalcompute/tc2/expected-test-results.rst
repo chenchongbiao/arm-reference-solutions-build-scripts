@@ -264,9 +264,9 @@ OP-TEE unit tests
 	* regression_1002 PTA parameters
 	 - 1002 -   skip test, pseudo TA not found
 	  regression_1002 OK
-	
+
 	(...output truncated...)
-	
+
 	regression_8101 OK
 	regression_8102 OK
 	regression_8103 OK
@@ -686,72 +686,72 @@ MPMM unit tests
 
 ::
 
-        # test_mpmm.sh fvp
-        This is a test script to check the MPMM functionality
+    # test_mpmm.sh fvp
+    This is a test script to check the MPMM functionality
 
-        This is based on the PCT configured in the SCP which can be found at
-        product/tc2/scp_ramfw/config_mpmm.c
+    This is based on the PCT configured in the SCP which can be found at
+    product/tc2/scp_ramfw/config_mpmm.c
 
-        Testing MPMM in FVP
+    Testing MPMM in FVP
 
-        Testing the MPMM of A520 cores
-        ******************************
-        According to the PCT, the max frequency should be 1840000
-        Current set frequency of the cpu0 is 1537000
-        PASS
+    Testing the MPMM of A520 cores
+    ******************************
+    According to the PCT, the max frequency should be 1840000
+    Current set frequency of the cpu0 is 1537000
+    PASS
 
-        Starting a vector intensive workload on cpu0
-        According to the PCT, the max frequency should be 1537000
-        Current set frequency of the cpu0 is 1537000
-        PASS
+    Starting a vector intensive workload on cpu0
+    According to the PCT, the max frequency should be 1537000
+    Current set frequency of the cpu0 is 1537000
+    PASS
 
-        Starting a vector intensive workload on cpu1
-        According to the PCT, the max frequency should be 1537000
-        Current set frequency of the cpu0 is 1537000
-        PASS
+    Starting a vector intensive workload on cpu1
+    According to the PCT, the max frequency should be 1537000
+    Current set frequency of the cpu0 is 1537000
+    PASS
 
-        Starting a vector intensive workload on cpu2
-        According to the PCT, the max frequency should be 1153000
-        Current set frequency of the cpu0 is 1153000
-        PASS
+    Starting a vector intensive workload on cpu2
+    According to the PCT, the max frequency should be 1153000
+    Current set frequency of the cpu0 is 1153000
+    PASS
 
-        Starting a vector intensive workload on cpu3
-        According to the PCT, the max frequency should be 1153000
-        Current set frequency of the cpu0 is 1153000
-        PASS
+    Starting a vector intensive workload on cpu3
+    According to the PCT, the max frequency should be 1153000
+    Current set frequency of the cpu0 is 1153000
+    PASS
 
-        Testing the MPMM of A720 cores
-        ******************************
-        According to the PCT, the max frequency should be 2271000
-        Current set frequency of the cpu4 is 1893000
-        PASS
+    Testing the MPMM of A720 cores
+    ******************************
+    According to the PCT, the max frequency should be 2271000
+    Current set frequency of the cpu4 is 1893000
+    PASS
 
-        Starting a vector intensive workload on cpu4
-        According to the PCT, the max frequency should be 1893000
-        Current set frequency of the cpu4 is 1893000
-        PASS
+    Starting a vector intensive workload on cpu4
+    According to the PCT, the max frequency should be 1893000
+    Current set frequency of the cpu4 is 1893000
+    PASS
 
-        Starting a vector intensive workload on cpu5
-        According to the PCT, the max frequency should be 1893000
-        Current set frequency of the cpu4 is 1893000
-        PASS
+    Starting a vector intensive workload on cpu5
+    According to the PCT, the max frequency should be 1893000
+    Current set frequency of the cpu4 is 1893000
+    PASS
 
-        Starting a vector intensive workload on cpu6
-        According to the PCT, the max frequency should be 1893000
-        Current set frequency of the cpu4 is 1893000
-        PASS
+    Starting a vector intensive workload on cpu6
+    According to the PCT, the max frequency should be 1893000
+    Current set frequency of the cpu4 is 1893000
+    PASS
 
-        Testing the MPMM of X4 cores
-        ******************************
-        According to the PCT, the max frequency should be 3047000
-        Current set frequency of the cpu7 is 1088000
-        PASS
+    Testing the MPMM of X4 cores
+    ******************************
+    According to the PCT, the max frequency should be 3047000
+    Current set frequency of the cpu7 is 1088000
+    PASS
 
-        Starting a vector intensive workload on cpu7
-        According to the PCT, the max frequency should be 2612000
-        Current set frequency of the cpu7 is 2612000
-        PASS
-        #
+    Starting a vector intensive workload on cpu7
+    According to the PCT, the max frequency should be 2612000
+    Current set frequency of the cpu7 is 2612000
+    PASS
+    #
 
 .. _docs/totalcompute/tc2/expected-test-results_bti:
 
@@ -761,7 +761,7 @@ BTI unit tests
 
 ::
 
-	console:/data/local/tmp # ./bti-unit-tests                                      
+	console:/data/nativetest64/bti-unit-tests # ./bti-unit-tests
 
 	[==========] Running 17 tests from 7 test suites.
 	[----------] Global test environment set-up.
@@ -833,7 +833,7 @@ MTE unit tests
 
 ::
 
-	console:/data/local/tmp # ./mte-unit-tests                                      
+	console:/data/nativetest64/mte-unit-tests # ./mte-unit-tests
 
 	[==========] Running 12 tests from 1 test suite.
 	[----------] Global test environment set-up.
@@ -876,18 +876,64 @@ PAUTH unit tests
 
 ::
 
-	console:/data/local/tmp # ./pauth-unit-tests                                  
-
+	console:/data/nativetest64/pauth-unit-tests $ ./pauth-unit-tests
 	PAC is enabled by the kernel: 1
-	PAC2 is implemented by the hardware: 0
-	FPAC is implemented by the hardware: 0
+	PAC2 is implemented by the hardware: 1
+	FPAC is implemented by the hardware: 1
 	[==========] Running 18 tests from 3 test suites.
 	[----------] Global test environment set-up.
 	[----------] 2 tests from PAuthDeathTest
 	[ RUN      ] PAuthDeathTest.SignFailure
-	[       OK ] PAuthDeathTest.SignFailure (332 ms)
+	[       OK ] PAuthDeathTest.SignFailure (113 ms)
 	[ RUN      ] PAuthDeathTest.AuthFailure
-	Illegal instruction
+	[       OK ] PAuthDeathTest.AuthFailure (137 ms)
+	[----------] 2 tests from PAuthDeathTest (250 ms total)
+
+	[----------] 13 tests from PAuthTest
+	[ RUN      ] PAuthTest.Signing
+	[       OK ] PAuthTest.Signing (0 ms)
+	[ RUN      ] PAuthTest.Authentication
+	[       OK ] PAuthTest.Authentication (146 ms)
+	[ RUN      ] PAuthTest.Stripping
+	vendor/arm/examples/pauth/pauth_unit_tests/pauth_unit_tests.cpp:279: Skipped
+
+	[  SKIPPED ] PAuthTest.Stripping (0 ms)
+	[ RUN      ] PAuthTest.Roundtrip
+	[       OK ] PAuthTest.Roundtrip (0 ms)
+	[ RUN      ] PAuthTest.StrippingWithBuiltinReturnAddress
+	[       OK ] PAuthTest.StrippingWithBuiltinReturnAddress (0 ms)
+	[ RUN      ] PAuthTest.ExtractPAC
+	[       OK ] PAuthTest.ExtractPAC (0 ms)
+	[ RUN      ] PAuthTest.PACMask
+	[       OK ] PAuthTest.PACMask (0 ms)
+	[ RUN      ] PAuthTest.KeyChange
+	[       OK ] PAuthTest.KeyChange (1 ms)
+	[ RUN      ] PAuthTest.GenericAuthentication
+	[       OK ] PAuthTest.GenericAuthentication (0 ms)
+	[ RUN      ] PAuthTest.Unwind
+	[       OK ] PAuthTest.Unwind (8 ms)
+	[ RUN      ] PAuthTest.CheckReturnAddressSigned
+	[       OK ] PAuthTest.CheckReturnAddressSigned (0 ms)
+	[ RUN      ] PAuthTest.AuthenticateThenReturn
+	[       OK ] PAuthTest.AuthenticateThenReturn (93 ms)
+	[ RUN      ] PAuthTest.CheckHWCAP
+	[       OK ] PAuthTest.CheckHWCAP (0 ms)
+	[----------] 13 tests from PAuthTest (251 ms total)
+
+	[----------] 3 tests from PAuthTestData
+	[ RUN      ] PAuthTestData.Signing
+	[       OK ] PAuthTestData.Signing (0 ms)
+	[ RUN      ] PAuthTestData.Authentication
+	[       OK ] PAuthTestData.Authentication (92 ms)
+	[ RUN      ] PAuthTestData.Roundtrip
+	[       OK ] PAuthTestData.Roundtrip (0 ms)
+	[----------] 3 tests from PAuthTestData (92 ms total)
+
+	[----------] Global test environment tear-down
+	[==========] 18 tests from 3 test suites ran. (594 ms total)
+	[  PASSED  ] 17 tests.
+	[  SKIPPED ] 1 test, listed below:
+	[  SKIPPED ] PAuthTest.Stripping
 
 .. _docs/totalcompute/tc2/expected-test-results_eas:
 
@@ -898,7 +944,7 @@ EAS with Lisa unit tests
 ::
 
 	The following expressions will be executed:
-	
+
 	EnergyModelWakeMigration:test_dmesg
 	EnergyModelWakeMigration:test_slack
 	EnergyModelWakeMigration:test_task_placement
@@ -920,7 +966,7 @@ EAS with Lisa unit tests
 	TwoBigThreeSmall:test_dmesg
 	TwoBigThreeSmall:test_slack
 	TwoBigThreeSmall:test_task_placement
-	
+
 	Used trace events:
 	  -  sched_switch
 	  -  sched_wakeup
@@ -986,7 +1032,7 @@ EAS with Lisa unit tests
 	    duration (abs): 0.0005214800185058266 s
 	    duration (rel): 0.007009150123468466 %
 	    pid: 69
-	    
+
 	ThreeSmallTasks[board=tc2]:test_dmesg                   
 	UUID=13dbafe99b5b46d7bf4e0fe111b3ed78 PASSED: dmesg output:
 	ThreeSmallTasks[board=tc2]:test_slack                   
@@ -994,7 +1040,7 @@ EAS with Lisa unit tests
 	  small_0-0 delayed activations: 0.0 %
 	  small_1-1 delayed activations: 0.0 %
 	  small_2-2 delayed activations: 0.0 %
-		
+
 	ThreeSmallTasks[board=tc2]:test_task_placement          
 	UUID=b518bced8a544ddd902f0c254ba9b7da PASSED
 	  energy threshold: 206.83944850784022 bogo-joules
@@ -1004,7 +1050,7 @@ EAS with Lisa unit tests
 	    duration (abs): 0.00016275000234600157 s
 	    duration (rel): 0.016406104698468295 %
 	    pid: 1
-			
+
 	TwoBigTasks[board=tc2]:test_dmesg                       
 	UUID=52277de98f434f94a72d656a673339af PASSED: dmesg output:
 	TwoBigTasks[board=tc2]:test_slack                       
@@ -1036,14 +1082,27 @@ Testing GPU with Debian
     :alt: Image rendered with Weston
 
 
-.. _docs/totalcompute/tc2/expected-test-results_bootAndroidAVB:
+.. _docs/totalcompute/tc2/expected-test-results_cpu_feat:
 
 
-Booting Android with AVB
-------------------------
+CPU hardware capabilities
+-------------------------
 
-.. figure:: bootAndroidWithFVP_error.png
-    :alt: Error shown when booting Android with AVB
+::
+
+	# test_feats_arch.sh
+	Testing FEAT_AFP HW CAP
+	Pass
+
+	Testing FEAT_ECV HW CAP
+	Pass
+
+	Testing FEAT_WFXT HW CAP
+	Pass
+
+	#
+
+
 
 --------------
 
