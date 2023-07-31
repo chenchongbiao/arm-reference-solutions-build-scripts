@@ -1,4 +1,4 @@
-From 259d4b000bcfb926a23744c2e27aeb37d4711da4 Mon Sep 17 00:00:00 2001
+From 70e7c88abb5b2b1cdb1a9d15ed58ee8c2fe8fee7 Mon Sep 17 00:00:00 2001
 From: Davidson K <davidson.kumaresan@arm.com>
 Date: Fri, 16 Jun 2023 12:56:04 +0530
 Subject: [PATCH 1/2] feat(plat/tc): enable mpmm and amu counters for the FPGA
@@ -169,10 +169,10 @@ index b5f759b5f..a1aaa0410 100644
  
  	};
 diff --git a/plat/arm/board/tc/platform.mk b/plat/arm/board/tc/platform.mk
-index ee0c9657a..df10d1e8f 100644
+index 9965947d8..7e14b5e6d 100644
 --- a/plat/arm/board/tc/platform.mk
 +++ b/plat/arm/board/tc/platform.mk
-@@ -175,10 +175,8 @@ override ENABLE_AMU := 1
+@@ -171,10 +171,8 @@ override ENABLE_FEAT_AMU := 1
  override ENABLE_AMU_AUXILIARY_COUNTERS := 1
  override ENABLE_AMU_FCONF := 1
  
