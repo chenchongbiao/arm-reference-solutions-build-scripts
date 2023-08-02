@@ -10,7 +10,7 @@ insmod /lib/aarch64-linux-gnu/mali/wayland/mali_kbase.ko
 mkdir -p /tmp/wayland && chmod 700 /tmp/wayland
 export XDG_RUNTIME_DIR=/tmp/wayland/
 export LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu/mali/wayland/
-export WAYLAND_DISPLAY=wayland-0
+export WAYLAND_DISPLAY=wayland-1
 
 echo "Copy csf firmware binary to the default path"
 mkdir -p /lib/firmware

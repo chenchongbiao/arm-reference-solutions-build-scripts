@@ -29,11 +29,26 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 do_build() {
-    info_echo "Downloading compressed Debian image from Artifactory"
-    curl --netrc --retry 5 --retry-delay 3 --output $DEPLOY_DIR/tc2/$DEBIAN_ARTIFACTORY_FILE $DEBIAN_ARTIFACTORY_PATH/$DEBIAN_ARTIFACTORY_FILE
-    info_echo "Extracting debian.img ..."
+
+    info_echo "Downloading Debian 12 image from Linaro"
+    TEMP_FILE=.tmp
     pushd $DEPLOY_DIR/tc2
-    tar -xvf $DEBIAN_ARTIFACTORY_FILE
+
+    if [ ! -f $DEBIAN_IMG ]; then
+        wget --output-document=${TEMP_FILE}  ${DEBIAN_LINARO_PATH}/${DEBIAN_IMG}
+        checksum=`md5sum ${TEMP_FILE} | sed 's/\|/ /'|awk '{print $1}'`
+
+        if [ $checksum != $DEBIAN_CHECKSUM ]; then
+            error_echo "Debian 12 Image Checksum validation failed"
+            rm ${TEMP_FILE}
+            exit
+        else
+            mv ${TEMP_FILE} ${DEBIAN_IMG}
+        fi
+    else
+        info_echo "Debian 12 image already exists; skipping the download process."
+    fi
+
     $SCRIPT_DIR/create_mmc_image.sh
     popd
 }
@@ -41,6 +56,7 @@ do_build() {
 do_clean() {
     info_echo "Cleaning debian"
     rm -rf $DEPLOY_DIR/tc2/debian_fs.img
+    rm -rf $DEPLOY_DIR/tc2/debian.img
 }
 
 do_patch() {
