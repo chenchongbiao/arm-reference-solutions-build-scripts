@@ -147,7 +147,7 @@ index 136f90fd..3f451fb9 100644
          .core_starts_online = false,
      },
 -    [3] = {
-+}
++};
 +
 +static const struct mod_mpmm_core_config cortex_x4_core_config[1] = {
 +    [0] = {

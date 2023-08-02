@@ -57,6 +57,12 @@ clone_gpu_ddk() {
             popd
 }
 
+patch_gpu_ddk() {
+            info_echo "Patch GPU DDK source"
+            PATCHES_DIR="$FILES_DIR/mali_kbase/$PLATFORM"
+            with_default_shell_opts patching "$PATCHES_DIR" "$ANDROID_SRC/vendor/arm/mali" product/kernel
+}
+
 build_gpu_ddk() {
             info_echo "Build GPU DDK source"
 	    if [[ -z $ARM_PRODUCT_DEF || -z $LM_LICENSE_FILE || -z $ARMLMD_LICENSE_FILE ]]; then
@@ -156,6 +162,7 @@ do_build() {
                 cp $KERNEL_IMAGE device/arm/tc
 		if [ "$TC_GPU" == true ]; then
 		    clone_gpu_ddk
+                    patch_gpu_ddk
                     lunch tc_$TC_TARGET_FLAVOR-userdebug;
 		    build_gpu_ddk
 	        else
@@ -164,6 +171,7 @@ do_build() {
             else
 		if [ $TC_GPU == true ]; then
 		    clone_gpu_ddk
+                    patch_gpu_ddk
                     lunch tc_$TC_TARGET_FLAVOR-eng;
 		    build_gpu_ddk
 	        else

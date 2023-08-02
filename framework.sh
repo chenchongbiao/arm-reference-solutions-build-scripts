@@ -13,7 +13,11 @@ patching() {
     PATCHES=$(ls $1/*.patch 2>/dev/null)
     pushd $2
     for patch in $PATCHES; do
-        git am --committer-date-is-author-date $patch
+        if [ -z "$3" ]; then
+            git am --committer-date-is-author-date $patch
+        else
+            git am --committer-date-is-author-date --directory=$3 $patch
+        fi
         if [ $? -eq 0 ]; then
           echo "Applied $patch"
         else
