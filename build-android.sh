@@ -41,7 +41,10 @@ clone_gpu_ddk() {
             cp kernel-headers/linux/ion_4.12.h include/ion
             popd
 
-            if [ ! -d "$ANDROID_SRC/vendor/arm/mali" ]; then
+            if [ -d $ANDROID_SRC/vendor/arm/mali ] && [ ! -z "$(ls -A $ANDROID_SRC/vendor/arm/mali)" ]; then
+		    info_echo "Mali source already exists, cloning skipped!"
+		    info_echo "For fresh source, clean it first."
+	    else
                     mkdir -p vendor/arm
                     pushd vendor/arm/
                     git clone $GPU_DDK_REPO mali
@@ -50,9 +53,6 @@ clone_gpu_ddk() {
                     git submodule update --init --recursive
                     popd
                     popd
-            else
-		    info_echo "Mali source already exists, cloning skipped!"
-		    info_echo "For fresh source, clean it first."
             fi
             popd
 }

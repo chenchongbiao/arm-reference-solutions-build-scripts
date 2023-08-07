@@ -41,14 +41,14 @@ do_build() {
 
     info_echo "Cloning DDK..."
 
-    if [ ! -d $SRC_DIR/mali ]; then
+    if [ -d $SRC_DIR/mali ] && [ ! -z "$(ls -A $SRC_DIR/mali)" ]; then
+	info_echo "Mali source already exists, cloning skipped!"
+	info_echo "For fresh source, clean it first."
+    else
         git clone $DEB_DDK_REPO $SRC_DIR/mali
         cd $SRC_DIR/mali
         git checkout $DEB_DDK_VERSION
         git submodule update --init --recursive
-    else
-	info_echo "Mali source already exists, cloning skipped!"
-	info_echo "For fresh source, clean it first."
     fi
 
     cd $SRC_DIR/mali
