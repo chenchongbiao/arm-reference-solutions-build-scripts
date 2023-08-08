@@ -35,6 +35,17 @@ echo "product/tc2/scp_ramfw/config_mpmm.c"
 
 retry=0
 
+printCommandUsage() {
+	echo -e
+	echo -e "Command usage:"
+	echo -e "	$0 TARGET"
+	echo -e "Options:"
+	echo -e "	TARGET:"
+	echo -e "		fvp	if running on FVP-Model"
+	echo -e "		fpga	if running on FPGA"
+	echo -e
+}
+
 check_current_frequency() {
 	cur_freq=$(cat /sys/devices/system/cpu/"$1"/cpufreq/cpuinfo_cur_freq)
 	echo "Current set frequency of the $1 is $cur_freq"
@@ -120,5 +131,8 @@ elif [ "$1" = "fpga" ]; then
 	echo "******************************"
 	cpu_index=12
 	check_one_power_domain 7 '3047000 3047000 2612000'
-
+else
+	echo -e
+	echo -e "ERROR: invalid command usage."
+	printCommandUsage
 fi
