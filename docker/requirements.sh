@@ -23,6 +23,7 @@ apt-get -y install bc \
                    git-lfs \
                    glibc-source \
 		   golang \
+		   libwayland-bin \
                    iputils-ping \
                    lib32ncurses5-dev \
                    libatomic1 \
