@@ -1,7 +1,7 @@
-From ae1d4ddbe84f0ea464123f0612edc3944a707688 Mon Sep 17 00:00:00 2001
+From b7c37639070a0905a1d43a7bfda44102b5c67471 Mon Sep 17 00:00:00 2001
 From: Ben Horgan <ben.horgan@arm.com>
 Date: Wed, 26 Jul 2023 20:45:27 +0100
-Subject: [PATCH 16/16] tc2: Enable gpu/dpu scmi power domain and also gpu perf
+Subject: [PATCH] tc2: Enable gpu/dpu scmi power domain and also gpu perf
  domain
 
 The scmi-perf-domain property is a custom property while we
@@ -12,14 +12,14 @@ GPU opperating points are now in the SCP firmware.
 
 Signed-off-by: Ben Horgan <ben.horgan@arm.com>
 ---
- fdts/tc.dts | 18 +++++++++++-------
- 1 file changed, 11 insertions(+), 7 deletions(-)
+ fdts/tc.dts | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
 diff --git a/fdts/tc.dts b/fdts/tc.dts
-index 23dc333a3..be890e810 100644
+index 4f275895f..a4a1457d6 100644
 --- a/fdts/tc.dts
 +++ b/fdts/tc.dts
-@@ -277,6 +277,11 @@
+@@ -275,6 +275,11 @@
  		#address-cells = <1>;
  		#size-cells = <0>;
  
@@ -31,36 +31,23 @@ index 23dc333a3..be890e810 100644
  		scmi_dvfs: protocol@13 {
  			reg = <0x13>;
  			#clock-cells = <1>;
-@@ -475,12 +480,10 @@
+@@ -473,8 +478,10 @@
  		reg = <0x0 0x2d000000 0x0 0x200000>;
  		interrupts = <0 66 4>, <0 67 4>, <0 65 4>;
  		interrupt-names = "JOB", "MMU", "GPU";
 -		clocks = <&gpu_clk>, <&gpu_core_clk>;
 -		clock-names = "clk_mali", "shadercores";
--		operating-points = <
--			/* KHz uV */
--			50000 820000
--		>;
 +		clocks = <&gpu_core_clk>;
 +		clock-names = "shadercores";
 +		power-domains = <&scmi_devpd 9>;
 +		scmi-perf-domain = <3>;
- 	};
- 
- 	power_model@simple {
-@@ -494,7 +497,7 @@
- 		ts = <20000 2000 (-20) 2>;
- 		thermal-zone = "";
- 	};
--        
-+
- 	mmu_600_tcu: mmu_600_tcu@2ce00000 {
- 		compatible = "arm,smmu-v3";
- 		reg = <0 0x2ce00000 0 0x100000>;
-@@ -516,6 +519,7 @@
- 		interrupt-names = "DPU";
+ 		iommus = <&smmu_700 0x200>;
+ 		operating-points = <
+ 			/* KHz uV */
+@@ -511,6 +518,7 @@
  		clocks = <&scmi_clk 0>;
  		clock-names = "aclk";
+ 		iommus = <&smmu_700 0x100>;
 +		power-domains = <&scmi_devpd 10>;
  		pl0: pipeline@0 {
  			reg = <0>;
