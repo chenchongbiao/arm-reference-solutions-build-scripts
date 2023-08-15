@@ -1,0 +1,26 @@
+From 5d77a6455a171ced6d3e370e2a43fdedc1397fb3 Mon Sep 17 00:00:00 2001
+From: Sergio da Silva Alves <sergio.dasilvaalves@arm.com>
+Date: Tue, 15 Aug 2023 07:46:08 +0000
+Subject: [PATCH] Disable linker warning after recent gcc-arm-12.2rel1
+ toolchain upgrade
+
+Signed-off-by: Sergio da Silva Alves <sergio.dasilvaalves@arm.com>
+---
+ CMakeLists.txt | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f3989b68..a4df6f0f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -456,6 +456,7 @@ if(SCP_FIRMWARE)
+         target_link_options(
+             ${SCP_FIRMWARE_TARGET}
+             PRIVATE "LINKER:--cref"
++                    "LINKER:--no-warn-rwx-segments"
+                     "LINKER:-Map=$<TARGET_FILE_DIR:${SCP_FIRMWARE_TARGET}>/$<TARGET_FILE_BASE_NAME:${SCP_FIRMWARE_TARGET}>.map")
+     endif()
+ 
+-- 
+2.25.1
+
