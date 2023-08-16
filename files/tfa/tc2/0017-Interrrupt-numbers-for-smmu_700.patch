@@ -1,0 +1,67 @@
+From 627256b00a5821a15c17484f63019fe032524e3c Mon Sep 17 00:00:00 2001
+From: Kshitij Sisodia <kshitij.sisodia@arm.com>
+Date: Wed, 16 Aug 2023 09:46:05 +0100
+Subject: [PATCH] Interrrupt numbers for `smmu_700`
+
+Interrupt numbers definitions and names added to `smmu_700`
+node.
+
+Signed-off-by: Kshitij Sisodia <kshitij.sisodia@arm.com>
+---
+ fdts/tc.dts      | 7 +++++++
+ fdts/tc_fpga.dts | 7 +++++++
+ 2 files changed, 14 insertions(+)
+
+diff --git a/fdts/tc.dts b/fdts/tc.dts
+index 534a1b6ca..78eee3039 100644
+--- a/fdts/tc.dts
++++ b/fdts/tc.dts
+@@ -6,6 +6,9 @@
+ 
+ /dts-v1/;
+ 
++#include <dt-bindings/interrupt-controller/arm-gic.h>
++#include <dt-bindings/interrupt-controller/irq.h>
++
+ / {
+ 	compatible = "arm,tc";
+ 	interrupt-parent = <&gic>;
+@@ -510,6 +513,10 @@
+ 		#iommu-cells = <1>;
+ 		compatible = "arm,smmu-v3";
+ 		reg = <0x0 0x3f000000 0x0 0x5000000>;
++		interrupts = <GIC_SPI 228 IRQ_TYPE_EDGE_RISING>,
++			<GIC_SPI 229 IRQ_TYPE_EDGE_RISING>,
++			<GIC_SPI 230 IRQ_TYPE_EDGE_RISING>;
++		interrupt-names = "eventq", "cmdq-sync", "gerror";
+ 		dma-coherent;
+ 	};
+ 
+diff --git a/fdts/tc_fpga.dts b/fdts/tc_fpga.dts
+index a1aaa0410..583a72735 100644
+--- a/fdts/tc_fpga.dts
++++ b/fdts/tc_fpga.dts
+@@ -6,6 +6,9 @@
+ 
+ /dts-v1/;
+ 
++#include <dt-bindings/interrupt-controller/arm-gic.h>
++#include <dt-bindings/interrupt-controller/irq.h>
++
+ / {
+ 	compatible = "arm,tc0";
+ 	interrupt-parent = <&gic>;
+@@ -547,6 +550,10 @@
+ 	smmu_700: smmu_700@3f000000 {
+ 		compatible = "arm,smmu-v3";
+ 		reg = <0x0 0x3f000000 0x0 0x5000000>;
++		interrupts = <GIC_SPI 228 IRQ_TYPE_EDGE_RISING>,
++			<GIC_SPI 229 IRQ_TYPE_EDGE_RISING>,
++			<GIC_SPI 230 IRQ_TYPE_EDGE_RISING>;
++		interrupt-names = "eventq", "cmdq-sync", "gerror";
+ 		dma-coherent;
+ 		#iommu-cells = <1>;
+ 	};
+-- 
+2.25.1
+
