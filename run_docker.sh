@@ -79,6 +79,8 @@ else
 	       -e ARMCLANG_TOOL=$ARMCLANG_TOOL \
 	       -e USER=$USER \
 	       -e HOME=$HOME \
+	       -e DEB_DDK_REPO=$DEB_DDK_REPO \
+	       -e DEB_DDK_VERSION=$DEB_DDK_VERSION \
 	       -e GPU_DDK_REPO=$GPU_DDK_REPO \
 	       -e GPU_DDK_VERSION=$GPU_DDK_VERSION \
 	       -e LM_LICENSE_FILE=$LM_LICENSE_FILE \

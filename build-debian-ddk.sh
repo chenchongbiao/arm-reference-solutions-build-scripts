@@ -30,32 +30,32 @@
 
 do_build() {
     if [ -z "$DEB_DDK_REPO" ]; then
-	info_echo "{RED}DDK REPO URL is missing...exiting!"
+	error_echo "DDK REPO URL is missing...exiting!"
         exit 1
     fi
 
     if [ -z "$DEB_DDK_VERSION" ]; then
-	info_echo "{RED}DDK VERSION is missing...exiting!"
+	error_echo "DDK VERSION is missing...exiting!"
         exit 1
     fi
 
     info_echo "Cloning DDK..."
 
-    if [ -d $SRC_DIR/mali ] && [ ! -z "$(ls -A $SRC_DIR/mali)" ]; then
+    if [ -d $SRC_DIR/debian/mali ] && [ ! -z "$(ls -A $SRC_DIR/debian/mali)" ]; then
 	info_echo "Mali source already exists, cloning skipped!"
 	info_echo "For fresh source, clean it first."
     else
-        git clone --branch $DEB_DDK_VERSION $DEB_DDK_REPO $SRC_DIR/mali
-        cd $SRC_DIR/mali
+        git clone --branch $DEB_DDK_VERSION $DEB_DDK_REPO $SRC_DIR/debian/mali
+        cd $SRC_DIR/debian/mali
         git submodule update --init --recursive
     fi
 
-    cd $SRC_DIR/mali
+    cd $SRC_DIR/debian/mali
     export KERNEL_DIR=$LINUX_OUTDIR
     export TARGET_GNU_PREFIX=$DEB_DDK_GNU_PREFIX
 
-    if [[ -z $ARM_PRODUCT_DEF || -z $LM_LICENSE_FILE || -z $ARMLMD_LICENSE_FILE ]]; then
-            info_echo "Please export ARM_PRODUCT_DEF, LM_LICENSE_FILE and ARMLMD_LICENSE_FILE variabless to build GPU DDK"
+    if [[ -z "$ARM_PRODUCT_DEF" || -z "$LM_LICENSE_FILE" || -z "$ARMLMD_LICENSE_FILE" ]]; then
+            error_echo "Please export ARM_PRODUCT_DEF, LM_LICENSE_FILE and ARMLMD_LICENSE_FILE variabless to build GPU DDK"
             exit 1
     fi
     export PATH=$SCRIPT_DIR/../tools/armclang/bin:$PATH
@@ -92,8 +92,6 @@ do_clean() {
     else
 	info_echo "Cleaning DDK..."
         $DEB_DDK_BUILD_DIR/buildme -t clean
-        # rm -rf $DEB_DDK_BUILD_DIR
-        # rm -rf $SRC_DIR/mali
     fi
 }
 
