@@ -132,43 +132,43 @@ build_gpu_ddk_deps_prebuilt()
 }
 
 build_gpu_ddk() {
-            info_echo "Build GPU DDK source"
-	    if [[ -z "$ARM_PRODUCT_DEF" || -z "$LM_LICENSE_FILE" || -z "$ARMLMD_LICENSE_FILE" ]]; then
-		    error_echo "Please export ARM_PRODUCT_DEF, LM_LICENSE_FILE and ARMLMD_LICENSE_FILE variabless to build GPU DDK"
-		    exit 1
-	    fi
-            export PATH=$SCRIPT_DIR/../tools/armclang/bin:$PATH
-	    export ARM_PRODUCT_DEF=$ARM_PRODUCT_DEF
-            export LM_LICENSE_FILE=$LM_LICENSE_FILE
-            export ARMLMD_LICENSE_FILE=$ARMLMD_LICENSE_FILE
-            pushd $ANDROID_SRC/vendor/arm/mali/product
-            mkdir -p build_cfw
-	    export BUILDDIR=$PWD/build_cfw
-	    pushd kernel/drivers/gpu/arm/midgard
-            make KDIR=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- BUILD_DIR=$PWD CONFIG_MALI_BASE_MODULES=y CONFIG_DMA_SHARED_BUFFER_TEST_EXPORTER=y CONFIG_MALI_MEMORY_GROUP_MANAGER=y CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y CONFIG_MALI_CINSTR_CPU_PROBES=y CONFIG_MALI_FPGA_SYSCTL=y CONFIG_MALI_MIDGARD=m CONFIG_MALI_PLATFORM_NAME="devicetree" CONFIG_MALI_REAL_HW=y CONFIG_MALI_CSF_SUPPORT=y CONFIG_MALI_DEVFREQ=y CONFIG_MALI_GATOR_SUPPORT=y CONFIG_MALI_DMA_FENCE=y CONFIG_MALI_DMA_BUF_MAP_ON_DEMAND=y CONFIG_MALI_EXPERT=y CONFIG_MALI_DEBUG=y CONFIG_MALI_FENCE_DEBUG=y CONFIG_MALI_SYSTEM_TRACE=y CONFIG_GPU_HAS_CSF=y
-	    popd
-            bldsys/bootstrap_linux.bash
-            # build CSF firmware
-            build_cfw/config LINUX=y CSFFW=y EGL=y GPU_TTIX=y RELEASE=y DEBUG=n SYMBOLS=n GLES=y CL=n VULKAN=y TARGET_GNU_PREFIX=$LINUX_COMPILER- KERNEL_DIR=$LINUX_OUTDIR
-            build_cfw/buildme csffw
-            mkdir -p firmware_prebuilt/ttix
-            cp build_cfw/install/bin/mali_csffw.bin firmware_prebuilt/ttix
-            ./setup_android ANDROID=y CSFFW=n EGL=y GPU_TTIX=y RELEASE=y DEBUG=n SYMBOLS=n USE_SHA1_HARDWARE=n GLES=y CL=n VULKAN=y INSTRUMENTATION_GFX=y KERNEL_CC=$ANDROID_SRC/prebuilts/clang/host/linux-x86/clang-r450784d/bin/clang USES_REFERENCE_GRALLOC=y REFERENCE_GRALLOC_XML=y KERNEL_COMPILER=$LINUX_COMPILER-
-            ./android/gralloc/configure
-            mmm android/gralloc
-            mm
-            popd
-            pushd vendor/arm/examples
-            m mte-unit-tests
-            m bti-unit-tests
-            m pauth-unit-tests
-            m userdataimage-nodeps
-            popd
-            pushd $ANDROID_SRC/vendor/arm/mali/product
-	    pushd kernel/drivers/gpu/arm/midgard
-	    cp  -rf mali_kbase.ko $ANDROID_SRC/out/target/product/$TARGET_PRODUCT/vendor/etc
-	    popd
-	    popd
+    info_echo "Build GPU DDK source"
+    if [[ -z "$ARM_PRODUCT_DEF" || -z "$LM_LICENSE_FILE" || -z "$ARMLMD_LICENSE_FILE" ]]; then
+    error_echo "Please export ARM_PRODUCT_DEF, LM_LICENSE_FILE and ARMLMD_LICENSE_FILE variabless to build GPU DDK"
+    exit 1
+    fi
+    export PATH=$SCRIPT_DIR/../tools/armclang/bin:$PATH
+    export ARM_PRODUCT_DEF=$ARM_PRODUCT_DEF
+    export LM_LICENSE_FILE=$LM_LICENSE_FILE
+    export ARMLMD_LICENSE_FILE=$ARMLMD_LICENSE_FILE
+    pushd $ANDROID_SRC/vendor/arm/mali/product
+    mkdir -p build_cfw
+    export BUILDDIR=$PWD/build_cfw
+    pushd kernel/drivers/gpu/arm/midgard
+    make KDIR=$LINUX_OUTDIR ARCH=arm64 CROSS_COMPILE=$LINUX_COMPILER- BUILD_DIR=$PWD CONFIG_MALI_BASE_MODULES=y CONFIG_DMA_SHARED_BUFFER_TEST_EXPORTER=y CONFIG_MALI_MEMORY_GROUP_MANAGER=y CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR=y CONFIG_MALI_CINSTR_CPU_PROBES=y CONFIG_MALI_FPGA_SYSCTL=y CONFIG_MALI_MIDGARD=m CONFIG_MALI_PLATFORM_NAME="devicetree" CONFIG_MALI_REAL_HW=y CONFIG_MALI_CSF_SUPPORT=y CONFIG_MALI_DEVFREQ=y CONFIG_MALI_GATOR_SUPPORT=y CONFIG_MALI_DMA_FENCE=y CONFIG_MALI_DMA_BUF_MAP_ON_DEMAND=y CONFIG_MALI_EXPERT=y CONFIG_MALI_DEBUG=y CONFIG_MALI_FENCE_DEBUG=y CONFIG_MALI_SYSTEM_TRACE=y CONFIG_GPU_HAS_CSF=y
+    popd
+    bldsys/bootstrap_linux.bash
+    # build CSF firmware
+    build_cfw/config LINUX=y CSFFW=y EGL=y GPU_TTIX=y RELEASE=y DEBUG=n SYMBOLS=n GLES=y CL=n VULKAN=y TARGET_GNU_PREFIX=$LINUX_COMPILER- KERNEL_DIR=$LINUX_OUTDIR
+    build_cfw/buildme csffw
+    mkdir -p firmware_prebuilt/ttix
+    cp build_cfw/install/bin/mali_csffw.bin firmware_prebuilt/ttix
+    ./setup_android ANDROID=y CSFFW=n EGL=y GPU_TTIX=y RELEASE=y DEBUG=n SYMBOLS=n USE_SHA1_HARDWARE=n GLES=y CL=n VULKAN=y INSTRUMENTATION_GFX=y KERNEL_CC=$ANDROID_SRC/prebuilts/clang/host/linux-x86/clang-r450784d/bin/clang USES_REFERENCE_GRALLOC=y REFERENCE_GRALLOC_XML=y KERNEL_COMPILER=$LINUX_COMPILER-
+    ./android/gralloc/configure
+    mmm android/gralloc
+    mm
+    popd
+    pushd vendor/arm/examples
+    m mte-unit-tests
+    m bti-unit-tests
+    m pauth-unit-tests
+    m userdataimage-nodeps
+    popd
+    pushd $ANDROID_SRC/vendor/arm/mali/product
+    pushd kernel/drivers/gpu/arm/midgard
+    cp  -rf mali_kbase.ko $ANDROID_SRC/out/target/product/$TARGET_PRODUCT/vendor/etc
+    popd
+    popd
 }
 
 do_build() {
@@ -228,31 +228,31 @@ do_build() {
                 check_file_exists_and_exit $KERNEL_IMAGE
                 info_echo "Using $KERNEL_IMAGE for kernel"
                 cp $KERNEL_IMAGE device/arm/tc
-		if [ "$TC_GPU" == "hwr" ]; then
-	            clone_gpu_ddk
+                if [ "$TC_GPU" == "hwr" ]; then
+                    clone_gpu_ddk
                     patch_gpu_ddk
                     lunch tc_$TC_TARGET_FLAVOR-userdebug;
-	            build_gpu_ddk
+                    build_gpu_ddk
                 elif [ "$TC_GPU" == "hwr-prebuilt" ]; then
-	            clone_gpu_prebuilt
+                    clone_gpu_prebuilt
                     lunch tc_$TC_TARGET_FLAVOR-userdebug;
-	            build_gpu_ddk_deps_prebuilt
-	        else
+                    build_gpu_ddk_deps_prebuilt
+                else
                     lunch tc_$TC_TARGET_FLAVOR-userdebug;
                 fi
             else
-	        if [ "$TC_GPU" == "hwr" ]; then
-	            clone_gpu_ddk
+                if [ "$TC_GPU" == "hwr" ]; then
+                    clone_gpu_ddk
                     patch_gpu_ddk
                     lunch tc_$TC_TARGET_FLAVOR-eng;
-	            build_gpu_ddk
+                    build_gpu_ddk
                 elif [ "$TC_GPU" == "hwr-prebuilt" ]; then
-	            clone_gpu_prebuilt
+                    clone_gpu_prebuilt
                     lunch tc_$TC_TARGET_FLAVOR-eng;
-	            build_gpu_ddk_deps_prebuilt
-	        else
+                    build_gpu_ddk_deps_prebuilt
+                else
                     lunch tc_$TC_TARGET_FLAVOR-eng;
-	        fi
+                fi
             fi
             ;;
         *) error_echo "bad option for distro $3"; incorrect_script_use
@@ -276,7 +276,7 @@ do_build() {
 
         # Shared object
         mkdir -p $ANDROID_SRC/out/target/product/$TARGET_PRODUCT/vendor/lib64/egl
-	mkdir -p $ANDROID_SRC/out/target/product/$TARGET_PRODUCT/system/lib64
+        mkdir -p $ANDROID_SRC/out/target/product/$TARGET_PRODUCT/system/lib64
         cp -f $ANDROID_SRC/vendor/arm/gpu_prebuilt/gpu_user_bins/lib64/egl/libGLES_mali.so $ANDROID_SRC/out/target/product/$TARGET_PRODUCT/vendor/lib64/egl/
         cp -f $ANDROID_SRC/vendor/arm/gpu_prebuilt/gpu_user_bins/lib64/arm.mali.platform-V1-ndk.so $ANDROID_SRC/out/target/product/$TARGET_PRODUCT/vendor/lib64/
         cp -f $ANDROID_SRC/vendor/arm/gpu_prebuilt/gpu_user_bins/lib64/arm.mali.platform-V1-ndk.so $ANDROID_SRC/out/target/product/$TARGET_PRODUCT/system/lib64/
@@ -290,9 +290,9 @@ do_build() {
 
     if make -j "$PARALLELISM";
     then
-      make_ramdisk_android_image
+        make_ramdisk_android_image
     else
-      error_echo "Errors when building - will not create file system images"
+        error_echo "Errors when building - will not create file system images"
     fi
     popd
 }

@@ -151,7 +151,7 @@ fi
 popd
 
 # armclang (A copy of armclang after install Arm DS)
-if [ "$TC_GPU" == "hwr" ] || [ "$TC_GPU" == "hwr-prebuilt" ] ; then
+if [ "$TC_GPU" == "hwr" ]; then
     export ARMCLANG_TOOL=$ARMCLANG_TOOL
     pushd $SCRIPT_DIR/../tools/
     TC_ARMCLANG_BIN=$SCRIPT_DIR/../tools/armclang/bin/armclang
