@@ -17,7 +17,7 @@ NC="\e[0m"
 
 verify_img()
 {
-    img_digest_reg="25912b900d250f41130ed2cd048bd989871a25ae249bd4f902218e46b2cf3e05"
+    img_digest_reg="4f51a81610f3f9b4c3b6352b1f0757d7e423e66ef539dcc5d95f20049b85fb58"
     img_digest_local=$(docker images --format "{{.Repository}}:{{.Tag}}:{{.Digest}}" |grep $DOCKER_IMAGE |cut -d":" -f4)
     [ $img_digest_reg == $img_digest_local ] && exit 0
     echo -e "${YELLOW}Image verification failed!! ${NC}" && exit 1
