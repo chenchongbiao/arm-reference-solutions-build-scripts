@@ -18,20 +18,21 @@ NC="\e[0m"
 verify_img()
 {
     img_digest_reg="4f51a81610f3f9b4c3b6352b1f0757d7e423e66ef539dcc5d95f20049b85fb58"
-    img_digest_local=$(docker images --format "{{.Repository}}:{{.Tag}}:{{.Digest}}" |grep $DOCKER_IMAGE |cut -d":" -f4)
+    img_digest_local=$(docker images --format "{{.Repository}}:{{.Tag}}:{{.Digest}}" | grep "$DOCKER_REGISTRY/$DOCKER_IMAGE:$TAG" | cut -d":" -f4)
     [ $img_digest_reg == $img_digest_local ] && exit 0
     echo -e "${YELLOW}Image verification failed!! ${NC}" && exit 1
 }
 
 pull_img()
 {
-    docker pull $DOCKER_REGISTRY/$DOCKER_IMAGE:$TAG && return 0
+    docker pull "$DOCKER_REGISTRY/$DOCKER_IMAGE:$TAG" && return 0
     echo -e "${YELLOW}Cannot pull Docker image from Container registry!! ${NC}"
     exit 1
 }
+
 build_img()
 {
-  docker build --network=host --no-cache --build-arg version=$TAG -t $DOCKER_REGISTRY/$DOCKER_IMAGE:$TAG docker/ && return 0
+  docker build --network=host --no-cache --build-arg version="$U_VER" -t "$DOCKER_REGISTRY/$DOCKER_IMAGE:$TAG" docker/ && return 0
   echo -e "${RED}ERROR:Docker local build failed ${NC}"
   exit 1
 }
