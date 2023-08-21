@@ -71,6 +71,12 @@ patch_gpu_ddk() {
             with_default_shell_opts patching "$PATCHES_DIR" "$ANDROID_SRC/vendor/arm/mali" product/kernel
 }
 
+patch_gpu_ddk_prebuilt() {
+    info_echo "Patching GPU kernel driver (for prebuilt config)"
+    PATCHES_DIR="$FILES_DIR/mali_kbase/$PLATFORM"
+    with_default_shell_opts patching "$PATCHES_DIR" "$ANDROID_SRC/vendor/arm/gpu_prebuilt/driver" product/kernel
+}
+
 clone_gpu_prebuilt(){
 
     info_echo "Cloning GPU software and prebuilt binaries"
@@ -235,6 +241,7 @@ do_build() {
                     build_gpu_ddk
                 elif [ "$TC_GPU" == "hwr-prebuilt" ]; then
                     clone_gpu_prebuilt
+                    patch_gpu_ddk_prebuilt
                     lunch tc_$TC_TARGET_FLAVOR-userdebug;
                     build_gpu_ddk_deps_prebuilt
                 else
@@ -248,6 +255,7 @@ do_build() {
                     build_gpu_ddk
                 elif [ "$TC_GPU" == "hwr-prebuilt" ]; then
                     clone_gpu_prebuilt
+                    patch_gpu_ddk_prebuilt
                     lunch tc_$TC_TARGET_FLAVOR-eng;
                     build_gpu_ddk_deps_prebuilt
                 else
