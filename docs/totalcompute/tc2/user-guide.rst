@@ -73,7 +73,7 @@ in these instructions.
 
     mkdir <TC2_WORKSPACE>
     cd <TC2_WORKSPACE>
-    export TC2_RELEASE=refs/tags/TC2-2023.08.15-rc0
+    export TC2_RELEASE=refs/tags/TC2-2023.08.15-rc1
 
 To sync **Buildroot or Debian source code**, please run the following repo commands:
 ::
@@ -147,8 +147,6 @@ The Android OS based build distro supports the following variants regarding the 
 +--------------+--------------------------------------------------------------------------------+
 | hwr-prebuilt | Mali GPU (hardware rendering based on prebuilt binaries)                       |
 +--------------+--------------------------------------------------------------------------------+
-
-If not explicitly defined by the user, the default value used for the ``TC_GPU`` environment variable is ``hwr-prebuilt``.
 
 .. note::
     GPU DDK source code is available only to licensee partners (please contact support@arm.com).
@@ -762,7 +760,7 @@ To run all the tests in one go, use ``./run_kselftest.sh`` script. Tests can als
 MPAM
 ####
 
-The hardware and the software requirements required for the MPAM feature can be verified by running the command ``testing_mpam.sh`` on ``terminal_uart_ap`` (this script is located inside the `/bin` folder, which is part of the default `$PATH` environment variable, allowing this command to be executed from any location in the device filesystem).
+The hardware and the software requirements required for the MPAM feature can be verified by running the command ``testing_mpam.sh`` on ``terminal_uart_ap`` (this script is located inside the ``/bin`` folder, which is part of the default ``$PATH`` environment variable, allowing this command to be executed from any location in the device filesystem).
 
 .. note::
     This test is specific to Buildroot only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mpam>` document section.
@@ -893,51 +891,6 @@ The following excerpt illustrates the contents of the ``target_conf_buildroot.ym
 
 .. note::
     This test is specific to Buildroot only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_eas>` document section.
-
-
-pKVM SMMUv3 driver support validation
-#####################################
-
-The SMMUv3 driver support can be validated by checking the bootlog messages or by running the following presented command. This section describes and educates what output to expect for both situations where the driver is loaded and enabled, or when it fails or is disabled.
-
-On the ``terminal_uart_ap`` run:
-::
-
-    realpath /sys/bus/platform/devices/9050000.smmuv3/driver
-
-
-When the **pKVM driver is loaded and enabled with success**, the previous command should report an output similar to the following one:
-::
-
-    $ realpath /sys/bus/platform/devices/9050000.smmuv3/driver
-    /sys/bus/platform/drivers/kvm-arm-smmu-v3
-
-If the **pKVM driver fails to load or is disabled**, the previous command should report an output similar to the following one:
-::
-
-    $ realpath /sys/bus/platform/devices/9050000.smmuv3/driver
-    /sys/bus/platform/drivers/arm-smmu-v3
-
-More information about the pKVM driver loading and initialisation phase can be checked during the bootlog messages or by running the command ``dmesg``, which should contain an entry similar to the following:
-::
-
-	(...)
-	[    0.672336][    T1] kvm [1]: IPA Size Limit: 44 bits
-	[    0.730093][    T1] kvm-arm-smmu-v3 9050000.smmuv3: DEBUG is enabled, weakening isolation
-	[    0.730838][    T1] kvm-arm-smmu-v3 9050000.smmuv3: ias 48-bit, oas 48-bit (features 0x00008505)
-	[    0.734961][    T1] kvm-arm-smmu-v3 9050000.smmuv3: allocated 65536 entries for cmdq
-	[    0.735111][    T1] kvm-arm-smmu-v3 9050000.smmuv3: allocated 128 entries for evtq
-	[    0.745273][    T1] kvm [1]: GICv3: no GICV resource entry
-	[    0.745429][    T1] kvm [1]: disabling GICv2 emulation
-	[    0.745637][    T1] kvm [1]: GIC system register CPU interface enabled
-	[    0.746536][    T1] kvm [1]: vgic interrupt IRQ9
-	[    0.749926][    T1] kvm [1]: Protected nVHE mode initialized successfully
-	(...)
-
-Considering the previous output excerpt, the last line confirms that the system is using pKVM instead of the classic KVM driver.
-
-.. note::
-    This test is applicable to all TC build distro variants.
 
 
 CPU hardware capabilities
@@ -1371,102 +1324,6 @@ To revert the configuration of your host system (removing the ``tap0`` interface
     ::
 
 	sudo apt-get remove libvirt-daemon-system libvirt-clients
-
-
-.. _docs/totalcompute/tc2/user-guide_fvp_traces:
-
-Running and Collecting FVP tracing information
-##############################################
-
-This section describes how to run the FVP-model, enabling the output of trace information for debug and troubleshooting purposes.
-To illustrate proper trace output information that can be obtained at different stages, the following command examples will use the SMMU-700 block component. However, any of the commands mentioned, can be extended or adapted easily for any other component.
-
-.. note::
-    This functionality requires to execute the FVP-model enforcing the additional load of the ``GenericTrace.so`` or ``ListTraceSources.so`` plugins (which are provided and part of your FVP bundle).
-
-Getting the list of trace sources
-*********************************
-
-To get the list of trace sources available on the FVP-model, please run the following command:
-
-    ::
-
-	<fvp-model binary path>/FVP_TC2 \
-		--plugin <fvp-model plugin path/ListTraceSources.so> \
-		>& /tmp/trace-sources-fvp-tc2.txt
-
-This will start the model and use the ``ListTraceSources.so`` plugin to dump the list to a file. Please note that the file size can easily extend to tens of megabytes, as the list is quite extensive.
-
-The following excerpt illustrates the output information related with the example component SMMU-700:
-
-    ::
-
-	Component (1437) providing trace: TC2.css.smmu (MMU_700, 11.22.13)
-	=============================================================================
-	Component is of type "MMU_700"
-	Version is "11.22.13"
-	#Sources: 299
-
-	Source ArchMsg.Error.error (These messages are about activity occurring on the SMMU that is considered an error.
-	Messages will only come out here if parameter all_error_messages_through_trace is true.
-
-	DISPLAY %{output})
-		Field output type:MTI_STRING size:0 max_size:120 (The stream output)
-
-
-Executing the FVP-model with traces enabled
-*******************************************
-
-To execute the FVP-model with trace information enabled, please run the following command:
-
-    ::
-
-	./run-scripts/tc2/run_model.sh -m <model binary path> -d <distro> \
-		-- \
-		--plugin <fvp-model plugin path/GenericTrace.so> \
-		-C 'TRACE.GenericTrace.trace-sources="TC2.css.smmu.*"' \
-		-C TRACE.GenericTrace.flush=true
-
-Multiple trace sources can be requested by separating the trace-sources strings with commas.
-By default, the trace information will be displayed to the standard output (e.g. display), which due to its verbosity may not be always the ideal solution. For such situations, it is suggested to redirect and capture the trace information into a file, which can be achieved by running the following command:
-
-    ::
-
-	./run-scripts/tc2/run_model.sh -m <model binary path> -d <distro> \
-		-- \
-		--plugin <fvp-model plugin path/GenericTrace.so> \
-		-C 'TRACE.GenericTrace.trace-sources="TC2.css.smmu.*"' \
-		-C TRACE.GenericTrace.flush=true \
-		>& /tmp/trace-fvp-tc2.txt
-
-
-The following output excerpt illustrates an example of the trace information captured for the DPU (``streamid=0x00000100``) and GPU (``streamid=0x00000200``):
-
-    ::
-
-	(...)
-	start_ptw_read: trans_id=0x000000000000020f streamid=0x00000100 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x0000008083fdc018 input_address=0x00000000ffe00000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 inner_cache=rawaWB outer_cache=rawaWB aprot=DNP adomain=ish mpam_pmg_and_partid=0x00000000 ssd=ns pas=ns mecid=0xffffffff
-	verbose_commentary: output="Performing a Table Walk read as:-"
-	verbose_commentary: output="    trans_id:527-st2-final-l1-aa64-ttb0-vmid:0-ns-sid:256"
-	verbose_commentary: output="to ns-0x0000008083fdc018-PND-u0x53000009-m0xffffffff-ish-osh-rawaC-rawaC of size 8B"
-	verbose_commentary: output="Table Walk finished:-"
-	verbose_commentary: output="    trans_id:527-st2-final-l1-aa64-ttb0-vmid:0-ns-sid:256"
-	verbose_commentary: output="got:-"
-	verbose_commentary: output="    0x0000008083fdc018: 0x0000008085c31003"
-	ptw_read: trans_id=0x000000000000020f streamid=0x00000100 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x0000008083fdc018 input_address=0x00000000ffe00000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 inner_cache=rawaWB outer_cache=rawaWB aprot=DNP adomain=ish abort=ok data=0x0000008085c31003 ssd=ns pas=ns mecid=0xffffffff
-	ptw_read_st2_table_descriptor: trans_id=0x000000000000020f streamid=0x00000100 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x0000008083fdc018 input_address=0x00000000ffe00000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 APTable=aptable_no_effect XNTable=N PXNTable=N TableAddress=0x0000008085c31000 ssd=ns pas=ns mecid=0xffffffff
-	(...)
-	start_ptw_read: trans_id=0x000000000000033b streamid=0x00000200 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x00000080872a7010 input_address=0x00000080844db000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 inner_cache=rawaWB outer_cache=rawaWB aprot=DNP adomain=ish mpam_pmg_and_partid=0x00000000 ssd=ns pas=ns mecid=0xffffffff
-	verbose_commentary: output="Performing a Table Walk read as:-"
-	verbose_commentary: output="    trans_id:827-st2-final-l1-aa64-ttb0-vmid:1-ns-sid:512"
-	verbose_commentary: output="to ns-0x00000080872a7010-PND-u0x53000109-m0xffffffff-ish-osh-rawaC-rawaC of size 8B"
-	verbose_commentary: output="Table Walk finished:-"
-	verbose_commentary: output="    trans_id:827-st2-final-l1-aa64-ttb0-vmid:1-ns-sid:512"
-	verbose_commentary: output="got:-"
-	verbose_commentary: output="    0x00000080872a7010: 0x000000808a52d003"
-	ptw_read: trans_id=0x000000000000033b streamid=0x00000200 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x00000080872a7010 input_address=0x00000080844db000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 inner_cache=rawaWB outer_cache=rawaWB aprot=DNP adomain=ish abort=ok data=0x000000808a52d003 ssd=ns pas=ns mecid=0xffffffff
-	ptw_read_st2_table_descriptor: trans_id=0x000000000000033b streamid=0x00000200 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x00000080872a7010 input_address=0x00000080844db000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 APTable=aptable_no_effect XNTable=N PXNTable=N TableAddress=0x000000808a52d000 ssd=ns pas=ns mecid=0xffffffff
-	(...)
 
 
 --------------

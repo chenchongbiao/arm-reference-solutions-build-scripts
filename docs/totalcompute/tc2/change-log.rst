@@ -9,7 +9,7 @@ This document contains a summary of the new features, changes and
 fixes in each release of TC2 software stack.
 
 
-Version TC2-2023.08.15-rc0
+Version TC2-2023.08.15-rc1
 --------------------------
 
 Features added
