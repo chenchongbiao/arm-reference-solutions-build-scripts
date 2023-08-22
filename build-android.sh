@@ -74,7 +74,7 @@ patch_gpu_ddk() {
 patch_gpu_ddk_prebuilt() {
     info_echo "Patching GPU kernel driver (for prebuilt config)"
     PATCHES_DIR="$FILES_DIR/mali_kbase/$PLATFORM"
-    with_default_shell_opts patching "$PATCHES_DIR" "$ANDROID_SRC/vendor/arm/gpu_prebuilt/driver" product/kernel
+    with_default_shell_opts patching "$PATCHES_DIR" "$ANDROID_SRC/vendor/arm/gpu_prebuilt/driver"
 }
 
 clone_gpu_prebuilt(){
