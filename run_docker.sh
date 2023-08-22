@@ -26,15 +26,17 @@ verify_img()
 pull_img()
 {
     docker pull "$DOCKER_REGISTRY/$DOCKER_IMAGE:$TAG" && return 0
+    local docker_rc=${?}
     echo -e "${YELLOW}Cannot pull Docker image from Container registry!! ${NC}"
-    exit 1
+    exit ${docker_rc}
 }
 
 build_img()
 {
   docker build --network=host --no-cache --build-arg version="$U_VER" -t "$DOCKER_REGISTRY/$DOCKER_IMAGE:$TAG" docker/ && return 0
+  local docker_rc=${?}
   echo -e "${RED}ERROR:Docker local build failed ${NC}"
-  exit 1
+  exit ${docker_rc}
 }
 
 if [[ "$1" == "$PULL_CMD" ]]; then
@@ -106,6 +108,8 @@ else
       -v $SSH_AUTH_SOCK:/ssh.socket -e SSH_AUTH_SOCK=/ssh.socket \
       --workdir /$SCRIPT_DIR \
       --user $(id -u):$(id -g) -it $DOCKER_REGISTRY/$DOCKER_IMAGE:$TAG ${PWD}/$@
+    docker_rc=${?}
 
     echo -e "${BLUE}INFO: EXITING DOCKER CONTAINER ${NC}"
+    exit ${docker_rc}
 fi
