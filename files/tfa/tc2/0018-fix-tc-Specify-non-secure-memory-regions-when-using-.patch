@@ -1,0 +1,48 @@
+From addc68af323703c11e55bd860bcf12b3b1eea48c Mon Sep 17 00:00:00 2001
+From: Ben Horgan <ben.horgan@arm.com>
+Date: Tue, 29 Aug 2023 14:18:50 +0100
+Subject: [PATCH 18/18] fix(tc): Specify non-secure memory regions when using
+ trusty as an sp
+
+Otherwise, calls to set up memory for trusty fail with permission
+errors. Different from OP-TEE as we don't support firmware
+update in this configuration.
+
+Signed-off-by: Ben Horgan <ben.horgan@arm.com>
+---
+ .../arm/board/tc/fdts/tc_spmc_trusty_sp_manifest.dts | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/plat/arm/board/tc/fdts/tc_spmc_trusty_sp_manifest.dts b/plat/arm/board/tc/fdts/tc_spmc_trusty_sp_manifest.dts
+index 66a686c9a..db97be7ce 100644
+--- a/plat/arm/board/tc/fdts/tc_spmc_trusty_sp_manifest.dts
++++ b/plat/arm/board/tc/fdts/tc_spmc_trusty_sp_manifest.dts
+@@ -8,7 +8,7 @@
+ / {
+ 	compatible = "arm,ffa-core-manifest-1.0";
+ 	#address-cells = <2>;
+-	#size-cells = <1>;
++	#size-cells = <2>;
+ 
+ 	attribute {
+ 		spmc_id = <0x8000>;
+@@ -113,8 +113,14 @@
+ 	};
+ 
+ 	/* 96MB of TC_TZC_DRAM1_BASE */
+-	memory@f9000000 {
++	memory@0 {
+ 		device_type = "memory";
+-		reg = <0x0 0xf9000000 0x6000000>;
++		reg = <0x0 0xf9000000 0x0 0x6000000>;
++	};
++
++	memory@1 {
++		device_type = "ns-memory";
++		reg = <0x0 0x80000000 0x0 0x79000000>,
++		      <0x80 0x80000000 0x1 0x80000000>;
+ 	};
+ };
+-- 
+2.25.1
+
