@@ -1,7 +1,7 @@
-From b7c37639070a0905a1d43a7bfda44102b5c67471 Mon Sep 17 00:00:00 2001
+From f9d3c2e2fd3de3e83722b9fa8ff16fb7d3c0d94e Mon Sep 17 00:00:00 2001
 From: Ben Horgan <ben.horgan@arm.com>
 Date: Wed, 26 Jul 2023 20:45:27 +0100
-Subject: [PATCH] tc2: Enable gpu/dpu scmi power domain and also gpu perf
+Subject: [PATCH 1/2] tc2: Enable gpu/dpu scmi power domain and also gpu perf
  domain
 
 The scmi-perf-domain property is a custom property while we
@@ -12,46 +12,50 @@ GPU opperating points are now in the SCP firmware.
 
 Signed-off-by: Ben Horgan <ben.horgan@arm.com>
 ---
- fdts/tc.dts | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+ fdts/tc.dts | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)
 
 diff --git a/fdts/tc.dts b/fdts/tc.dts
-index 4f275895f..a4a1457d6 100644
+index 9cf1411c9..e7dd6f633 100644
 --- a/fdts/tc.dts
 +++ b/fdts/tc.dts
-@@ -275,6 +275,11 @@
- 		#address-cells = <1>;
- 		#size-cells = <0>;
- 
-+		scmi_devpd: protocol@11 {
-+			reg = <0x11>;
-+			#power-domain-cells = <1>;
-+		};
+@@ -280,6 +280,11 @@
+                #address-cells = <1>;
+                #size-cells = <0>;
+
++               scmi_devpd: protocol@11 {
++                       reg = <0x11>;
++                       #power-domain-cells = <1>;
++               };
 +
- 		scmi_dvfs: protocol@13 {
- 			reg = <0x13>;
- 			#clock-cells = <1>;
-@@ -473,8 +478,10 @@
- 		reg = <0x0 0x2d000000 0x0 0x200000>;
- 		interrupts = <0 66 4>, <0 67 4>, <0 65 4>;
- 		interrupt-names = "JOB", "MMU", "GPU";
--		clocks = <&gpu_clk>, <&gpu_core_clk>;
--		clock-names = "clk_mali", "shadercores";
-+		clocks = <&gpu_core_clk>;
-+		clock-names = "shadercores";
-+		power-domains = <&scmi_devpd 9>;
-+		scmi-perf-domain = <3>;
- 		iommus = <&smmu_700 0x200>;
- 		operating-points = <
- 			/* KHz uV */
-@@ -511,6 +518,7 @@
- 		clocks = <&scmi_clk 0>;
- 		clock-names = "aclk";
- 		iommus = <&smmu_700 0x100>;
-+		power-domains = <&scmi_devpd 10>;
- 		pl0: pipeline@0 {
- 			reg = <0>;
- 			clocks = <&scmi_clk 1>;
+                scmi_dvfs: protocol@13 {
+                        reg = <0x13>;
+                        #clock-cells = <1>;
+@@ -478,13 +483,11 @@
+                reg = <0x0 0x2d000000 0x0 0x200000>;
+                interrupts = <0 66 4>, <0 67 4>, <0 65 4>;
+                interrupt-names = "JOB", "MMU", "GPU";
+-               clocks = <&gpu_clk>, <&gpu_core_clk>;
+-               clock-names = "clk_mali", "shadercores";
++               clocks = <&gpu_core_clk>;
++               clock-names = "shadercores";
++               power-domains = <&scmi_devpd 9>;
++               scmi-perf-domain = <3>;
+                iommus = <&smmu_700 0x200>;
+-               operating-points = <
+-                       /* KHz uV */
+-                       50000 820000
+-               >;
+        };
+
+        power_model@simple {
+@@ -516,6 +519,7 @@
+                clocks = <&scmi_clk 0>;
+                clock-names = "aclk";
+                iommus = <&smmu_700 0x100>;
++               power-domains = <&scmi_devpd 10>;
+                pl0: pipeline@0 {
+                        reg = <0>;
+                        clocks = <&scmi_clk 1>;
 -- 
 2.25.1
-
