@@ -27,7 +27,7 @@ readonly TC_GPU_OPTIONS=(
 )
 
 AVB_DEFAULT=false
-TC_GPU_DEFAULT=hwr-prebuilt
+TC_GPU_DEFAULT=none
 TC_TARGET_FLAVOR_DEFAULT=fvp
 
 readonly CMD_DEFAULT=( "build" )
@@ -144,15 +144,21 @@ in_haystack "$TC_TARGET_FLAVOR" "${TC_TARGET_FLAVOR_OPTIONS[@]}" ||
     die "invalid TC_TARGET_FLAVOR: $TC_TARGET_FLAVOR"
 readonly TC_TARGET_FLAVOR
 
-if [[ -z "${TC_GPU:-}" ]] ; then
-    echo "ERROR: Mandatory -g TC_GPU not given!" >&2
-    echo "" >&2
-    print_usage >&2
-    exit 1
+# `TC_GPU` definition is mandatory only for Android builds. It could well be
+# defined for other filesystems but we don't enforce the values here but
+# instead leave the resposibility to the filesystem-specific script which
+# build the GPU related software components.
+if [[ "${FILESYSTEM}" =~ "android" ]]; then
+    if [[ -z "${TC_GPU:-}" ]] ; then
+        echo "ERROR: Mandatory -g TC_GPU not given!" >&2
+        echo "" >&2
+        print_usage >&2
+        exit 1
+    fi
+    in_haystack "$TC_GPU" "${TC_GPU_OPTIONS[@]}" ||
+        die "invalid TC_GPU: $TC_GPU"
+    readonly TC_GPU
 fi
-in_haystack "$TC_GPU" "${TC_GPU_OPTIONS[@]}" ||
-    die "invalid TC_GPU: $TC_GPU"
-readonly TC_GPU
 
 if [[ -z "${AVB:-}" ]] ; then
     AVB=$AVB_DEFAULT
