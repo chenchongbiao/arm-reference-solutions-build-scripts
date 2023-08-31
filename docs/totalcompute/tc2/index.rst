@@ -33,5 +33,6 @@ Total Compute focuses on optimizing Performance, Security, and Developer Access 
    readme
    user-guide
    expected-test-results
+   troubleshooting
    release_notes
    change-log

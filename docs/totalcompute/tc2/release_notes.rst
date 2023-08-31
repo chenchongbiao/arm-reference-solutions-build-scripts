@@ -1,13 +1,13 @@
 .. _docs/totalcompute/tc2/release_notes:
 
-Release notes - TC2-2023.08.15-rc1
-==================================
+Release notes - TC2-2023.08.15
+==============================
 
 .. contents::
 
 Release tag
 -----------
-The manifest tag for this release is ``TC2-2023.08.15-rc1``.
+The manifest tag for this release is ``TC2-2023.08.15``.
 
 Components
 ----------
@@ -87,52 +87,6 @@ Known issues or Limitations
 #. Ubuntu 22.04 is not supported in this release;
 #. SVE2 (Scalable Vector Extension) feature is not supported with this release;
 #. For Android builds which do use the TAP network interface, the default browser available in Android (``webview_shell``) is not able to open HTTPS urls. Interested users can attempt to circumvent this limitation by getting the ARM64 specific APK package for other browsers (e.g. Mozilla Firefox), install it using ADB, and use it to browse HTTPS urls;
-#. Debian build with hardware rendering support will show a kernel warning dump during boot, similar to the following excerpt:
-
-    ::
-
-	(...)
-	[   21.935767][  T409] mali 2d000000.gpu: Loading Mali firmware 0x3060000
-	[   21.947390][  T409] mali 2d000000.gpu: Protected memory allocator not found, Firmware protected mode entry will not be supported
-	[   21.952059][  T409] mali 2d000000.gpu: Mali firmware git_sha: e212cd7645850aa3372045fdf48633159bc53c23
-	[   22.109481][   T65] ------------[ cut here ]------------
-	[   22.109487][   T65] WARNING: CPU: 4 PID: 65 at /XXXX/XXXXXXXX/tc2-dev-debian/src/debian/mali/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_runtime_pm.c:65 pm_callback_power_off+0xc8/0x1b0 [mali_kbase]
-	[   22.109632][   T65] Modules linked in: mali_kbase(OE)
-	[   22.109640][   T65] CPU: 4 PID: 65 Comm: kworker/4:1 Tainted: G S         OE     5.15.41-gdcfc9242ce83 #1
-	[   22.109649][   T65] Hardware name: arm,tc (DT)
-	[   22.109654][   T65] Workqueue: pm pm_runtime_work
-	[   22.109661][   T65] pstate: 00400005 (nzcv daif +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
-	[   22.109670][   T65] pc : pm_callback_power_off+0xc8/0x1b0 [mali_kbase]
-	[   22.109807][   T65] lr : pm_callback_power_off+0xc0/0x1b0 [mali_kbase]
-	[   22.109943][   T65] sp : ffff80000aa0bb70
-	[   22.109946][   T65] x29: ffff80000aa0bb70 x28: f1ff008000f61300 x27: 0000000000000000
-	[   22.109958][   T65] x26: 00000000fffffef7 x25: 0000000525808386 x24: 0000000000000000
-	[   22.109968][   T65] x23: 0000000000000000 x22: f7ff008007f18780 x21: fbff008003a48000
-	[   22.109980][   T65] x20: 0000000000000000 x19: fbff008003a48000 x18: 0000000000000000
-	[   22.109991][   T65] x17: 0000000000000000 x16: 0000000000000000 x15: 000000000000020f
-	[   22.110002][   T65] x14: 0000000000000001 x13: 0000000000000000 x12: 0000000000000001
-	[   22.110012][   T65] x11: 0000000000000040 x10: ffff80000a378100 x9 : ffff80000a3780f8
-	[   22.110024][   T65] x8 : f5ff0080004014f8 x7 : 0000000000000000 x6 : f6ff0080014eb600
-	[   22.110034][   T65] x5 : f6ff0080014eb600 x4 : 0000000000000000 x3 : f6ff0080014eb600
-	[   22.110045][   T65] x2 : 0000000000000000 x1 : 0000000000000000 x0 : 0000000000000001
-	[   22.110055][   T65] Call trace:
-	[   22.110060][   T65]  pm_callback_power_off+0xc8/0x1b0 [mali_kbase]
-	[   22.110195][   T65]  kbase_pm_clock_off+0xf8/0x1f0 [mali_kbase]
-	[   22.110332][   T65]  kbase_pm_handle_runtime_suspend+0x114/0x2fc [mali_kbase]
-	[   22.110468][   T65]  kbase_device_runtime_suspend+0x3c/0x11c [mali_kbase]
-	[   22.110605][   T65]  pm_generic_runtime_suspend+0x30/0x50
-	[   22.110613][   T65]  genpd_runtime_suspend+0xa0/0x250
-	[   22.110621][   T65]  __rpm_callback+0x48/0x1b0
-	[   22.110627][   T65]  rpm_callback+0x6c/0x80
-	[   22.110633][   T65]  rpm_suspend+0x10c/0x61c
-	[   22.110640][   T65]  pm_runtime_work+0xc4/0xd0
-	[   22.110647][   T65]  process_one_work+0x1c8/0x460
-	[   22.110654][   T65]  worker_thread+0x6c/0x420
-	[   22.110661][   T65]  kthread+0x14c/0x160
-	[   22.110666][   T65]  ret_from_fork+0x10/0x20
-	[   22.110674][   T65] ---[ end trace 519c39252536b616 ]---
-	(...)
-
 #. Android builds with software or hardware rendering support do not properly initialiase the KVM during boot and will show a kernel warning dump during boot, similar to the following excerpt:
 
     ::
@@ -292,6 +246,8 @@ Known issues or Limitations
 	NOTICE: SMC 0xbd000000 attempted from VM 0x8001, blocked=1
 	NOTICE: SMC 0xbd000000 attempted from VM 0x8001, blocked=1
 	(...)
+
+#. The Android PAUTH sanity test may sometimes report inconsistent failing test results (this behaviour is currently under investigation). If experiencing this situation, please repeat the test a few times to validate the feature.
 
 Support
 -------

@@ -12,6 +12,8 @@ Notice
 The Total Compute 2022 (TC2) software stack uses bash scripts to build a Board
 Support Package (BSP) and a choice of three possible distributions including Buildroot, Debian or Android.
 
+.. _docs/totalcompute/tc2/user-guide_prerequisites:
+
 Prerequisites
 -------------
 
@@ -73,12 +75,12 @@ in these instructions.
 
     mkdir <TC2_WORKSPACE>
     cd <TC2_WORKSPACE>
-    export TC2_RELEASE=refs/tags/TC2-2023.08.15-rc1
+    export TC2_RELEASE=refs/tags/TC2-2023.08.15
 
 To sync **Buildroot or Debian source code**, please run the following repo commands:
 ::
 
-    repo init -u ssh://git@git.gitlab.oss.arm.com/engineering/tc/manifests \
+    repo init -u https://gitlab.arm.com/arm-reference-solutions/arm-reference-solutions-manifest \
 		-m tc2.xml \
 		-b ${TC2_RELEASE} \
 		-g bsp
@@ -88,7 +90,7 @@ To sync **Buildroot or Debian source code**, please run the following repo comma
 To sync **Android source code**, please run the following repo commands:
 ::
 
-    repo init -u ssh://git@git.gitlab.oss.arm.com/engineering/tc/manifests \
+    repo init -u https://gitlab.arm.com/arm-reference-solutions/arm-reference-solutions-manifest \
 		-m tc2.xml \
 		-b ${TC2_RELEASE} \
 		-g android
@@ -122,10 +124,7 @@ Build options
 Debian OS build variant
 ***********************
 
-Currently, the Debian OS build distro support is limited to the variant with Mali GPU hardware rendering based on DDK source code compilation, by explicitly setting the build environment variable as ``TC_GPU=hwr``.
-
-.. note::
-    GPU DDK source code is available only to licensee partners (please contact support@arm.com).
+Currently, the Debian OS build distro does not support software or hardware rendering. Considering this limitation, this build variant should be only used for development or validation work that does not imply pixel rendering.
 
 Android OS build variants
 *************************
@@ -182,29 +181,21 @@ To build the Buildroot distro, please run the following commands:
 Debian build
 ************
 
-Debian build supports GPU hardware rendering based on DDK source code by setting the ``TC_GPU=hwr`` build environment variable accordingly, as described in the following command usage examples. At the moment, hardware rendering based on prebuilt userspace binaries is not supported. Software rendering is possible but current image does not provide mesa support.
+Currently, the Debian build does not support software or hardware rendering. As such, the ``TC_GPU`` variable value should not be defined. The Debian build can still be a valuable resource when just considering other types of development or validation work, which do not involve pixel rendering.
 
 
-Debian build with hardware rendering support based on DDK source code
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Debian build (without software or GPU hardware rendering support)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To build the Debian distro with hardware rendering based on DDK source code, please run the following commands:
+To build the Debian distro, please run the following commands:
 ::
 
     export PLATFORM=tc2
     export FILESYSTEM=debian
-    export TC_GPU=hwr
     export TC_TARGET_FLAVOR=fvp
-    export DEB_DDK_REPO=<PATH TO GPU DDK SOURCE CODE>
-    export DEB_DDK_VERSION="releases/r41p0_01eac0"
-    export LM_LICENSE_FILE=<LICENSE FILE>
-    export ARMLMD_LICENSE_FILE=<LICENSE FILE>
-    export ARMCLANG_TOOL=<PATH TO ARMCLANG TOOLCHAIN>
     cd build-scripts
     ./setup.sh
 
-.. note::
-    GPU DDK source code is available only to licensee partners (please contact support@arm.com).
 
 Android build
 *************
@@ -594,7 +585,7 @@ Prerequisites
 *************
 
 For this test, two files will be required:
- * ``benchmark_model`` binary: this file is part of the TC build and is automatically built when targeting Buildroot or Debian distros;
+ * ``benchmark_model`` binary: this file is part of the TC build and is automatically built when targeting Buildroot;
  * ``<any model>.tflite`` model: there is no requirement for a specific model file as long as it is specified in a valid ``.tflite`` format; for the simplicity of just running a sanity test, two models are provided with the build and are automatically integrated into the distro filesystem (being located at ``/opt/arm/ml``).
 
 Running the provided TensorFlow Lite ML model examples
@@ -620,7 +611,7 @@ To run the ``benchmark_model`` to profile the "Mobile Object Localizer" model, p
 The benchmark model application will run profiling the Mobile Object Localizer model and after a few seconds, some statistics and execution info will be presented on the terminal.
 
 .. note::
-    This test is specific to Buildroot and Debian distros only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_ml_tensorflow>` document section.
+    This test is specific to Buildroot. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_ml_tensorflow>` document section.
 
 Manually uploading a TensorFlow Lite ML model
 *********************************************
@@ -650,48 +641,6 @@ To run the ``benchmark_model`` application and profile the "MobileNet Graph" mod
 		# password (if required): root
 
  * once the model has been uploaded to the remote TC FVP model, the ``benchmark_model`` can be run as described previously in the ``Running the provided TensorFlow Lite ML model examples`` section.
-
-
-
-Testing GPU with Debian
-#######################
-
-Prerequisites
-*************
-
-If GPU is enabled, then GPU files will need to be pushed into the device using secure copy (scp).
-This can be achieved by following the next steps:
-
- * login to the device using username ``root`` and password ``root`` as follows:
-
-    ::
-
-        ssh -p 8022 root@localhost
-        password: root
-
- * push the files from ``<TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/ddk/`` to the new created path, using the following command:
-
-    ::
-
-        scp -P 8022 <TC2_WORKSPACE>/output/<$FILESYSTEM>/deploy/tc2/ddk/lib/aarch64-linux-gnu/mali.tar.xz root@localhost:/lib/aarch64-linux-gnu/
-
-Launch Weston
-*************
-
-Using ``terminal_uart_ap``, login to the device/FVP model running TC and run the following commands:
-
-::
-
-    cd /lib/aarch64-linux-gnu/
-    tar -xvf mali.tar.xz
-    # once extraction completes, to free some space, delete the tar file
-    rm -rf mali.tar.xz
-    source /mali/wayland/run_weston.sh
-
-Once the ``Fast Models - Total Compute 2 DP0`` display is up (grey screen), run ``weston-flower`` to render the image. You can also run various unit tests available under ``/lib/aarch64-linux-gnu/mali/wayland/bin``.
-
-.. note::
-    This test is specific to Debian only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_gpuDebian>` document section.
 
 
 OP-TEE
@@ -815,6 +764,7 @@ MTE
 On the ``terminal_uart_ap`` run:
 ::
 
+    su
     cd /data/nativetest64/mte-unit-tests/
     ./mte-unit-tests
 

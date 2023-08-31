@@ -1,8 +1,8 @@
 .. _docs/totalcompute/tc2/index_previous_tc_releases:
 
-###################
+#################
 Previous releases
-###################
+#################
 
 This web page provides a list of all the TotalCompute Software Stack releases, cataloged by major version, which can be used for easy historical reference.
 

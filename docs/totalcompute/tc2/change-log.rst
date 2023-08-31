@@ -9,8 +9,8 @@ This document contains a summary of the new features, changes and
 fixes in each release of TC2 software stack.
 
 
-Version TC2-2023.08.15-rc1
---------------------------
+Version TC2-2023.08.15
+----------------------
 
 Features added
 ~~~~~~~~~~~~~~
@@ -18,11 +18,11 @@ Features added
 - Extended Docker build support to Debian TC build variant;
 - Added support for the following Cortex A720/Cortex A520 (also known as Hunter/Hayes respectively) CPU architectural features: AFP, ECV and WFxt;
 - Added support for GPU DVFS/Idle power states;
-- GPU hardware rendering based on DDK source code compilation and pre-built binaries;
+- GPU hardware rendering based on DDK source code compilation and pre-built binaries (limited to Android builds at the moment);
 
 
-Version 2023.04.21
-------------------
+Version TC2-2023.04.21
+----------------------
 
 Features added
 ~~~~~~~~~~~~~~
@@ -37,8 +37,8 @@ Changes
 - GPU and DPU are using S1 translation with SMMU-600.
 
 
-Version 2022.12.07
-------------------
+Version TC2-2022.12.07
+----------------------
 
 Features added
 ~~~~~~~~~~~~~~
@@ -49,8 +49,8 @@ Features added
 - Enabled protected nVHE support for pKVM hypervisor.
 
 
-Version 2022.08.12
-------------------
+Version TC2-2022.08.12
+----------------------
 
 Features added
 ~~~~~~~~~~~~~~

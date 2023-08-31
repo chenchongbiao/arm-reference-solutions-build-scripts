@@ -144,7 +144,7 @@ A minimal rootfs that is useful for testing the bsp and boots quickly. The inter
 
 Debian
 ......
-This variant is based on the Debian 12 filesystem and supports hardware rendering based on DDK source code.
+This variant is based on the Debian 12 (aka Bookworm) filesystem. This image can be used for development or validation work that does not imply pixel rendering, as currently there is no support for software or hardware rendering.
 
 TensorFlow Lite Machine Learning
 ................................
