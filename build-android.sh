@@ -28,6 +28,18 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+patch_gpu_ddk() {
+            info_echo "Patch GPU DDK source"
+            PATCHES_DIR="$FILES_DIR/mali_kbase/$PLATFORM"
+            with_default_shell_opts patching "$PATCHES_DIR" "$ANDROID_SRC/vendor/arm/mali" product/kernel
+}
+
+patch_gpu_ddk_prebuilt() {
+            info_echo "Patching GPU kernel driver (for prebuilt config)"
+            PATCHES_DIR="$FILES_DIR/mali_kbase/$PLATFORM"
+            with_default_shell_opts patching "$PATCHES_DIR" "$ANDROID_SRC/vendor/arm/gpu_prebuilt/driver"
+}
+
 clone_gpu_ddk() {
             info_echo "Clone GPU DDK source"
 	    if [[ -z "$GPU_DDK_REPO" || -z "$GPU_DDK_VERSION" ]] ; then
@@ -61,20 +73,9 @@ clone_gpu_ddk() {
                     git submodule update --init --recursive
                     popd
                     popd
+                    patch_gpu_ddk
             fi
             popd
-}
-
-patch_gpu_ddk() {
-            info_echo "Patch GPU DDK source"
-            PATCHES_DIR="$FILES_DIR/mali_kbase/$PLATFORM"
-            with_default_shell_opts patching "$PATCHES_DIR" "$ANDROID_SRC/vendor/arm/mali" product/kernel
-}
-
-patch_gpu_ddk_prebuilt() {
-    info_echo "Patching GPU kernel driver (for prebuilt config)"
-    PATCHES_DIR="$FILES_DIR/mali_kbase/$PLATFORM"
-    with_default_shell_opts patching "$PATCHES_DIR" "$ANDROID_SRC/vendor/arm/gpu_prebuilt/driver"
 }
 
 clone_gpu_prebuilt(){
@@ -112,6 +113,7 @@ clone_gpu_prebuilt(){
                 # clone GPU userspace bins
                 git clone --branch $GPU_USER_BINS_VERSION $GPU_USER_BINS gpu_user_bins
             popd
+            patch_gpu_ddk_prebuilt
         else
             info_echo "gpu pre-built files already exist, cloning skipped!"
         fi
@@ -241,12 +243,10 @@ do_build() {
                 cp $KERNEL_IMAGE device/arm/tc
                 if [ "$TC_GPU" == "hwr" ]; then
                     clone_gpu_ddk
-                    patch_gpu_ddk
                     lunch tc_$TC_TARGET_FLAVOR-userdebug;
                     build_gpu_ddk
                 elif [ "$TC_GPU" == "hwr-prebuilt" ]; then
                     clone_gpu_prebuilt
-                    patch_gpu_ddk_prebuilt
                     lunch tc_$TC_TARGET_FLAVOR-userdebug;
                     build_gpu_ddk_deps_prebuilt
                 else
@@ -255,12 +255,10 @@ do_build() {
             else
                 if [ "$TC_GPU" == "hwr" ]; then
                     clone_gpu_ddk
-                    patch_gpu_ddk
                     lunch tc_$TC_TARGET_FLAVOR-eng;
                     build_gpu_ddk
                 elif [ "$TC_GPU" == "hwr-prebuilt" ]; then
                     clone_gpu_prebuilt
-                    patch_gpu_ddk_prebuilt
                     lunch tc_$TC_TARGET_FLAVOR-eng;
                     build_gpu_ddk_deps_prebuilt
                 else
