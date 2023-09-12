@@ -99,6 +99,16 @@ else
          env_opts+=" -e PATH=$PATH \
                      -v $HOME/.netrc:$HOME/.netrc"
     fi
+    #check for ssh key agent status and if not running will try to explicitly run it
+    echo -e "${BLUE}INFO: Checking for ssh-agent status ${NC}"
+    if [[ -z "$SSH_AUTH_SOCK" ]] ; then
+        eval "$(ssh-agent -s)"
+        if [[ -z "$SSH_AUTH_SOCK" ]] ; then
+            error_echo "unable to restart ssh-agent .. exiting script"
+            exit 1
+        fi
+    fi
+    echo -e "${GREEN}INFO: ssh agent is working ${NC}"
     #Start docker container
     echo -e "${BLUE}INFO: ENTERING DOCKER CONTAINER ${NC}"
 
