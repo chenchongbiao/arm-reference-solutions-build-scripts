@@ -803,6 +803,7 @@ The following commands should be run each time LISA is run:
 
     source init_env
     export TC_WORKSPACE=<TC2_WORKSPACE>
+    export FILESYSTEM=buildroot
 
 
 For FVP with buildroot, boot the FVP model to buildroot as you normally would, making sure user networking is enabled:
