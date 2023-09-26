@@ -611,7 +611,7 @@ To run the ``benchmark_model`` to profile the "Mobile Object Localizer" model, p
 The benchmark model application will run profiling the Mobile Object Localizer model and after a few seconds, some statistics and execution info will be presented on the terminal.
 
 .. note::
-    This test is specific to Buildroot. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_ml_tensorflow>` document section.
+    This test is specific to Buildroot.
 
 Manually uploading a TensorFlow Lite ML model
 *********************************************
@@ -642,6 +642,8 @@ To run the ``benchmark_model`` application and profile the "MobileNet Graph" mod
 
  * once the model has been uploaded to the remote TC FVP model, the ``benchmark_model`` can be run as described previously in the ``Running the provided TensorFlow Lite ML model examples`` section.
 
+.. _docs/totalcompute/tc2/sanity-tests_optee:
+
 
 OP-TEE
 ######
@@ -653,6 +655,8 @@ Please be aware that this test suite will take some time to run all its related 
 .. note::
     This test is specific to Buildroot only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_optee>` document section.
 
+.. _docs/totalcompute/tc2/sanity-tests_ts:
+
 
 Trusted Services and Client application
 #######################################
@@ -661,6 +665,8 @@ For Trusted Services, please run the command ``ts-service-test -sg ItsServiceTes
 
 .. note::
     This test is specific to Buildroot only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Results <docs/totalcompute/tc2/expected-test-results_ts>` document section.
+
+.. _docs/totalcompute/tc2/sanity-tests_trusty:
 
 
 Trusty
@@ -672,6 +678,8 @@ The functionality of Trusty IPC can be tested using the command ``tipc-test -t t
 
 .. note::
     This test is specific to Android only. An example of the expected test result for this test is illustrated in the :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_trusty>` document section.
+
+.. _docs/totalcompute/tc2/sanity-tests_microdroid:
 
 
 Microdroid demo
@@ -687,6 +695,8 @@ For running a demo Microdroid, boot TC FVP with Android distribution. Once the A
 
 .. note::
     This test is specific to Android only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_microdroid>` document section.
+
+.. _docs/totalcompute/tc2/sanity-tests_kselftest:
 
 
 Kernel Selftest
@@ -705,6 +715,8 @@ To run all the tests in one go, use ``./run_kselftest.sh`` script. Tests can als
 .. note::
     This test is specific to Buildroot only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_kernel>` document section.
 
+.. _docs/totalcompute/tc2/sanity-tests_mpam:
+
 
 MPAM
 ####
@@ -713,6 +725,8 @@ The hardware and the software requirements required for the MPAM feature can be 
 
 .. note::
     This test is specific to Buildroot only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mpam>` document section.
+
+.. _docs/totalcompute/tc2/sanity-tests_mpmm:
 
 
 MPMM
@@ -744,6 +758,8 @@ The functionality of the MPMM module in the SCP firmware can be leveraged to:
 .. note::
     These tests are specific to Buildroot only. An example of the expected test result for the second test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mpmm>` document section.
 
+.. _docs/totalcompute/tc2/sanity-tests_bti:
+
 
 BTI
 ###
@@ -756,6 +772,8 @@ On the ``terminal_uart_ap`` run:
 
 .. note::
     This test is specific to Android builds. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_bti>` document section.
+
+.. _docs/totalcompute/tc2/sanity-tests_mte:
 
 
 MTE
@@ -771,6 +789,8 @@ On the ``terminal_uart_ap`` run:
 .. note::
     This test is specific to Android builds. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_mte>` document section.
 
+.. _docs/totalcompute/tc2/sanity-tests_pauth:
+
 
 PAUTH
 #####
@@ -784,6 +804,8 @@ On the ``terminal_uart_ap`` run:
 
 .. note::
     This test is specific to Android builds. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_pauth>` document section.
+
+.. _docs/totalcompute/tc2/sanity-tests_lisa:
 
 
 EAS with LISA
@@ -842,6 +864,8 @@ The following excerpt illustrates the contents of the ``target_conf_buildroot.ym
 
 .. note::
     This test is specific to Buildroot only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_eas>` document section.
+
+.. _docs/totalcompute/tc2/sanity-tests_cpuFeatures:
 
 
 CPU hardware capabilities

@@ -16,9 +16,10 @@ Features added
 ~~~~~~~~~~~~~~
 - Added support for TensorFlow Lite Machine Learning;
 - Extended Docker build support to Debian TC build variant;
-- Added support for the following Cortex A720/Cortex A520 (also known as Hunter/Hayes respectively) CPU architectural features: AFP, ECV and WFxt;
+- Added support for the following Cortex A720/Cortex A520/Cortex X4 CPU architectural features: AFP, ECV and WFxt;
+- Enabled support for Maximum Power Mitigation Mechanism (MPMM);
 - Added support for GPU DVFS/Idle power states;
-- GPU hardware rendering based on DDK source code compilation and pre-built binaries (limited to Android builds at the moment);
+- GPU hardware rendering based on DDK source code compilation and pre-built binaries for Android;
 
 
 Version TC2-2023.04.21
