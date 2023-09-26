@@ -968,109 +968,81 @@ EAS with Lisa unit tests
 	TwoBigThreeSmall:test_task_placement
 
 	Used trace events:
-	  -  sched_switch
-	  -  sched_wakeup
-	  -  sched_wakeup_new
-	  -  task_rename
-	  -  userspace@rtapp_loop
-	  -  userspace@rtapp_stats
+	  - sched_switch
+	  - sched_wakeup
+	  - sched_wakeup_new
+	  - task_rename
+	  - userspace@rtapp_loop
+	  - userspace@rtapp_stats
 
 	(...output truncated...)
 
-	[2023-02-20 17:14:06,801][EXEKALL] INFO  Result summary:
-	EnergyModelWakeMigration[board=tc2]:test_dmesg          
-	UUID=f719a77a37da4c35a287ad4f6f8fef9c PASSED: dmesg output:
-	EnergyModelWakeMigration[board=tc2]:test_slack          
-	UUID=4e24d5b26b0d4020b3c2cc343082c6ac PASSED: emwm_0-0 delayed 
-	activations: 1.3972055888223553 %
-	EnergyModelWakeMigration[board=tc2]:test_task_placement 
-	UUID=aed8627987f043969c1f76ae4254e2f3 PASSED
-	  energy threshold: 7728.922049366228 bogo-joules
-	  estimated energy: 7132.289772873224 bogo-joules
-	  noisiest task:
-	    comm: kworker/5:1
-	    duration (abs): 0.0006251400118344463 s
-	    duration (rel): 0.007751385789064716 %
-	    pid: 69
+	[2023-09-05 10:57:24,399][EXEKALL] INFO  Result summary:
+	EnergyModelWakeMigration[board=tc]:test_dmesg          UUID=40d036f38fd64fbbbffbea7d2e9ddbc6 PASSED: dmesg output:
+	EnergyModelWakeMigration[board=tc]:test_slack          UUID=0843b7d55cc5498094b2dd7856adddab PASSED: emwm_0-0 delayed activations: 2.7944111776447107 %
+	EnergyModelWakeMigration[board=tc]:test_task_placement UUID=b88941b8bc1c44b19722dc7d3ef087ba PASSED
+		energy threshold: 7737.468929123666 bogo-joules
+		estimated energy: 7146.545812339864 bogo-joules
+		noisiest task: 
+		    comm: kworker/5:1
+		    duration (abs): 0.0006058100001951061 s
+		    duration (rel): 0.007507425508119742 %
+		    pid: 69
 
-	OneSmallTask[board=tc2]:test_dmesg                      
-	UUID=8feff89476b549c5b6eeaccabc1f9ecf PASSED: dmesg output:
-	OneSmallTask[board=tc2]:test_slack                      
-	UUID=aad102f781334c6a80c714fc30ceb1bd PASSED: small-0 delayed activations: 
-	0.0 %
-	OneSmallTask[board=tc2]:test_task_placement             
-	UUID=8e1fd6314d644a91be77824e61dd15e6 PASSED
-	  energy threshold: 60.32889497785198 bogo-joules
-	  estimated energy: 57.45609045509712 bogo-joules
-	  noisiest task:
-	    comm: init
-	    duration (abs): 0.00016386000061174855 s
-	    duration (rel): 0.016518059968414968 %
-	    pid: 1
+	OneSmallTask[board=tc]:test_dmesg                      UUID=1429aa06cf5242ef8fb9fd3929b85361 PASSED: dmesg output:
+	OneSmallTask[board=tc]:test_slack                      UUID=cf55513dad2d4bc4bfd4da4385edc1b3 PASSED: small-0 delayed activations: 0.0 %
+	OneSmallTask[board=tc]:test_task_placement             UUID=398f2a58624841c2beeda8feb7a68844 PASSED
+		energy threshold: 60.32967281693774 bogo-joules
+		estimated energy: 57.456831254226415 bogo-joules
+		noisiest task: 
+		    comm: init
+		    duration (abs): 0.0001531899999918096 s
+		    duration (rel): 0.015442352118088516 %
+		    pid: 1
 
-	RampDown[board=tc2]:test_dmesg                          
-	UUID=496f3d737eec4c8e81e1cdc96aa12982 PASSED: dmesg output:
-	RampDown[board=tc2]:test_slack                          
-	UUID=b788b6a6f2644e1e9a345466647c485c PASSED: down-0 delayed activations: 
-	0.2145922746781116 %
-	RampDown[board=tc2]:test_task_placement                 
-	UUID=814a50bd7fac46bd80fe8e99f1a94892 PASSED
-	  energy threshold: 5075.673823290201 bogo-joules
-	  estimated energy: 4476.446074247863 bogo-joules
-	  noisiest task:
-	    comm: kworker/5:1
-	    duration (abs): 0.0005229099842836149 s
-	    duration (rel): 0.0070281984591597825 %
-	    pid: 69
+	RampDown[board=tc]:test_dmesg                          UUID=f4a8f3054eb34bdeaff8545408d87817 PASSED: dmesg output:
+	RampDown[board=tc]:test_slack                          UUID=049088a94b1a401d9a9faf572dbb969e PASSED: down-0 delayed activations: 0.2145922746781116 %
+	RampDown[board=tc]:test_task_placement                 UUID=44b916a863e74f1aa8fe8322d958e2cd PASSED
+		energy threshold: 5075.609124026213 bogo-joules
+		estimated energy: 4499.802859646464 bogo-joules
+		noisiest task: 
+		    comm: kworker/5:1
+		    duration (abs): 0.0005715100001566498 s
+		    duration (rel): 0.007681529072919605 %
+		    pid: 69
 
-	RampUp[board=tc2]:test_task_placement                   
-	UUID=34733c655ac54a27bb11dad502fe42eb PASSED
-	  energy threshold: 4511.993708928746 bogo-joules
-	  estimated energy: 3824.991676713266 bogo-joules
-	  noisiest task:
-	    comm: kworker/5:1
-	    duration (abs): 0.0005214800185058266 s
-	    duration (rel): 0.007009150123468466 %
-	    pid: 69
+	RampUp[board=tc]:test_dmesg                            UUID=df45eca48be84805ac07162e0313b614 PASSED: dmesg output:
+	RampUp[board=tc]:test_slack                            UUID=c59e63e892c2436d93f09db4a9b690e0 PASSED: up-0 delayed activations: 0.0 %
+	RampUp[board=tc]:test_task_placement                   UUID=88fe93bcbc004665b92678564355e4c9 PASSED
+		energy threshold: 4511.9916490978 bogo-joules
+		estimated energy: 3825.2514695943355 bogo-joules
+		noisiest task: 
+		    comm: kworker/5:1
+		    duration (abs): 0.0005233000001680921 s
+		    duration (rel): 0.00703361144586148 %
+		    pid: 69
 
-	ThreeSmallTasks[board=tc2]:test_dmesg                   
-	UUID=13dbafe99b5b46d7bf4e0fe111b3ed78 PASSED: dmesg output:
-	ThreeSmallTasks[board=tc2]:test_slack                   
-	UUID=97567be4278f4f1188f36c3ad3ab9676 PASSED
-	  small_0-0 delayed activations: 0.0 %
-	  small_1-1 delayed activations: 0.0 %
-	  small_2-2 delayed activations: 0.0 %
+	ThreeSmallTasks[board=tc]:test_dmesg                   UUID=6da8a02fbce14536a5497368576f41a1 PASSED: dmesg output:
+	ThreeSmallTasks[board=tc]:test_slack                   UUID=80d93c17789d44a79734f1caefea1571 PASSED
+		small_0-0 delayed activations: 0.0 %
+		small_1-1 delayed activations: 0.0 %
+		small_2-2 delayed activations: 0.0 %
 
-	ThreeSmallTasks[board=tc2]:test_task_placement          
-	UUID=b518bced8a544ddd902f0c254ba9b7da PASSED
-	  energy threshold: 206.83944850784022 bogo-joules
-	  estimated energy: 172.36620708986686 bogo-joules
-	  noisiest task:
-	    comm: init
-	    duration (abs): 0.00016275000234600157 s
-	    duration (rel): 0.016406104698468295 %
-	    pid: 1
+	ThreeSmallTasks[board=tc]:test_task_placement          UUID=cd4d878f560d4bfcb47aeea155aa9680 PASSED
+		energy threshold: 206.84414838330824 bogo-joules
+		estimated energy: 172.37012365275686 bogo-joules
+		noisiest task: 
+		    comm: init
+		    duration (abs): 0.00015036999991480116 s
+		    duration (rel): 0.015158063503586424 %
+		    pid: 1
 
-	TwoBigTasks[board=tc2]:test_dmesg                       
-	UUID=52277de98f434f94a72d656a673339af PASSED: dmesg output:
-	TwoBigTasks[board=tc2]:test_slack                       
-	UUID=eb9e4cf743204830803111c56fc41787 SKIPPED: skipped-reason: The 
-	workload will result in overutilized status for all possible task 
-	placement, making it unsuitable to test EAS on this platform
-	TwoBigTasks[board=tc2]:test_task_placement              
-	UUID=76412365246741039321f2f3c0908de5 SKIPPED: skipped-reason: The 
-	workload will result in overutilized status for all possible task 
-	placement, making it unsuitable to test EAS on this platform
-	TwoBigThreeSmall[board=tc2]:test_dmesg                  
-	UUID=d7fe6333c65c44b7b801c68d4b9df74e PASSED: dmesg output:
-	TwoBigThreeSmall[board=tc2]:test_slack                  
-	UUID=b404c2db13064d3e9f596037159b920f SKIPPED: skipped-reason: The 
-	workload will result in overutilized status for all possible task 
-	placement, making it unsuitable to test EAS on this platform
-	TwoBigThreeSmall[board=tc2]:test_task_placement         
-	UUID=698d7b4fb84448248caa16db69af185f SKIPPED: skipped-reason: The 
-	workload will result in overutilized status for all possible task 
-	placement, making it unsuitable to test EAS on this platform
+	TwoBigTasks[board=tc]:test_dmesg                       UUID=c4048cd03dfa40c4ace83722b6add40f PASSED: dmesg output:
+	TwoBigTasks[board=tc]:test_slack                       UUID=03d5041fb8fb4e0ea4ca3b9ddbf33be8 SKIPPED: skipped-reason: The workload will result in overutilized status for all possible task placement, making it unsuitable to test EAS on this platform
+	TwoBigTasks[board=tc]:test_task_placement              UUID=3fc72b13185c4d149a4f8057e9c9c138 SKIPPED: skipped-reason: The workload will result in overutilized status for all possible task placement, making it unsuitable to test EAS on this platform
+	TwoBigThreeSmall[board=tc]:test_dmesg                  UUID=bdaf2fba329b474a8377631cac3aa4d0 PASSED: dmesg output:
+	TwoBigThreeSmall[board=tc]:test_slack                  UUID=6c5fbb8dae80474aa89ed1edee65734c SKIPPED: skipped-reason: The workload will result in overutilized status for all possible task placement, making it unsuitable to test EAS on this platform
+	TwoBigThreeSmall[board=tc]:test_task_placement         UUID=14a242efc9184c3aaf46d41c0192b42f SKIPPED: skipped-reason: The workload will result in overutilized status for all possible task placement, making it unsuitable to test EAS on this platform
 
 .. _docs/totalcompute/tc2/expected-test-results_cpu_feat:
 

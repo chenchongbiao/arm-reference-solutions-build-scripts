@@ -99,7 +99,7 @@ To sync **Android source code**, please run the following repo commands:
 .. warning::
     Synchronization of the Android code from Google servers may fail due to connection problems and/or to an enforced rate limit related with the maximum number of concurrent fetching jobs. The previous commands assume that the maximum number of jobs concurrently fetching code will be a perfect match of the number of CPU cores available, which should work fine most of the time. If experiencing constant errors on consecutive fetch code attempts, please do consider deleting your entire workspace (which will ensure a clean of the support ``.repo`` folder containing the previously partial fetched files), by running the command ``cd .. ; rm -rf <TC2_WORKSPACE>`` and repeat the previous commands listed in this section to recreate the workspace (optionally, also reducing the number of jobs, for example to a maximum of 6, by adopting the following command ``repo sync -j 6 --fetch-submodules``).
 
-Once the previous process finishes, the current ``<TC2_WORKSPACE>`` should have the following structure: 
+Once the previous process finishes, the current ``<TC2_WORKSPACE>`` should have the following structure:
  * ``build-scripts/``: the components build scripts;
  * ``run-scripts/``: scripts to run the FVP;
  * ``src/``: each component's git repository.
@@ -794,7 +794,7 @@ This test requires Lisa to be installed. Please refer to the  `LISA documentatio
 To setup Lisa, please run the following commands:
 ::
 
-    git clone https://github.com/ARM-software/lisa.git
+    git clone --depth=1 --branch=v3.1.0 https://github.com/ARM-software/lisa.git
     cd lisa
     sudo ./install_base.sh --install-all
 
@@ -803,6 +803,7 @@ The following commands should be run each time LISA is run:
 
     source init_env
     export TC_WORKSPACE=<TC2_WORKSPACE>
+    export FILESYSTEM=buildroot
 
 
 For FVP with buildroot, boot the FVP model to buildroot as you normally would, making sure user networking is enabled:
@@ -870,7 +871,7 @@ Attach and Debug
 #. Run the distro as described in the section ``Running the software on FVP`` with the extra parameters ``-- -I`` to attach to the debugger. The full command should look like the following:
 
 	::
-	
+
 	./run-scripts/tc2/run_model.sh -m <model binary path> -d <distro> -- -I
 
 #. Select the target ``Arm FVP -> TC2 -> Bare Metal Debug -> Hayesx4/Hunterx3/HunterELP SMP``
@@ -883,7 +884,7 @@ Attach and Debug
 .. note::
     This configuration requires Arm DS version 2023.a or later. The names of the cores shown are based on codenames instead of product names.
     The mapping for the actual names follows the below described convention:
-    
+
 	+-------------+--------------+
 	| Codename    | Product name |
 	+=============+==============+
