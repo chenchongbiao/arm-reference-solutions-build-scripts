@@ -5,7 +5,12 @@ Instructions: Obtaining Total Compute software deliverables
 -----------------------------------------------------------
  * To build the TC2 software stack, please refer to the :ref:`user guide <docs/totalcompute/tc2/user-guide>`;
  * For the list of changes and features added, please refer to the :ref:`changelog <docs/totalcompute/tc2/change-log>`;
- * For further details on the latest release and features, please refer to the :ref:`release notes <docs/totalcompute/tc2/release_notes>`.
+ * For further details on the latest release and features, please refer to the :ref:`release notes <docs/totalcompute/tc2/release_notes>`;
+ * To get detailed information on the system architecture and each of its components, please refer to the |arm_tc22_reference_design_sdc_link|.
+
+.. |arm_tc22_reference_design_sdc_link| raw:: html
+
+   <a href="https://developer.arm.com/documentation/108028/0000/?lang=en" target="_blank">Arm Total Compute 2022 Reference Design Software Developer Guide</a>
 
 TC Software Stack Overview
 --------------------------

@@ -47,6 +47,7 @@ Software Features
  - KVM default mode of operation is set to ``protected`` by default, thus effectively enabling pKVM on the system. This is a nVHE based mode with kernel running at EL1;
  - Microdroid based pVM support in Android;
  - GPU and DPU support for S1 translation with SMMU-600;
+ - Maximum Power Mitigation Mechanism (MPMM) support;
  - GPU DVFS/Idle power states support;
  - Support for MPAM (more info available at `link <https://developer.arm.com/documentation/107768/0100/Arm-Memory-System-Resource-Partitioning-and-Monitoring--MPAM--Extension>`__);
  - Support for EAS (more info available at `link <https://community.arm.com/oss-platforms/w/docs/530/energy-aware-scheduling-eas>`__);
