@@ -467,7 +467,12 @@ Obtaining the TC2 FVP
 ---------------------
 
 The TC2 FVP is available to partners to build and run on Linux host environments.
-Please contact Arm to have access (support@arm.com).
+
+To download the latest publicly available TC2 FVP model, please visit the |arm_ecosystem_fvp_download_link| webpage or contact Arm (support@arm.com).
+
+.. |arm_ecosystem_fvp_download_link| raw:: html
+
+   <a href="https://developer.arm.com/downloads/-/arm-ecosystem-fvps" target="_blank">Arm Ecosystem FVP downloads</a>
 
 
 Running the software on FVP
