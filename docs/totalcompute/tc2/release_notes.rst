@@ -1,13 +1,13 @@
 .. _docs/totalcompute/tc2/release_notes:
 
-Release notes - TC2-2023.08.15
-==============================
+Release notes - TC2-2023.10.04-rc0
+==================================
 
 .. contents::
 
 Release tag
 -----------
-The manifest tag for this release is ``TC2-2023.08.15``.
+The manifest tag for this release is ``TC2-2023.10.04-rc0``.
 
 Components
 ----------
@@ -46,7 +46,7 @@ Software Features
  - Android Software rendering with DRM Hardware Composer offloading composition to Mali D71 DPU;
  - KVM default mode of operation is set to ``protected`` by default, thus effectively enabling pKVM on the system. This is a nVHE based mode with kernel running at EL1;
  - Microdroid based pVM support in Android;
- - GPU and DPU support for S1 translation with SMMU-600;
+ - GPU and DPU support for S1 and S2 translation squashed with SMMU-700;
  - Maximum Power Mitigation Mechanism (MPMM) support;
  - GPU DVFS/Idle power states support;
  - Support for MPAM (more info available at `link <https://developer.arm.com/documentation/107768/0100/Arm-Memory-System-Resource-Partitioning-and-Monitoring--MPAM--Extension>`__);
@@ -76,7 +76,7 @@ Software Features
 
 Platform Support
 ----------------
- - This software release is tested on TC2 Fast Model platform (FVP) version 11.22.34.
+ - This software release is tested on TC2 Fast Model platform (FVP) version 11.23.13.
 
 Tools Support
 -------------
@@ -252,7 +252,7 @@ Known issues or Limitations
 
 Support
 -------
-For support email:  support@arm.com.
+For support email: support@arm.com.
 
 
 --------------

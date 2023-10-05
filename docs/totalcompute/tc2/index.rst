@@ -5,9 +5,9 @@
  #
  # SPDX-License-Identifier: MIT
 
-#############################
-Total Compute: TC2-2023.08.15
-#############################
+#################################
+Total Compute: TC2-2023.10.04-rc0
+#################################
 
 
 .. raw:: html
@@ -22,7 +22,7 @@ Total Compute focuses on optimizing Performance, Security, and Developer Access 
 
 .. raw:: html
 
-   <h3>Latest TC release: TC2-2023.08.15</h3>
+   <h3>Latest TC release: TC2-2023.10.04-rc0</h3>
 
 
 .. toctree::

@@ -20,7 +20,7 @@ Prerequisites
 These instructions assume that:
  * Your host PC is running Ubuntu Linux 20.04;
  * You are running the provided scripts in a ``bash`` shell environment;
- * This release requires TC2 Fast Model platform (FVP) version 11.22.34.
+ * This release requires TC2 Fast Model platform (FVP) version 11.23.13.
 
 To get the latest repo tool from Google, please run the following commands:
 ::
@@ -75,12 +75,12 @@ in these instructions.
 
     mkdir <TC2_WORKSPACE>
     cd <TC2_WORKSPACE>
-    export TC2_RELEASE=refs/tags/TC2-2023.08.15
+    export TC2_RELEASE=refs/tags/TC2-2023.10.04-rc0
 
 To sync **Buildroot or Debian source code**, please run the following repo commands:
 ::
 
-    repo init -u https://gitlab.arm.com/arm-reference-solutions/arm-reference-solutions-manifest \
+    repo init -u ssh://git@git.gitlab.oss.arm.com/engineering/tc/manifests \
 		-m tc2.xml \
 		-b ${TC2_RELEASE} \
 		-g bsp
@@ -90,7 +90,7 @@ To sync **Buildroot or Debian source code**, please run the following repo comma
 To sync **Android source code**, please run the following repo commands:
 ::
 
-    repo init -u https://gitlab.arm.com/arm-reference-solutions/arm-reference-solutions-manifest \
+    repo init -u ssh://git@git.gitlab.oss.arm.com/engineering/tc/manifests \
 		-m tc2.xml \
 		-b ${TC2_RELEASE} \
 		-g android
@@ -816,7 +816,7 @@ On the ``terminal_uart_ap`` run:
 EAS with LISA
 #############
 
-This test requires Lisa to be installed. Please refer to the  `LISA documentation <https://lisa-linux-integrated-system-analysis.readthedocs.io/en/master/setup.html#installation>`_ to get more information about the requirements, dependencies and installation process of LISA on your system.
+This test requires Lisa to be installed. Please refer to the `LISA documentation <https://lisa-linux-integrated-system-analysis.readthedocs.io/en/master/setup.html#installation>`_ to get more information about the requirements, dependencies and installation process of LISA on your system.
 
 To setup Lisa, please run the following commands:
 ::
@@ -836,7 +836,7 @@ The following commands should be run each time LISA is run:
 For FVP with buildroot, boot the FVP model to buildroot as you normally would, making sure user networking is enabled:
 ::
 
-	exekall run lisa.tests.scheduler.eas_behaviour  --conf <path to target_conf_linux.yml>
+    exekall run lisa.tests.scheduler.eas_behaviour --conf <path to target_conf_linux.yml>
 
 
 The following excerpt illustrates the contents of the ``target_conf_buildroot.yml`` file:
@@ -869,6 +869,60 @@ The following excerpt illustrates the contents of the ``target_conf_buildroot.ym
 
 .. note::
     This test is specific to Buildroot only. An example of the expected test result for this test is illustrated in the related :ref:`Total Compute Platform Expected Test Results <docs/totalcompute/tc2/expected-test-results_eas>` document section.
+
+
+pKVM SMMUv3 driver support validation
+#####################################
+
+The SMMUv3 driver support can be validated by checking the bootlog messages or by running the following presented command. This section describes and educates what output to expect for both situations where the driver is loaded and enabled, or when it fails or is disabled.
+
+On the ``terminal_uart_ap`` run:
+::
+
+    realpath /sys/bus/platform/devices/3f000000.smmu_700/driver
+
+
+When the **pKVM driver is loaded and enabled with success**, the previous command should report an output similar to the following one:
+::
+
+    $ realpath /sys/bus/platform/devices/3f000000.smmu_700/driver
+    /sys/bus/platform/drivers/kvm-arm-smmu-v3
+
+If the **pKVM driver fails to load or is disabled**, the previous command should report an output similar to the following one:
+::
+
+    $ realpath /sys/bus/platform/devices/3f000000.smmu_700/driver
+    /sys/bus/platform/drivers/arm-smmu-v3
+
+More information about the pKVM driver loading, initialisation phase and it being used by a device driver can be checked during the bootlog messages or by running the command ``dmesg``, which should contain entries similar to the following:
+::
+
+    (...)
+    [    0.035500][    T1] iommu: Default domain type: Translated
+    [    0.035506][    T1] iommu: DMA domain TLB invalidation policy: strict mode
+    (...)
+    [    0.073258][    T1] kvm [1]: IPA Size Limit: 40 bits
+    [    0.091014][    T1] kvm-arm-smmu-v3 3f000000.smmu_700: ias 40-bit, oas 40-bit (features 0x0000dfef)
+    [    0.091426][    T1] kvm-arm-smmu-v3 3f000000.smmu_700: allocated 65536 entries for cmdq
+    [    0.091435][    T1] kvm-arm-smmu-v3 3f000000.smmu_700: 2-level strtab only covers 23/32 bits of SID
+    [    0.092569][    T9] Freeing initrd memory: 1328K
+    [    0.096695][    T1] kvm [1]: GICv4 support disabled
+    [    0.096702][    T1] kvm [1]: GICv3: no GICV resource entry
+    [    0.096709][    T1] kvm [1]: disabling GICv2 emulation
+    [    0.096731][    T1] kvm [1]: GIC system register CPU interface enabled
+    [    0.096788][    T1] kvm [1]: vgic interrupt IRQ9
+    [    0.096861][    T1] kvm [1]: Protected nVHE mode initialized successfully
+    (...)
+    [    0.151372][    T7] komeda 2cc00000.display: Adding to iommu group 0
+    (...)
+    [   34.986406][    T7] mali 2d000000.gpu: Adding to iommu group 1
+    (...)
+
+Considering the previous output excerpt, the last line confirms that the system is using pKVM instead of the classic KVM driver.
+
+.. note::
+    This test is applicable to all TC build distro variants.
+
 
 .. _docs/totalcompute/tc2/sanity-tests_cpuFeatures:
 
@@ -1124,8 +1178,8 @@ Connect to the running FVP-model instance
 
   ::
 
-		adb connect 127.0.0.1:5555
-		adb devices
+	adb connect 127.0.0.1:5555
+	adb devices
 
   The following excerpt capture demonstrates the execution and expected output from the previous commands:
 
@@ -1304,6 +1358,105 @@ To revert the configuration of your host system (removing the ``tap0`` interface
     ::
 
 	sudo apt-get remove libvirt-daemon-system libvirt-clients
+
+
+.. _docs/totalcompute/tc2/user-guide_fvp_traces:
+
+Running and Collecting FVP tracing information
+##############################################
+
+This section describes how to run the FVP-model, enabling the output of trace information for debug and troubleshooting purposes.
+To illustrate proper trace output information that can be obtained at different stages, the following command examples will use the SMMU-700 block component. However, any of the commands mentioned, can be extended or adapted easily for any other component.
+
+.. note::
+    This functionality requires to execute the FVP-model enforcing the additional load of the ``GenericTrace.so`` or ``ListTraceSources.so`` plugins (which are provided and part of your FVP bundle).
+
+Getting the list of trace sources
+*********************************
+
+To get the list of trace sources available on the FVP-model, please run the following command:
+
+    ::
+
+	<fvp-model binary path>/FVP_TC2 \
+		--plugin <fvp-model plugin path/ListTraceSources.so> \
+		>& /tmp/trace-sources-fvp-tc2.txt
+
+This will start the model and use the ``ListTraceSources.so`` plugin to dump the list to a file. Please note that the file size can easily extend to tens of megabytes, as the list is quite extensive.
+
+The following excerpt illustrates the output information related with the example component SMMU-700:
+
+    ::
+
+	Component (1439) providing trace: TC2.css.smmu (MMU_700, 11.23.13)
+	=============================================================================
+	Component is of type "MMU_700"
+	Version is "11.23.13"
+	#Sources: 299
+
+	Source ArchMsg.Error.error (These messages are about activity occurring on the SMMU that is considered an error.
+	Messages will only come out here if parameter all_error_messages_through_trace is true.
+
+	DISPLAY %{output})
+		Field output type:MTI_STRING size:0 max_size:120 (The stream output)
+
+	Source ArchMsg.Error.fetch_from_memory_type_not_supporting_httu (A descriptor fetch from an HTTU-enabled translation regime to an unsupported
+	memory type was made.  Whilst the fetch itself may succeed, if an update to
+	the descriptor was attempted then it would fail.)
+
+Executing the FVP-model with traces enabled
+*******************************************
+
+To execute the FVP-model with trace information enabled, please run the following command:
+
+    ::
+
+	./run-scripts/tc2/run_model.sh -m <model binary path> -d <distro> \
+		-- \
+		--plugin <fvp-model plugin path/GenericTrace.so> \
+		-C 'TRACE.GenericTrace.trace-sources="TC2.css.smmu.*"' \
+		-C TRACE.GenericTrace.flush=true
+
+Multiple trace sources can be requested by separating the trace-sources strings with commas.
+By default, the trace information will be displayed to the standard output (e.g. display), which due to its verbosity may not be always the ideal solution. For such situations, it is suggested to redirect and capture the trace information into a file, which can be achieved by running the following command:
+
+    ::
+
+	./run-scripts/tc2/run_model.sh -m <model binary path> -d <distro> \
+		-- \
+		--plugin <fvp-model plugin path/GenericTrace.so> \
+		-C 'TRACE.GenericTrace.trace-sources="TC2.css.smmu.*"' \
+		-C TRACE.GenericTrace.flush=true \
+		>& /tmp/trace-fvp-tc2.txt
+
+
+The following output excerpt illustrates an example of the trace information captured for the DPU (``streamid=0x00000100``) and GPU (``streamid=0x00000200``):
+
+    ::
+
+	(...)
+	start_ptw_read: trans_id=0x000000000000020f streamid=0x00000100 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x0000008083fdc018 input_address=0x00000000ffe00000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 inner_cache=rawaWB outer_cache=rawaWB aprot=DNP adomain=ish mpam_pmg_and_partid=0x00000000 ssd=ns pas=ns mecid=0xffffffff
+	verbose_commentary: output="Performing a Table Walk read as:-"
+	verbose_commentary: output="    trans_id:527-st2-final-l1-aa64-ttb0-vmid:0-ns-sid:256"
+	verbose_commentary: output="to ns-0x0000008083fdc018-PND-u0x53000009-m0xffffffff-ish-osh-rawaC-rawaC of size 8B"
+	verbose_commentary: output="Table Walk finished:-"
+	verbose_commentary: output="    trans_id:527-st2-final-l1-aa64-ttb0-vmid:0-ns-sid:256"
+	verbose_commentary: output="got:-"
+	verbose_commentary: output="    0x0000008083fdc018: 0x0000008085c31003"
+	ptw_read: trans_id=0x000000000000020f streamid=0x00000100 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x0000008083fdc018 input_address=0x00000000ffe00000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 inner_cache=rawaWB outer_cache=rawaWB aprot=DNP adomain=ish abort=ok data=0x0000008085c31003 ssd=ns pas=ns mecid=0xffffffff
+	ptw_read_st2_table_descriptor: trans_id=0x000000000000020f streamid=0x00000100 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x0000008083fdc018 input_address=0x00000000ffe00000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 APTable=aptable_no_effect XNTable=N PXNTable=N TableAddress=0x0000008085c31000 ssd=ns pas=ns mecid=0xffffffff
+	(...)
+	start_ptw_read: trans_id=0x000000000000033b streamid=0x00000200 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x00000080872a7010 input_address=0x00000080844db000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 inner_cache=rawaWB outer_cache=rawaWB aprot=DNP adomain=ish mpam_pmg_and_partid=0x00000000 ssd=ns pas=ns mecid=0xffffffff
+	verbose_commentary: output="Performing a Table Walk read as:-"
+	verbose_commentary: output="    trans_id:827-st2-final-l1-aa64-ttb0-vmid:1-ns-sid:512"
+	verbose_commentary: output="to ns-0x00000080872a7010-PND-u0x53000109-m0xffffffff-ish-osh-rawaC-rawaC of size 8B"
+	verbose_commentary: output="Table Walk finished:-"
+	verbose_commentary: output="    trans_id:827-st2-final-l1-aa64-ttb0-vmid:1-ns-sid:512"
+	verbose_commentary: output="got:-"
+	verbose_commentary: output="    0x00000080872a7010: 0x000000808a52d003"
+	ptw_read: trans_id=0x000000000000033b streamid=0x00000200 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x00000080872a7010 input_address=0x00000080844db000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 inner_cache=rawaWB outer_cache=rawaWB aprot=DNP adomain=ish abort=ok data=0x000000808a52d003 ssd=ns pas=ns mecid=0xffffffff
+	ptw_read_st2_table_descriptor: trans_id=0x000000000000033b streamid=0x00000200 substreamid=0xffffffff ttb_grain_stage_and_level=0x00000201 pa_address=0x00000080872a7010 input_address=0x00000080844db000 ssd_ns=ssd_ns ns=bus-ns desckind=el2_or_st2_aarch64 APTable=aptable_no_effect XNTable=N PXNTable=N TableAddress=0x000000808a52d000 ssd=ns pas=ns mecid=0xffffffff
+	(...)
 
 
 --------------

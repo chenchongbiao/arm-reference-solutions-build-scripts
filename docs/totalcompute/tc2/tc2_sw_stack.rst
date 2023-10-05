@@ -54,6 +54,16 @@ It performs the following functions:
  #. Power Domain management
  #. Clock management
 
+System MMU (aka SMMU or IOMMU)
+..............................
+System MMU, also known as SMMUv3 or IOMMU, is the Arm IP that isolates direct memory accesses from devices (DMA), and enables devices to access non-contiguous physical memory with configurable memory attributes.
+
+Linux has two SMMUv3 drivers:
+ * ``CONFIG_ARM_SMMU_V3`` enables the normal kernel driver that executes at ``EL1``;
+ * ``CONFIG_ARM_SMMU_V3_PKVM`` enables a split driver that executes partly at ``EL2``, in the pKVM hypervisor.
+
+When pKVM is enabled (``kvm-arm.mode=protected``), the pKVM SMMU driver takes precedence over the normal driver, and protects hypervisor and guest VMs from host DMA. Host device drivers still configure DMA using the Linux DMA API, and the hypervisor installs the requested virtual-to-physical translations into the SMMU stage-2 page tables, after making sure that a compromised host is not attempting via DMA to access memory it does not own.
+
 AP Secure World Software
 ------------------------
 Secure software/firmware is a trusted software component that runs in the AP secure world. It mainly consists of AP firmware, Secure Partition Manager and Secure Partitions (OP-TEE, Trusted Services).

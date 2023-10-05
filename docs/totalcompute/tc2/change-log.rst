@@ -9,6 +9,14 @@ This document contains a summary of the new features, changes and
 fixes in each release of TC2 software stack.
 
 
+Version TC2-2023.10.04-rc0
+--------------------------
+
+Features added
+~~~~~~~~~~~~~~
+- GPU and DPU support for S1 and S2 translation squashed with SMMU-700;
+
+
 Version TC2-2023.08.15
 ----------------------
 
