@@ -75,7 +75,7 @@ in these instructions.
 
     mkdir <TC2_WORKSPACE>
     cd <TC2_WORKSPACE>
-    export TC2_RELEASE=refs/tags/TC2-2023.10.04-rc0
+    export TC2_RELEASE=refs/tags/TC2-2023.10.04-rc1
 
 To sync **Buildroot or Debian source code**, please run the following repo commands:
 ::

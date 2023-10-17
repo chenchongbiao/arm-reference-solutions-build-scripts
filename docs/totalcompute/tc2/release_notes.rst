@@ -1,13 +1,13 @@
 .. _docs/totalcompute/tc2/release_notes:
 
-Release notes - TC2-2023.10.04-rc0
+Release notes - TC2-2023.10.04-rc1
 ==================================
 
 .. contents::
 
 Release tag
 -----------
-The manifest tag for this release is ``TC2-2023.10.04-rc0``.
+The manifest tag for this release is ``TC2-2023.10.04-rc1``.
 
 Components
 ----------
