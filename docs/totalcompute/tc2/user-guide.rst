@@ -75,12 +75,12 @@ in these instructions.
 
     mkdir <TC2_WORKSPACE>
     cd <TC2_WORKSPACE>
-    export TC2_RELEASE=refs/tags/TC2-2023.10.04-rc1
+    export TC2_RELEASE=refs/tags/TC2-2023.10.04
 
 To sync **Buildroot or Debian source code**, please run the following repo commands:
 ::
 
-    repo init -u ssh://git@git.gitlab.oss.arm.com/engineering/tc/manifests \
+    repo init -u https://gitlab.arm.com/arm-reference-solutions/arm-reference-solutions-manifest \
 		-m tc2.xml \
 		-b ${TC2_RELEASE} \
 		-g bsp
@@ -90,7 +90,7 @@ To sync **Buildroot or Debian source code**, please run the following repo comma
 To sync **Android source code**, please run the following repo commands:
 ::
 
-    repo init -u ssh://git@git.gitlab.oss.arm.com/engineering/tc/manifests \
+    repo init -u https://gitlab.arm.com/arm-reference-solutions/arm-reference-solutions-manifest \
 		-m tc2.xml \
 		-b ${TC2_RELEASE} \
 		-g android

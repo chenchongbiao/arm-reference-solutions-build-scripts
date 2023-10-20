@@ -9,8 +9,8 @@ This document contains a summary of the new features, changes and
 fixes in each release of TC2 software stack.
 
 
-Version TC2-2023.10.04-rc1
---------------------------
+Version TC2-2023.10.04
+----------------------
 
 Features added
 ~~~~~~~~~~~~~~

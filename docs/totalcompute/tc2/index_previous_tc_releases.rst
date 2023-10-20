@@ -9,7 +9,7 @@ This web page provides a list of all the TotalCompute Software Stack releases, c
 
 Latest TC release
 -----------------
-`TC2-2023.10.04-rc1 <https://totalcompute.docs.arm.com/en/tc2-2023.10.04-rc1/totalcompute/tc2/index.html>`__
+`TC2-2023.10.04 <https://totalcompute.docs.arm.com/en/tc2-2023.10.04/totalcompute/tc2/index.html>`__
 
 
 TC2 release tags
