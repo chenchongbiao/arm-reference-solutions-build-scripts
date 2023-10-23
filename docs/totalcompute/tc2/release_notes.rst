@@ -21,7 +21,8 @@ The following is a summary of the key software features of the release:
  - Trusty for Trusted Execution Environment (TEE) with FF-A messaging in Android;
  - System control processor(SCP) firmware for programming the interconnect, power control etc;
  - Runtime Security Subsystem (RSS) firmware for providing HW RoT;
- - TensorFlow Lite Machine Learning.
+ - TensorFlow Lite Machine Learning;
+ - Enable full-HD (1920x1080-60fps) resolution support for use with the FVP model.
 
 Hardware Features
 -----------------

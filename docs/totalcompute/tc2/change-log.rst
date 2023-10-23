@@ -15,6 +15,7 @@ Version TC2-2023.10.04
 Features added
 ~~~~~~~~~~~~~~
 - GPU and DPU support for S1 and S2 translation squashed with SMMU-700;
+- Enable full-HD (1920x1080-60fps) resolution support for use with the FVP model;
 
 
 Version TC2-2023.08.15

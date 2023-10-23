@@ -1,0 +1,48 @@
+From 0a4ba2939f2c6bd8a4e230ec86dd8e7a8b052247 Mon Sep 17 00:00:00 2001
+From: Sergio da Silva Alves <sergiodasilvaalves@arm.com>
+Date: Mon, 23 Oct 2023 11:38:08 +0000
+Subject: [PATCH] tc: enable FVP .dts support for 1920x1080-60fps resolution
+
+Enable support in the FVP model related TC device tree for
+full-HD 1920x1080@60fps resolution.
+
+Signed-off-by: Sergio da Silva Alves <sergiodasilvaalves@arm.com>
+---
+ fdts/tc.dts | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/fdts/tc.dts b/fdts/tc.dts
+index 4f275895f..0ead33c3e 100644
+--- a/fdts/tc.dts
++++ b/fdts/tc.dts
+@@ -356,6 +356,19 @@
+ 
+ 		display-timings {
+ 			panel-timing {
++				/* 1920x1080-60fps */
++				clock-frequency = <148500000>;
++				hactive = <1920>;
++				vactive = <1080>;
++				hfront-porch = <88>;
++				hback-porch = <148>;
++				hsync-len = <44>;
++				vfront-porch = <4>;
++				vback-porch = <36>;
++				vsync-len = <5>;
++
++				/* 640x480-60fps */
++				/*
+ 				clock-frequency = <25175000>;
+ 				hactive = <640>;
+ 				vactive = <480>;
+@@ -365,6 +378,7 @@
+ 				vfront-porch = <10>;
+ 				vback-porch = <33>;
+ 				vsync-len = <2>;
++				*/
+ 			};
+ 		};
+ 
+-- 
+2.25.1
+
