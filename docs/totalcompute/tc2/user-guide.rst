@@ -20,7 +20,7 @@ Prerequisites
 These instructions assume that:
  * Your host PC is running Ubuntu Linux 20.04;
  * You are running the provided scripts in a ``bash`` shell environment;
- * This release requires TC2 Fast Model platform (FVP) version 11.23.13.
+ * This release requires TC2 Fast Model platform (FVP) version 11.23.17.
 
 To get the latest repo tool from Google, please run the following commands:
 ::
@@ -1388,10 +1388,10 @@ The following excerpt illustrates the output information related with the exampl
 
     ::
 
-	Component (1439) providing trace: TC2.css.smmu (MMU_700, 11.23.13)
+	Component (1439) providing trace: TC2.css.smmu (MMU_700, 11.23.17)
 	=============================================================================
 	Component is of type "MMU_700"
-	Version is "11.23.13"
+	Version is "11.23.17"
 	#Sources: 299
 
 	Source ArchMsg.Error.error (These messages are about activity occurring on the SMMU that is considered an error.

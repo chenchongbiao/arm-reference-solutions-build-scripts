@@ -77,7 +77,7 @@ Software Features
 
 Platform Support
 ----------------
- - This software release is tested on TC2 Fast Model platform (FVP) version 11.23.13.
+ - This software release is tested on TC2 Fast Model platform (FVP) version 11.23.17.
 
 Tools Support
 -------------
