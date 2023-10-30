@@ -241,6 +241,10 @@ pip3 install -r requirements.txt
 pip3 install --upgrade protobuf grpcio-tools
 popd
 
+# The newer version of pyhsslms (2.0.0) causes image verification failure
+# during the RSS boot
+pip3 install pyhsslms==1.1.1
+
 # Patch components
 
 # Android has its own thing to do the patching
