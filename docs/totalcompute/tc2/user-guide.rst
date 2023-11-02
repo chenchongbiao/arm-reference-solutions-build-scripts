@@ -772,6 +772,7 @@ BTI
 On the ``terminal_uart_ap`` run:
 ::
 
+    su
     cd /data/nativetest64/bti-unit-tests/
     ./bti-unit-tests
 
@@ -1085,17 +1086,19 @@ More information about the AutoFDO process in ARM can be found `here <https://gi
 Prerequisites
 *************
 
-To make use of this feature, the following two requisites should be observed:
+To make use of this feature, the following requisites should be observed:
 
 * the application must be compiled to include sufficient debug information to map instructions back to source lines. For ``clang``/``llvm``, this translates into adding the ``-fdebug-info-for-profiling`` and ``-gline-tables-only`` compiler options;
 
 * ``simpleperf`` will identify the active program or library using the build identifier stored in the elf file. This requires the use of the following compiler flag ``-Wl,--build-id=sha1`` to be added during link time.
 
-The following example demonstrates how to compile a sample C program named ``program.c`` using ``clang`` and observing these two prerequisites:
+* download Android NDK from `Android NDK downloads page <https://developer.android.com/ndk/downloads>`__ and extract its contents.
+
+The following example demonstrates how to compile a sample C program named ``program.c`` using ``clang`` from Android NDK:
 
 ::
 
-	clang --fdebug-info-for-profiling -gline-tables-only -Wl,--build-id=sha1 program.c -o program
+	<ndk-path>/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=aarch64-linux-android31 --sysroot=<ndk-path>/toolchains/llvm/prebuilt/linux-x86_64/sysroot -fdebug-info-for-profiling -gline-tables-only -Wl,--build-id=sha1 -Wl,--no-rosegment program.c -o program
 
 Steps to use AutoFDO
 ********************
@@ -1106,7 +1109,7 @@ The following steps describe how to upload the resulting ``program`` binary obje
 
 	Please refer to the :ref:`ADB - Connect to the running FVP-model instance <docs/totalcompute/tc2/user-guide_adb-connect>` section for more info how to do this.
 
-#. upload the previous resulting ``program`` binary object to the remote ``/usr/bin`` path location;
+#. upload the previous resulting ``program`` binary object to the remote ``/vendor/bin`` path location;
 
 	Please refer to the :ref:`ADB - Upload a file <docs/totalcompute/tc2/user-guide_adb-upload>` section for more info how to do this.
 
@@ -1116,6 +1119,7 @@ The following steps describe how to upload the resulting ``program`` binary obje
 
 		cd /storage/self
 		su
+		chmod a+x /vendor/bin/program
 
 #. record the execution trace of the program;
 
@@ -1139,15 +1143,19 @@ The following steps describe how to upload the resulting ``program`` binary obje
 
 #. convert the instruction samples to source level profiles;
 
-	The `AutoFDO <https://github.com/google/autofdo>`__ tool is used to convert the instruction profiles to source profiles for the ``GCC`` and ``clang``/``llvm`` compilers.
+	The `AutoFDO <https://github.com/google/autofdo>`__ tool is used to convert the instruction profiles to source profiles for the ``GCC`` and ``clang``/``llvm`` compilers. It can be installed in the host machine with the following command:
 
-	This requires to pull the instruction profile (generated in the previous step and saved as ``inj.data`` file), from the model to the host machine using the ``adb`` command (please refer to the :ref:`ADB - Download a file <docs/totalcompute/tc2/user-guide_adb-download>` section for more info how to do this).
+	::
+
+		sudo apt-get install autofdo
+
+	The conversion of the instruction samples to source level profiles requires to pull the instruction profile (generated in the previous step and saved as ``inj.data`` file), from the model to the host machine using the ``adb`` command (please refer to the :ref:`ADB - Download a file <docs/totalcompute/tc2/user-guide_adb-download>` section for more info how to do this).
 
 	The instruction samples produced by ``simpleperf inject`` will be passed to the AutoFDO tool to generate source level profiles for the compiler. The following line demonstrates the usage command for ``clang``/``llvm`` (this command is intended to be run on the host machine):
 
 	::
 
-		create_llvm_prof -binary=program -profile=inj.data -out=program.llvmprof
+		create_llvm_prof --binary program --profile inj.data --profiler text --out program.llvmprof --format text
 
 #. use the source level profile with the compiler;
 
@@ -1155,7 +1163,7 @@ The following steps describe how to upload the resulting ``program`` binary obje
 
 	::
 
-		clang -O2 -fprofile-sample-use=program.llvmprof -o program program.c
+		<ndk-path>/toolchains/llvm/prebuilt/linux-x86_64/bin/clang --target=aarch64-linux-android31 --sysroot=<ndk-path>/toolchains/llvm/prebuilt/linux-x86_64/sysroot -O2 -fprofile-sample-use=program.llvmprof -o program program.c
 
 .. _docs/totalcompute/tc2/user-guide_adb:
 
