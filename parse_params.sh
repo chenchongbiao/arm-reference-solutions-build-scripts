@@ -9,6 +9,7 @@ readonly FILESYSTEM_OPTIONS=(
     "android-fvp"
     "android-fpga"
     "debian"
+    "deepin"
 )
 
 readonly PLATFORM_OPTIONS=(
