@@ -56,6 +56,11 @@ fi
             info_echo "Debian will be built without Mali DDK!"
         fi
         ;;
+    ("deepin")
+        scripts+=(
+            "build-deepin.sh"
+        )
+        ;;
     ("none")
          ;;
     (*) false

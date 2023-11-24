@@ -43,6 +43,7 @@ if [[ -z "${FILESYSTEM:-}" ]] ; then
     echo "    - buildroot"
     echo "    - android-swr"
     echo "    - debian"
+    echo "    - deepin"
     exit 1
 fi
 
@@ -269,6 +270,12 @@ fi
 if [ "$FILESYSTEM" == "debian" ]; then
     to_patch+=(
          "build-debian.sh"
+    )
+fi
+
+if [ "$FILESYSTEM" == "deepin" ]; then
+    to_patch+=(
+        "build-deepin.sh"
     )
 fi
 
